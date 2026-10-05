@@ -1,6 +1,6 @@
 import React from 'react';
 import { Layout, Typography, Space, Button, Menu } from 'antd';
-import { DatabaseOutlined, ApiOutlined, PlusOutlined, UnorderedListOutlined, FolderOpenOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons';
+import { DatabaseOutlined, ApiOutlined, PlusOutlined, UnorderedListOutlined, FolderOpenOutlined, PartitionOutlined, SettingOutlined, LogoutOutlined } from '@ant-design/icons';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const { Header } = Layout;
@@ -33,6 +33,13 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onLogout }) => {
       key: '/files',
       icon: <FolderOpenOutlined />,
       label: 'Files',
+    },
+    // The page needs a project and picks the first relational one when the URL names
+    // none, so this entry carries no query of its own.
+    {
+      key: '/mapping',
+      icon: <PartitionOutlined />,
+      label: 'Graph Mapping',
     },
     {
       key: '/settings',

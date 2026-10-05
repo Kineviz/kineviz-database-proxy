@@ -17,10 +17,11 @@ import {
   EditOutlined,
   DeleteOutlined,
   LinkOutlined,
+  PartitionOutlined,
   ExclamationCircleOutlined,
 } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
-import { Project, DatabaseType } from '../types/project';
+import { Project, ProjectCreate, DatabaseType, isRelationalType } from '../types/project';
 import { projectService } from '../services/projectService';
 import ProjectForm, { StorePrefill } from '../components/ProjectForm';
 import ApiUrlsModal from '../components/ApiUrlsModal';
@@ -133,12 +134,24 @@ const ProjectManagement: React.FC = () => {
     setApiUrlsModalVisible(true);
   };
 
-  const handleCreateSubmit = async (values: any) => {
+  const handleCreateSubmit = async (values: ProjectCreate) => {
     try {
-      await projectService.createProject(values);
+      const created = await projectService.createProject(values);
       message.success('Project created successfully');
       navigate('/listProjects');
       loadProjects();
+      // A mapping file rode with the create and the proxy — never the browser — decided
+      // whether it loads. `createProject` warns in place when it refuses one; the project
+      // is real either way, so this is an offer to fix the file, not an error about it.
+      if (values.graph_mapping_yaml?.trim() && created?.name) {
+        Modal.confirm({
+          title: `${created.name} was created with a mapping file`,
+          content: `The text went to /api/relational/${created.name}/mapping. If the warning above says it was refused, the project still exists and nothing was lost: open Graph Mapping, fix the file and apply it there.`,
+          okText: 'Open Graph Mapping',
+          cancelText: 'Stay on Projects',
+          onOk: () => navigate(`/mapping?project=${encodeURIComponent(created.name)}`),
+        });
+      }
     } catch (error) {
       message.error('Failed to create project');
       console.error('Error creating project:', error);
@@ -180,6 +193,8 @@ const ProjectManagement: React.FC = () => {
         return 'green';
       case 'mysql':
         return 'orange';
+      case 'mssql':
+        return 'gold';
       case 'mongodb':
         return 'purple';
       default:
@@ -235,6 +250,17 @@ const ProjectManagement: React.FC = () => {
               onClick={() => handleShowApiUrls(record)}
             />
           </Tooltip>
+          {/* Only a table catalog has a mapping to review, so the action is not offered
+              for an engine whose graph the database already names. */}
+          {isRelationalType(record.database_type) && (
+            <Tooltip title="Graph mapping">
+              <Button
+                type="text"
+                icon={<PartitionOutlined />}
+                onClick={() => navigate(`/mapping?project=${encodeURIComponent(record.name)}`)}
+              />
+            </Tooltip>
+          )}
           <Tooltip title="Edit Project">
             <Button
               type="text"

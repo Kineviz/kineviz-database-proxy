@@ -21,10 +21,15 @@ import {
   AuthType,
   Project,
   ProjectCreate,
+  RELATIONAL_DEFAULT_PORT,
+  isRelationalType,
 } from "../types/project";
 import { projectService } from "../services/projectService";
 import BigqueryRegionSelect from "./BigqueryRegionSelect";
 import EmbeddedStoreConfig from "./EmbeddedStoreConfig";
+import RelationalDatabaseConfig, {
+  RELATIONAL_DEFAULT_SCHEMA,
+} from "./RelationalDatabaseConfig";
 
 // The embedded engines are files rather than servers: no host, no port, no
 // credentials. Keep this in step with EMBEDDED_ENGINES in types/project.ts.
@@ -237,6 +242,25 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
       }
     }
 
+    if (isRelationalType(database_type)) {
+      // `graph_mapping` and `options` come from the stored config rather than the form:
+      // editing a host must not drop a mapping the Graph Mapping page owns, and both are
+      // fields this card deliberately does not have.
+      databaseConfig = {
+        ...databaseConfig,
+        options: initialValues?.database_config?.options ?? {},
+        graph_mapping: initialValues?.database_config?.graph_mapping ?? null,
+        host: dbConfigFields.host,
+        port: dbConfigFields.port,
+        database_id: dbConfigFields.database_id || "",
+        schema_name: dbConfigFields.schema_name || "",
+        username: dbConfigFields.username || "",
+        password: dbConfigFields.password || "",
+        use_tls: dbConfigFields.use_tls === true || dbConfigFields.use_tls === "true",
+        oauth_config: {},
+      };
+    }
+
     if (isEmbedded(database_type)) {
       databaseConfig = {
         ...databaseConfig,
@@ -270,10 +294,17 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
       }
     }
 
+    // The mapping text is not a form control the layout registers; the relational card
+    // parks it on the store, and it is the one thing here that must not be parsed twice.
+    const mappingText = form.getFieldValue("graph_mapping_yaml");
+
     const projectData: ProjectCreate = {
       name,
       database_type,
       database_config: databaseConfig,
+      ...(typeof mappingText === "string" && mappingText.trim()
+        ? { graph_mapping_yaml: mappingText }
+        : {}),
     };
 
     onSubmit(projectData);
@@ -298,6 +329,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
       "location",
       "username",
       "password",
+      "schema_name",
+      // Unregistered by any control, so it only goes away when asked for by name.
+      "graph_mapping_yaml",
     ]);
     setProjectsList([]);
     setDatabases([]);
@@ -312,6 +346,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
         port: 7687,
         use_tls: false,
         ...(value === "neo4j" ? { database_id: "neo4j" } : {}),
+      });
+    } else if (isRelationalType(value)) {
+      // One auth type, the engine's own port, and the schema that engine calls home.
+      const defaultAuth: AuthType = "username_password";
+      setAuthType(defaultAuth);
+      form.setFieldsValue({
+        auth_type: defaultAuth,
+        port: RELATIONAL_DEFAULT_PORT[value],
+        use_tls: false,
+        schema_name: RELATIONAL_DEFAULT_SCHEMA[value] ?? "",
       });
     } else if (value === "bigquery") {
       setAuthType(DefaultAuthType);
@@ -816,9 +860,10 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
               <Option value="kuzu">Kuzu (embedded)</Option>
               <Option value="ladybug">Ladybug (embedded)</Option>
               <Option value="latticedb">LatticeDB (embedded)</Option>
-              {/* <Option value="postgresql">PostgreSQL</Option>
+              <Option value="mssql">SQL Server</Option>
+              <Option value="postgresql">PostgreSQL</Option>
               <Option value="mysql">MySQL</Option>
-              <Option value="mongodb">MongoDB</Option> */}
+              {/* <Option value="mongodb">MongoDB</Option> */}
             </Select>
           </Form.Item>
         </Col>
@@ -848,6 +893,9 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
                 </>
               )}
               {(databaseType === "neo4j" || databaseType === "memgraph") && (
+                <Option value="username_password">Username / Password</Option>
+              )}
+              {isRelationalType(databaseType) && (
                 <Option value="username_password">Username / Password</Option>
               )}
             </Select>
@@ -1361,6 +1409,16 @@ const ProjectForm: React.FC<ProjectFormProps> = ({
             </Col>
           </Row>
         </Card>
+      )}
+
+      {isRelationalType(databaseType) && (
+        <RelationalDatabaseConfig
+          databaseType={databaseType}
+          form={form}
+          // An existing project's mapping belongs to the Graph Mapping page, not to a
+          // re-submitted connection form.
+          allowMappingUpload={!initialValues}
+        />
       )}
 
       {isEmbedded(databaseType) && (
