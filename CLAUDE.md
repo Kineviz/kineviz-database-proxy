@@ -237,8 +237,10 @@ decorator. `tests/conftest.py` puts `src/` on `sys.path`, so tests import
 ## Docs
 
 - `doc/` — user-facing guides in English, each with a `.zh.md` twin
-  (`DEV_GUIDE`, `USAGE`, `EMBEDDED_STORES`, publishing guides; `API_Reference`
-  has no twin). Keep the pair in sync when you touch either.
+  (`DEV_GUIDE`, `USAGE`, `EMBEDDED_STORES`, publishing guides, `RELATIONAL_MAPPING`;
+  `API_Reference` and `RELATIONAL_API` have no twin — they are route-by-route
+  reference, and a second copy drifts from the code that answers it). Keep the pair
+  in sync when you touch either.
 - `docs/superpowers/specs/` and `docs/superpowers/plans/` — design specs and
   implementation plans, named `YYYY-MM-DD-<topic>.md`.
 
