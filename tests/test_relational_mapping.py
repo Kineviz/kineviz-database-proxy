@@ -7,6 +7,10 @@ every endpoint pointing at the old label, and every refusal is named by the path
 the control that is wrong. An uploaded file obeys them exactly as a clicked one does,
 which is the reason they are tested against ``mapping.from_document`` and not against
 a page.
+
+What is left here is the loader's own behaviour. The rules it delegates have a test
+file each — ``test_relational_mapping_scope``, ``_index``, ``_props``, ``_pairs`` and
+``_provenance`` — and those files import the builders below from this one.
 """
 
 from __future__ import annotations
@@ -18,9 +22,6 @@ from graphxr_database_proxy.drivers.relational.mapping import (
     PROVENANCE_ADDED,
     PROVENANCE_AUTO,
     PROVENANCE_EXCLUDED,
-    PROVENANCE_FLIPPED,
-    PROVENANCE_KINDS,
-    PROVENANCE_RENAMED,
     EffectiveMapping,
     from_document,
 )
@@ -145,19 +146,6 @@ def test_no_override_at_all_is_just_discovery_read_straight() -> None:
     assert out.nodes["Organization"].key_type == "bigint"
 
 
-def test_every_provenance_a_page_can_show_is_one_of_the_five_it_documents() -> None:
-    out = from_document(
-        document(
-            nodes=[person_node(label="Contact"), org_node()],
-            edges=[works_for(endpoints=[pair("Contact", "Organization")]),
-                   works_for(type="MANAGES", endpoints=[pair("Contact", "Contact")], flip=True)],
-        ),
-        catalog(),
-    )
-    assert out.valid, out.problems
-    assert set(out.provenance.values()) <= set(PROVENANCE_KINDS)
-
-
 # ----------------------------------------------------------------------- refusal
 
 
@@ -255,57 +243,6 @@ def test_duplicates_are_named_by_the_second_entrys_path() -> None:
 # ------------------------------------------------------------------- cascades
 
 
-def test_excluding_a_record_drops_the_links_that_needed_it_and_says_which() -> None:
-    out = from_document(
-        document(
-            nodes=[person_node(include=False), org_node()],
-            edges=[works_for()],
-        ),
-        catalog(),
-    )
-    # The file still loads: unticking a record is a decision, not a mistake. What has
-    # to be visible is that a link went with it.
-    assert out.valid, out.problems
-    assert "WORKS_FOR" not in out.edges
-    assert out.provenance["Person"] == PROVENANCE_EXCLUDED
-    assert out.provenance["WORKS_FOR"] == PROVENANCE_EXCLUDED
-    assert any("WORKS_FOR" in text and "Person" in text for text in out.warnings)
-
-
-def test_the_include_list_is_a_whitelist_and_its_names_are_matched_both_ways() -> None:
-    doc = document(
-        nodes=[person_node(), org_node()],
-        edges=[works_for()],
-        include=["Employment"],
-    )
-    out = from_document(doc, catalog())
-    assert out.nodes == {}
-    # `Employment` names a table, not a label, and still excluded the records that
-    # were only ever reachable through it.
-    assert out.provenance["WORKS_FOR"] == PROVENANCE_EXCLUDED
-
-
-def test_an_exclude_naming_a_table_removes_the_record_by_that_name() -> None:
-    out = from_document(document(nodes=[person_node(), org_node()], edges=[works_for()]),
-                        catalog())
-    assert out.valid
-    dropped = from_document(
-        document(nodes=[person_node(), org_node()], edges=[works_for()], exclude=["Person"]),
-        catalog(),
-    )
-    assert "Person" not in dropped.nodes
-    assert dropped.provenance["WORKS_FOR"] == PROVENANCE_EXCLUDED
-
-
-def test_a_typo_in_a_scope_list_is_said_once_and_only_with_a_schema_in_front_of_us() -> None:
-    with_catalog = from_document(
-        document(nodes=[person_node()], exclude=["Persn"]), catalog()
-    )
-    assert any("Persn" in text for text in with_catalog.warnings)
-    offline = from_document(document(nodes=[person_node()], exclude=["Persn"]), None)
-    assert offline.warnings == []
-
-
 def test_one_refused_record_is_reported_once_however_many_links_pointed_at_it() -> None:
     out = from_document(
         document(
@@ -322,144 +259,7 @@ def test_one_refused_record_is_reported_once_however_many_links_pointed_at_it() 
     assert any("did not load" in text for text in out.warnings)
 
 
-# ---------------------------------------------------------------------- renames
-
-
-def test_a_rename_rewrites_every_endpoint_pointing_at_the_old_label() -> None:
-    doc = document(
-        nodes=[person_node(label="Contact"), org_node()],
-        edges=[works_for(endpoints=[pair("Person", "Organization")])],
-    )
-    out = from_document(doc, catalog())
-    assert out.valid, out.problems
-    assert "Person" not in out.nodes
-    assert out.edges["WORKS_FOR"].endpoints[0].src.label == "Contact"
-    assert out.provenance["Contact"] == PROVENANCE_RENAMED
-    # The table never moved, so neither does the physical join: only the name GraphXR
-    # sees changed, which is the entire point of a rename being safe to click.
-    assert out.nodes["Contact"].table == "Person"
-
-
-def test_a_rename_survives_being_written_by_hand_rather_than_clicked() -> None:
-    doc = document(
-        nodes=[person_node(label="Contact")],
-        edges=[works_for(endpoints=[pair("Contact", "Organization")]),
-               works_for(type="OLD_WAY", endpoints=[pair("Person", "Organization")])],
-    )
-    out = from_document(doc, catalog())
-    assert out.valid, out.problems
-    assert {p.src.label for p in out.edges["OLD_WAY"].endpoints} == {"Contact"}
-
-
-def test_a_label_a_rename_left_behind_is_not_reported_as_a_typo() -> None:
-    doc = document(nodes=[person_node(label="Contact"), org_node(label="Org")],
-                   edges=[works_for(endpoints=[pair("Person", "Organization")])])
-    out = from_document(doc, catalog())
-    assert out.problems == []
-    assert out.provenance["Contact"] == PROVENANCE_RENAMED
-    assert out.provenance["Org"] == PROVENANCE_RENAMED
-
-
-# ------------------------------------------------------------------- direction
-
-
-def test_flipping_swaps_every_pair_of_the_link_and_marks_the_decision() -> None:
-    doc = document(
-        nodes=[person_node(), org_node()],
-        edges=[works_for(flip=True, endpoints=[pair("Person", "Organization", rows=7),
-                                                pair("Person", "Organization", "alt_from", "alt_to", rows=3)])],
-    )
-    out = from_document(doc, catalog())
-    endpoints = out.edges["WORKS_FOR"].endpoints
-    assert {p.src.label for p in endpoints} == {"Organization"}
-    assert out.provenance["WORKS_FOR"] == PROVENANCE_FLIPPED
-    # The estimate went with the pair, so the representative is still the same link.
-    assert out.edges["WORKS_FOR"].representative.row_estimate == 7
-
-
-def test_the_representative_pair_and_the_row_count_come_from_the_document() -> None:
-    doc = document(nodes=[person_node(), org_node()],
-                   edges=[works_for(endpoints=[pair("Person", "Organization", rows=5),
-                                                pair("Organization", "Person", rows=50)])])
-    out = from_document(doc, None)
-    assert out.edges["WORKS_FOR"].representative.src.label == "Organization"
-
-
-# ----------------------------------------------------------------- catalog check
-
-
-def test_a_table_that_moved_is_a_warning_and_never_a_blocked_save() -> None:
-    out = from_document(document(nodes=[person_node(table="People")]), catalog())
-    assert out.valid
-    assert any("People" in text and "not in this schema" in text for text in out.warnings)
-
-
-def test_a_column_that_no_longer_exists_is_a_warning_on_the_column() -> None:
-    doc = document(nodes=[person_node(properties={"person_id": "int", "nickname": "varchar(9)"})])
-    out = from_document(doc, catalog())
-    assert out.valid
-    assert any("nickname" in text for text in out.warnings)
-
-
-def test_the_live_schema_wins_a_type_argument() -> None:
-    doc = document(nodes=[person_node(properties={"person_id": "varchar(9)"})])
-    out = from_document(doc, catalog())
-    # A key bound as the wrong type is a full scan that raises nothing, so the schema
-    # in front of us outvotes the file about a schema someone remembered.
-    assert out.nodes["Person"].key_type == "int"
-    assert out.nodes["Person"].all_props()["person_id"] == "int"
-
-
-def test_endpoint_types_are_taken_from_the_edge_table_when_the_file_leaves_them_out() -> None:
-    discovered = catalog()
-    discovered.edges[0].endpoints[0].src.column_type = "int"
-    out = from_document(
-        document(nodes=[person_node(), org_node()], edges=[works_for()]), discovered
-    )
-    assert out.edges["WORKS_FOR"].endpoints[0].src.column_type == "int"
-
-
-# ------------------------------------------------------------------- properties
-
-
-def test_a_stated_property_list_is_a_whitelist_and_the_key_is_never_in_it_twice() -> None:
-    out = from_document(document(nodes=[person_node()]), catalog())
-    props = out.nodes["Person"].props
-    assert "full_name" in props and "person_id" not in props
-    assert list(out.nodes["Person"].all_props()) == ["person_id", "full_name"]
-
-
-def test_excluding_a_property_takes_it_out_whatever_the_source_of_the_list_was() -> None:
-    listed = from_document(
-        document(nodes=[person_node(properties={"full_name": "varchar(100)", "photo": "varbinary(max)"}),
-                        org_node()],),
-        catalog(),
-    )
-    assert "photo" in listed.nodes["Person"].props
-    dropped = from_document(
-        document(nodes=[person_node(properties={"full_name": "varchar(100)", "photo": "varbinary(max)"},
-                                     exclude_properties=["photo"]), org_node()]),
-        catalog(),
-    )
-    assert "photo" not in dropped.nodes["Person"].props
-
-
-def test_no_stated_properties_means_every_column_discovery_saw() -> None:
-    out = from_document(document(nodes=[person_node(properties={})]), catalog())
-    assert out.nodes["Person"].props == {"full_name": "varchar(100)"}
-
-
-def test_an_edges_endpoint_columns_are_not_also_its_properties() -> None:
-    edge = works_for(
-        properties={"from_id": "int", "to_id": "bigint", "started_on": "date",
-                    "employment_id": "int"}
-    )
-    out = from_document(document(nodes=[person_node(), org_node()], edges=[edge]), catalog())
-    props = out.edges["WORKS_FOR"].props
-    # The two columns that place the ends and the column that ids the link are all
-    # structure; repeating them as relationship properties would double the panel and
-    # let a person edit an endpoint by typing a property.
-    assert props == {"started_on": "date"}
+# ------------------------------------------------------------------ passthrough
 
 
 def test_the_reasoning_and_the_display_column_are_fields_and_stay_in_the_mapping() -> None:
@@ -485,14 +285,3 @@ def test_a_schema_named_by_the_document_reaches_every_record_it_declares() -> No
         document(nodes=[person_node(schema_name="hr")], schema_name="sales"), catalog()
     )
     assert specific.nodes["Person"].schema == "hr"
-
-
-def test_the_duplicate_endpoint_pair_a_person_deletes_by_hand_is_not_two_links() -> None:
-    doc = document(
-        nodes=[person_node(), org_node()],
-        edges=[works_for(endpoints=[pair("Person", "Organization", rows=1),
-                                    pair("Person", "Organization", rows=400)])],
-    )
-    out = from_document(doc, None)
-    assert len(out.edges["WORKS_FOR"].endpoints) == 1
-    assert out.edges["WORKS_FOR"].endpoints[0].row_estimate == 400

@@ -17,13 +17,21 @@ Problems are ``(path, message)`` pairs, and the path is a control in the documen
 be pointed at becomes a form a person has to hunt through. One typo is reported
 once: when a record is refused, the links that needed it are dropped with a warning
 instead of each raising the same misspelling a second time.
+
+``EffectiveMapping``, ``from_document`` and the loader are here; the rules the loader
+applies live beside it, one responsibility each, and are imported back so this stays
+the module every caller and every test reaches through: ``mapping_scope`` (what the
+document's include/exclude lists decide), ``mapping_index`` (the discovered draft,
+indexed), ``mapping_props`` (a record's exposed columns), ``mapping_pairs`` (a link's
+resolved endpoint pairs) and ``mapping_provenance`` (the kinds a page shows, and how
+a node's is chosen).
 """
 
 from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Sequence, Set, Tuple, Union
+from typing import Dict, List, Optional, Set, Tuple
 
 from ...models.graph_mapping import (
     UNKNOWN_TYPE,
@@ -32,24 +40,24 @@ from ...models.graph_mapping import (
     MappingEndpoint,
     MappingNode,
 )
+from .mapping_index import _CatalogIndex
+from .mapping_pairs import _columns_of, _deduped
+from .mapping_props import _Record, _props
+from .mapping_provenance import (
+    PROVENANCE_ADDED,
+    PROVENANCE_AUTO,
+    PROVENANCE_EXCLUDED,
+    PROVENANCE_FLIPPED,
+    PROVENANCE_KINDS,
+    PROVENANCE_RENAMED,
+    _node_kind,
+)
+from .mapping_scope import _Scope, _any_hit
 from .schemas import Endpoint, NodeSchema, Pair, RelSchema
 
 #: Letters, digits and underscore, not starting with a digit: what every one of the
 #: three engines accepts unquoted, and what statement text is built from.
 SAFE_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
-
-PROVENANCE_AUTO = "auto"
-PROVENANCE_RENAMED = "renamed"
-PROVENANCE_FLIPPED = "flipped"
-PROVENANCE_ADDED = "added"
-PROVENANCE_EXCLUDED = "excluded"
-PROVENANCE_KINDS = (
-    PROVENANCE_AUTO,
-    PROVENANCE_RENAMED,
-    PROVENANCE_FLIPPED,
-    PROVENANCE_ADDED,
-    PROVENANCE_EXCLUDED,
-)
 
 #: Kept in one sentence because a person has to be able to see that a composite key is
 #: a contract limit, not a corner someone ran out of time on.
@@ -550,192 +558,3 @@ class _Loader:
                 "thing or the id <{}>:<key> is ambiguous".format(name, name),
             )
             del self.out.edges[name]
-
-
-# ------------------------------------------------------------------ document scope
-
-
-class _Scope:
-    """The ``include`` / ``exclude`` lists, matched against a record's label or its table."""
-
-    def __init__(self, whitelist: Sequence[str], blacklist: Sequence[str]) -> None:
-        self.whitelist = list(whitelist)
-        self.blacklist = list(blacklist)
-        self.matched: Set[str] = set()
-
-    @classmethod
-    def of(cls, doc: Optional[GraphMapping]) -> "_Scope":
-        if doc is None:
-            return cls([], [])
-        return cls(list(doc.include), list(doc.exclude))
-
-    def out(self, names: Sequence[str]) -> bool:
-        """True when this record is not in the graph, marking the names that decided it."""
-        keys = {str(name).casefold() for name in names if name}
-        if self.whitelist and not _any_hit(self.whitelist, keys, self.matched):
-            return True
-        return _any_hit(self.blacklist, keys, self.matched)
-
-
-def _any_hit(names: Sequence[str], keys: Set[str], matched: Set[str]) -> bool:
-    found = False
-    for name in names:
-        if name.casefold() in keys:
-            matched.add(name)
-            found = True
-    return found
-
-
-# ------------------------------------------------------------------ catalog index
-
-
-class _CatalogIndex:
-    """The discovered draft, indexed once so no rule below has to re-scan it."""
-
-    def __init__(self, doc: Optional[GraphMapping]) -> None:
-        self.doc = doc
-        self.nodes_by_label: Dict[str, MappingNode] = {}
-        self.nodes_by_table: Dict[str, MappingNode] = {}
-        self.edges_by_type: Dict[str, MappingEdge] = {}
-        self.edges_by_table: Dict[str, MappingEdge] = {}
-        #: table -> column -> type, for every table discovery could name.
-        self.columns: Dict[str, Dict[str, str]] = {}
-        for node in self.nodes():
-            table = node.table or node.label
-            self.nodes_by_label[node.label] = node
-            self.nodes_by_table.setdefault(table, node)
-            known = self.columns.setdefault(table, {})
-            if node.key:
-                known[node.key] = UNKNOWN_TYPE
-            known.update(node.properties)
-        for edge in self.edges():
-            table = edge.table or edge.type
-            self.edges_by_type.setdefault(edge.type, edge)
-            self.edges_by_table.setdefault(table, edge)
-            known = self.columns.setdefault(table, {})
-            for pair in edge.endpoints:
-                for end in (pair.src, pair.dst):
-                    known[end.column] = end.column_type or UNKNOWN_TYPE
-            if edge.key:
-                known.setdefault(edge.key, UNKNOWN_TYPE)
-            known.update(edge.properties)
-
-    def nodes(self) -> List[MappingNode]:
-        return list(self.doc.nodes) if self.doc is not None else []
-
-    def edges(self) -> List[MappingEdge]:
-        return list(self.doc.edges) if self.doc is not None else []
-
-    @classmethod
-    def of(cls, doc: Optional[GraphMapping]) -> "_CatalogIndex":
-        return cls(doc)
-
-    @property
-    def live(self) -> bool:
-        """Whether there is a schema to check a document against at all."""
-        return self.doc is not None
-
-    @property
-    def tables(self) -> Set[str]:
-        return set(self.columns)
-
-    def node_for_table(self, table: str) -> Optional[MappingNode]:
-        return self.nodes_by_table.get(table)
-
-    def edge_for(self, edge: MappingEdge) -> Optional[MappingEdge]:
-        """Discovery's version of an edge: the same type first, then the table it lives on."""
-        found = self.edges_by_type.get(edge.type)
-        if found is None and edge.table:
-            found = self.edges_by_table.get(edge.table)
-        return found
-
-    def key_for_table(self, table: str) -> Optional[str]:
-        """The key discovery settled on for this table, from its link or its record."""
-        edge = self.edges_by_table.get(table)
-        if edge is not None:
-            return edge.key
-        node = self.nodes_by_table.get(table)
-        return node.key if node is not None else None
-
-    def column_type(self, table: str, column: str) -> Optional[str]:
-        return self.columns.get(table, {}).get(column)
-
-    def unused_scope_names(self, scope: _Scope, out: EffectiveMapping) -> None:
-        """An include/exclude that names nothing is worth saying once, and only with a schema."""
-        if not self.live:
-            return
-        for name in list(scope.whitelist) + list(scope.blacklist):
-            if name not in scope.matched:
-                out.warnings.append(
-                    "scope: {!r} names no record in this schema (a name matches either "
-                    "its label or its table)".format(name)
-                )
-
-
-# ------------------------------------------------------------------ helpers
-
-
-_Record = Union[MappingNode, MappingEdge]
-
-
-def _props(
-    record: _Record,
-    table: str,
-    index: _CatalogIndex,
-    drop: Set[str],
-    path: str,
-    out: EffectiveMapping,
-) -> Dict[str, str]:
-    """
-    The columns this record exposes, typed the way the live schema says they are.
-
-    A stated list is a whitelist and stays the authority — that is exactly what makes
-    an unmapped column invisible, which is why the editor counts them. Empty means
-    take discovery's columns. Either way a known table corrects a type, because
-    binding a parameter as the wrong type costs a full scan and raises no error.
-    """
-    excluded = {str(name) for name in record.exclude_properties}
-    source = dict(record.properties)
-    if not source:
-        source = dict(index.columns.get(table, {}))
-    else:
-        for name in list(source):
-            actual = index.column_type(table, name)
-            if actual is not None:
-                source[name] = actual
-            elif index.live and index.columns.get(table) and name not in drop and name not in excluded:
-                out.warnings.append(
-                    "{}.properties: column {!r} is not a column of {!r} in this "
-                    "schema".format(path, name, table)
-                )
-    return {
-        name: type_name
-        for name, type_name in source.items()
-        if name not in excluded and name not in drop
-    }
-
-
-def _node_kind(node: MappingNode, found: Optional[MappingNode]) -> str:
-    """Discovery's record, a person's rename of it, or something no foreign key proposed."""
-    if found is None:
-        return PROVENANCE_ADDED
-    return PROVENANCE_RENAMED if found.label != node.label else PROVENANCE_AUTO
-
-
-def _columns_of(pairs: Sequence[Pair]) -> Set[str]:
-    out: Set[str] = set()
-    for pair in pairs:
-        out.add(pair.src.column)
-        out.add(pair.dst.column)
-    return out
-
-
-def _deduped(pairs: Sequence[Pair]) -> List[Pair]:
-    """The same two ends named twice is one pair, and the bigger count is the guess to keep."""
-    seen: Dict[Tuple[str, str, str, str], Pair] = {}
-    for pair in pairs:
-        mark = (pair.src.label, pair.src.column, pair.dst.label, pair.dst.column)
-        keep = seen.get(mark)
-        if keep is None or pair.row_estimate > keep.row_estimate:
-            seen[mark] = pair
-    return list(seen.values())
