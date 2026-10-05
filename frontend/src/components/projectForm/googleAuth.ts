@@ -11,6 +11,38 @@ interface GoogleAuthDeps {
 }
 
 /**
+ * The credential in force, whichever of the two Google shapes it happens to be.
+ *
+ * One slot holds an uploaded service account key, an OAuth2 token grant, and the saved
+ * project's `oauth_config` when a form is reopened. The fields a document carries that this UI
+ * never reads stay `unknown` under the index signature rather than `any`, so a caller that
+ * wants one has to say what it is before it can use it. Where the same field arrives as two
+ * types, the union says which: `expires_in` is a number off a saved config and a string off
+ * `localStorage`, and a cascade pick clears the level below it with `null`.
+ */
+export interface GoogleCredential {
+  /** `service_account` on an uploaded key — what tells a key from a token grant. */
+  type?: string;
+  private_key?: string;
+  private_key_id?: string;
+  client_email?: string;
+  /** The OAuth2 grant, the account it was given for, and how it was obtained. */
+  token?: string;
+  refresh_token?: string | null;
+  expires_in?: number | string | null;
+  last_refreshed?: number;
+  state?: string | null;
+  email?: string | null;
+  // The cascade: each listing writes its answer back, and the next listing is asked with it.
+  project_id?: string | null;
+  instance_id?: string | null;
+  database_id?: string | null;
+  graph_name?: string | null;
+  location?: string | null;
+  [key: string]: unknown;
+}
+
+/**
  * Everything a Google-shaped backend needs: the credential in force (an uploaded
  * service account key, an OAuth2 token or ADC) and the cloud resources that
  * credential lists — projects, instances, databases, datasets and property graphs.
@@ -19,7 +51,7 @@ interface GoogleAuthDeps {
  * its answer back into the credential the next listing is asked with.
  */
 export const useGoogleAuth = ({ form, databaseType, authType }: GoogleAuthDeps) => {
-  const [serviceAccountKey, setServiceAccountKey] = React.useState<any>({});
+  const [serviceAccountKey, setServiceAccountKey] = React.useState<GoogleCredential>({});
   // const [showOauthAdvanced, setShowOauthAdvanced] = React.useState(false);
   const [loading, setLoading] = React.useState({
     listProjects: false,
@@ -47,12 +79,12 @@ export const useGoogleAuth = ({ form, databaseType, authType }: GoogleAuthDeps) 
     setBigqueryGraphs([]);
   };
 
-  const updateServiceAccountKey = (newData: any) => {
-  const newService = {
+  const updateServiceAccountKey = (newData: GoogleCredential) => {
+    const newService = {
       ...serviceAccountKey,
       ...newData,
-  };
-    setServiceAccountKey((prevKey: any) => ({
+    };
+    setServiceAccountKey((prevKey) => ({
       ...prevKey,
       ...newData,
     }));
@@ -147,7 +179,7 @@ export const useGoogleAuth = ({ form, databaseType, authType }: GoogleAuthDeps) 
         const content = e.target?.result as string;
         const jsonContent = JSON.parse(content);
 
-        // 验证是否为有效的服务账号文件
+        // A credential file only counts when it is a service account key, in full.
         if (
           jsonContent.type === "service_account" &&
           jsonContent.private_key &&
@@ -311,7 +343,7 @@ export type GoogleAuth = ReturnType<typeof useGoogleAuth>;
 /**
  * The credential blob one block at a time.
  *
- * Derived from the state the form has always held rather than written out here, so
- * there is still exactly one place that decides how loose the credential is typed.
+ * Derived from the state the hook holds rather than written out here, so `GoogleCredential`
+ * stays the one place that decides what a credential is.
  */
 export type CredentialState = GoogleAuth["serviceAccountKey"];

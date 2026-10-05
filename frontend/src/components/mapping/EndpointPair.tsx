@@ -117,9 +117,15 @@ const EndpointPairRow: React.FC<Props> = ({ project, draft, dispatch, edge, pair
       <Space align="center" style={{ width: '100%', justifyContent: 'space-between' }}>
         <Text type="secondary" style={{ fontSize: 12 }}>
           pair {index + 1}
-          {pair.row_estimate !== undefined && pair.row_estimate !== null
-            ? ` · ~${pair.row_estimate.toLocaleString('en-US')} links`
-            : ''}
+          {pair.row_estimate !== undefined && pair.row_estimate !== null ? (
+            ` · ~${pair.row_estimate.toLocaleString('en-US')} links`
+          ) : (
+            // The same words as `RowEstimate`: no number is not the claim `~0 links` makes,
+            // and a pair that reads as empty is a pair a person stops looking at.
+            <Tooltip title="The engine's statistics never named this table, so this join is unmeasured rather than empty.">
+              <span>{' · no statistics'}</span>
+            </Tooltip>
+          )}
         </Text>
         <Tooltip title="Remove this pair. A type left with no pair can never be drawn, and is refused when the mapping is saved.">
           <Button

@@ -4,6 +4,7 @@ import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { projectService } from '../../services/projectService';
 import { DatabaseConfig, TablePage } from '../../types/project';
 import { columnName, columnType, columnsOf, loadColumns } from './columns';
+import { errorMessage } from './reducer';
 
 const { Text } = Typography;
 
@@ -89,7 +90,10 @@ export const PagedSelect: React.FC<PagedSelectProps> = ({
         setFailure(null);
       } catch (caught: unknown) {
         if (id !== requestId.current) return;
-        setFailure(caught instanceof Error ? caught.message : String(caught));
+        // The proxy's own sentence, not axios's status: a draft connection that will not open
+        // has a reason (`detail`) the person can act on, and "Request failed with status code
+        // 400" is not that reason.
+        setFailure(errorMessage(caught));
         setOptions([]);
       } finally {
         if (id === requestId.current) setLoading(false);

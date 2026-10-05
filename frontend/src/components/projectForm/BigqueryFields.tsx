@@ -38,7 +38,7 @@ const BigqueryFields: React.FC<Props> = ({ authType, google }) => {
             rules={[{ required: true, message: "Please select a project" }]}
           >
             {authType === "service_account" ? (
-              <Input disabled value={serviceAccountKey?.project_id} />
+              <Input disabled value={serviceAccountKey?.project_id ?? undefined} />
             ) : (
               <Select
                 showSearch

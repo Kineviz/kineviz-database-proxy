@@ -40,7 +40,7 @@ const SpannerFields: React.FC<Props> = ({ authType, form, google }) => {
               <input
                 style={{ width: "100%", height: 32 }}
                 disabled={authType === "service_account"}
-                value={serviceAccountKey?.project_id}
+                value={serviceAccountKey?.project_id ?? undefined}
               />
             )}
             {authType !== "service_account" && (

@@ -16,7 +16,8 @@ import {
 import type { FormInstance, UploadProps } from "antd";
 import { DeleteOutlined, UploadOutlined } from "@ant-design/icons";
 import { projectService } from "../services/projectService";
-import { DatabaseType, RELATIONAL_DEFAULT_PORT } from "../types/project";
+import { DatabaseConfig, DatabaseType, RELATIONAL_DEFAULT_PORT } from "../types/project";
+import { TableChoice, TablePicker } from "./mapping/TablePicker";
 import { errorMessage } from "./mapping/reducer";
 
 const { Option } = Select;
@@ -66,6 +67,57 @@ const RelationalDatabaseConfig: React.FC<Props> = ({
 }) => {
   const label = ENGINE_LABEL[databaseType] || databaseType;
   const [mappingFileName, setMappingFileName] = React.useState<string | null>(null);
+  // The connection the browse is reading, taken when the button was pressed, and the table
+  // picked out of it. `null` means no browse is open, and nothing has been read.
+  const [browseConnection, setBrowseConnection] = React.useState<DatabaseConfig | null>(null);
+  const [browsePick, setBrowsePick] = React.useState<TableChoice | null>(null);
+
+  /** A form value as `unknown`: `getFieldValue` answers `any`, and this is where it stops. */
+  const raw = (name: string): unknown => form.getFieldValue(name);
+
+  /** A text field, or `undefined` when it is blank — the shape `DatabaseConfig` wants. */
+  const text = (name: string): string | undefined => {
+    const value = raw(name);
+    return typeof value === "string" && value ? value : undefined;
+  };
+
+  /**
+   * The connection this section holds, as the `DatabaseConfig` the proxy reads.
+   *
+   * One builder, for both the test and the table browse: two hand-built copies is how a
+   * picker ends up browsing a database on a port the user did not type. The values are read
+   * as the form holds them, not as its rules require, so this works mid-edit.
+   */
+  const draftConfig = (): DatabaseConfig => ({
+    type: databaseType,
+    auth_type: "username_password",
+    host: String(raw("host") ?? ""),
+    port: Number(raw("port") ?? RELATIONAL_DEFAULT_PORT[databaseType] ?? 0),
+    database_id: text("database_id"),
+    schema_name: text("schema_name"),
+    username: text("username"),
+    password: text("password"),
+    use_tls: raw("use_tls") === true,
+    options: {},
+  });
+
+  /**
+   * Open the browse for the connection as it stands right now.
+   *
+   * Nothing is read until the dropdown inside it opens, so pressing this costs a snapshot of
+   * the form and no catalog walk. The reason it refuses to open is said outright, because a
+   * picker that answers with an empty list reads as an empty database.
+   */
+  const openBrowse = () => {
+    const host = text("host");
+    const database = text("database_id");
+    if (!host || !database) {
+      message.error("Enter the host and the database first — there is no connection to browse.");
+      return;
+    }
+    setBrowsePick(null);
+    setBrowseConnection(draftConfig());
+  };
 
   const clearMappingFile = () => {
     setMappingFileName(null);
@@ -105,20 +157,7 @@ const RelationalDatabaseConfig: React.FC<Props> = ({
   const testConnection = async () => {
     try {
       await form.validateFields(["host", "port"]);
-      const result = await projectService.testConnectionWithConfig(databaseType, {
-        type: databaseType,
-        auth_type: "username_password",
-        host: String(form.getFieldValue("host") ?? ""),
-        port: Number(
-          form.getFieldValue("port") ?? RELATIONAL_DEFAULT_PORT[databaseType] ?? 0,
-        ),
-        database_id: form.getFieldValue("database_id") || undefined,
-        schema_name: form.getFieldValue("schema_name") || undefined,
-        username: form.getFieldValue("username") || undefined,
-        password: form.getFieldValue("password") || undefined,
-        use_tls: form.getFieldValue("use_tls") === true,
-        options: {},
-      });
+      const result = await projectService.testConnectionWithConfig(databaseType, draftConfig());
       if (result.success) {
         message.success(result.message || "Connection successful");
       } else {
@@ -264,7 +303,30 @@ const RelationalDatabaseConfig: React.FC<Props> = ({
       <Row gutter={16} style={{ marginTop: 16 }}>
         <Col span={24}>
           <Space direction="vertical" size={8} style={{ width: "100%" }}>
-            <Button onClick={testConnection}>Test Connection</Button>
+            <Space size={8} align="center" wrap>
+              <Button onClick={testConnection}>Test Connection</Button>
+              <Button onClick={openBrowse}>Browse tables</Button>
+              {browseConnection ? (
+                <Button type="link" size="small" onClick={() => setBrowseConnection(null)}>
+                  Close
+                </Button>
+              ) : null}
+            </Space>
+            {browseConnection ? (
+              <Space size={8} align="center" wrap>
+                <TablePicker
+                  project={text("name") || databaseType}
+                  connection={browseConnection}
+                  schema={browseConnection.schema_name ?? null}
+                  value={browsePick?.table ?? null}
+                  onChange={setBrowsePick}
+                  placeholder={`tables of ${browseConnection.host}:${browseConnection.port}`}
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Read from the connection as typed, and nothing is saved.
+                </Text>
+              </Space>
+            ) : null}
             <Text type="secondary" style={{ fontSize: 12 }}>
               Anything this engine takes that is not modelled here goes in the config's
               <code> options</code> — the escape hatch the proxy passes straight to the
