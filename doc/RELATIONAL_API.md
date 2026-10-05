@@ -77,7 +77,7 @@ The one `500` here is a bug in the build, not an answer for a user.
 | `GET` | `/api/relational/mapping/example` | the shipped annotated example, as text — no project |
 | `GET` | `/api/relational/{project}/mapping` | the saved override, as a document or as a file |
 | `PUT` | `/api/relational/{project}/mapping` | save it, or `null` to take it away |
-| `POST` | `/api/relational/{project}/validate` | parse and load a draft; store nothing |
+| `POST` | `/api/relational/{project}/validate` | parse and load a draft and echo it back; store nothing |
 | `POST` | `/api/relational/{project}/discover` | read the live catalog and propose a mapping |
 | `GET` | `/api/relational/{project}/tables` | one paged window of the schema, for the pickers |
 | `POST` | `/api/relational/{project}/tables` | the same read against an unsaved connection |
@@ -168,9 +168,11 @@ stay open.
 
 Checks a draft without saving it and without touching the customer's database. Same body as
 the `PUT`. On success: `valid` (no load problems), `problems` (`[{"path", "message"}]`),
-`warnings`, `nodes` and `edges` (how many entries each list has), and `text` — the proxy's
-own rendering of the draft you sent, which is what lets the YAML tab show what your clicks
-describe before you save.
+`warnings`, `nodes` and `edges` (how many entries each list has), `model` — the draft as the
+document a form holds, the same name `GET /mapping` and the `PUT` use for it — and `text`, the
+proxy's own rendering of the draft you sent. `text` is what the YAML tab shows; `model` is what
+the structured tabs edit, so a page can apply an uploaded or pasted file without a second
+parser in the browser.
 
 Two sources of problems, merged into one list: shape problems come from the parse with the
 control's path, semantic ones from the loader. A file that parses and still cannot load is

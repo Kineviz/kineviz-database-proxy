@@ -1,6 +1,5 @@
 import React from 'react';
 import {
-  Alert,
   Button,
   Checkbox,
   Input,
@@ -19,7 +18,6 @@ import {
   DraftState,
   MappingAction,
   PROVENANCE_COLOR,
-  formatCount,
   linksDependingOn,
   problemField,
   provenanceTag,
@@ -329,21 +327,6 @@ const NodeList: React.FC<Props> = ({ project, draft, dispatch, actions }) => {
 
   return (
     <Space direction="vertical" size={12} style={{ width: '100%' }}>
-      {draft.auto?.truncated && Object.keys(draft.auto.truncated).length ? (
-        <Alert
-          type="warning"
-          showIcon
-          message="Auto-discovery stopped at a cap"
-          description={
-            <Text style={{ fontSize: 12 }}>
-              {Object.entries(draft.auto.truncated)
-                .map(([cap, hit]) => `${cap}: ${formatCount(hit)}`)
-                .join(' · ')} — a three-thousand-table schema is not a three-thousand-label graph.
-              Exclude the tables that are not part of the question, or name the ones that are.
-            </Text>
-          }
-        />
-      ) : null}
       {excluded ? (
         <Text type="secondary" style={{ fontSize: 12 }}>
           {excluded} of {nodes.length} records are excluded and stay here as decisions the graph does not

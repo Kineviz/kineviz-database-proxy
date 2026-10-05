@@ -457,6 +457,35 @@ def test_a_check_that_cannot_run_says_which_field_was_left_empty(client, project
 
 
 # ---------------------------------------------------------------------------
+# checking a draft
+# ---------------------------------------------------------------------------
+
+
+def test_a_checked_draft_comes_back_as_the_document_the_tabs_edit(client, projects, server):
+    """
+    An upload or a pasted file is applied to the structured tabs from *this* answer, so a reply
+    that carries only its text rendering replaces forty rows with none.
+
+    The route already holds the document — it counts its entries and renders its file from it —
+    and `model` is the name every other mapping route uses, so the editor never has to parse.
+    Echoing it has to be idempotent: what comes back must check the same way it went in.
+    """
+    document = mapped_project("saved").database_config.graph_mapping
+
+    answer = client.post("/api/relational/mapped/validate", json={"model": document}).json()
+
+    assert answer["valid"] is True
+    echoed = answer["model"]
+    assert [node["label"] for node in echoed["nodes"]] == [
+        node["label"] for node in document["nodes"]
+    ]
+    assert answer["nodes"] == len(echoed["nodes"]) and answer["edges"] == len(echoed["edges"])
+
+    again = client.post("/api/relational/mapped/validate", json={"model": echoed}).json()
+    assert again["valid"] is True and again["model"] == echoed
+
+
+# ---------------------------------------------------------------------------
 # saving
 # ---------------------------------------------------------------------------
 

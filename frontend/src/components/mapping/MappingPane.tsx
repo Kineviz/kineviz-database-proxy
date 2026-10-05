@@ -18,13 +18,13 @@ const { Text, Paragraph } = Typography;
  * Records, Links and YAML are not three documents that need reconciling — they are views of
  * one object, and the YAML pane is that object as the proxy renders it. A save is one `PUT`
  * of the whole draft, so there is no order of operations to get wrong and no half-applied
- * edit: either the proxy took it, in which case its answer is now what the tabs show, or it
- * refused and named what it refused.
+ * edit. The proxy answers a save with two facts and they are not the same one: whether it
+ * stored the document, and whether that document loads.
  *
- * What comes back from the proxy is the *effective* mapping — auto-discovery with this
- * project's override applied on top — which is why provenance is shown per entry: the page
- * mixes a machine's proposal and a person's decisions, and the two have to stay tellable
- * apart.
+ * What comes back from `GET /mapping` is the **override** this project has saved — not the
+ * effective mapping, and it reaches no database to find out what discovery would say. So an
+ * empty editor is not an empty graph: it says nobody has overridden anything yet, and the page
+ * says so rather than leaving that to be inferred from zero rows.
  */
 
 interface Props {
@@ -38,6 +38,15 @@ const MappingPane: React.FC<Props> = ({ project, databaseType }) => {
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
   const [failure, setFailure] = React.useState<string | null>(null);
+  /**
+   * Whether an override is stored, as `GET /mapping` says it: `override` or `none`.
+   *
+   * `none` is said out loud rather than answered by loading discovery, because opening this
+   * page would then depend on the customer's server — the one thing that route is built not to
+   * do — and a machine's proposal would sit on the screen as if a person had accepted it. The
+   * proposal stays behind the button that makes it: Re-discover.
+   */
+  const [source, setSource] = React.useState<string | null>(null);
   const [tab, setTab] = React.useState('records');
   const [actions, setActions] = React.useState<MappingActions>(() => createActions(project));
 
@@ -50,6 +59,7 @@ const MappingPane: React.FC<Props> = ({ project, databaseType }) => {
       if (!quiet) setLoading(true);
       try {
         const answer = await projectService.getMapping(project);
+        setSource(answer.source ?? null);
         dispatch({
           kind: 'load',
           document: answer.mapping ?? null,
@@ -95,8 +105,21 @@ const MappingPane: React.FC<Props> = ({ project, databaseType }) => {
         problems,
         warnings: toProblems(answer.warnings),
       });
+      // `saved` and `valid` are two facts and the route answers both: a mapping that will not
+      // load is *still stored*, because a record with no key is a legal thing to keep while
+      // discovery fills it in. Calling that write "Not saved" sends a person off to repeat a
+      // PUT that already landed, and their reload then finds the edit they were told to redo.
+      const stored = answer.saved !== false;
+      if (stored) setSource('override');
       if (problems.length) {
-        message.error(`Not saved — ${problems.length} ${problems.length === 1 ? 'problem' : 'problems'}`);
+        const count = `${problems.length} ${problems.length === 1 ? 'problem' : 'problems'}`;
+        if (stored) {
+          message.warning(
+            `Saved — but this mapping will not load (${count}). Fix them and save again; GraphXR refuses the schema until it does.`,
+          );
+        } else {
+          message.error(`Not saved — ${count}`);
+        }
         setTab('records');
         return false;
       }
@@ -215,6 +238,27 @@ const MappingPane: React.FC<Props> = ({ project, databaseType }) => {
       ) : null}
 
       <Space direction="vertical" size={12} style={{ width: '100%' }}>
+        {source === 'none' && !draft.dirty ? (
+          <Alert
+            type="info"
+            showIcon
+            message="Nothing is saved over auto-discovery yet"
+            description={
+              <Space direction="vertical" size={4}>
+                <Text style={{ fontSize: 12 }}>
+                  This page edits the override you have stored, and there is none. The graph you
+                  see in GraphXR is whatever auto-discovery reads from the live schema each time it
+                  is asked, so these empty tabs are not an empty graph.
+                </Text>
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Re-discover above to see what this catalog would propose and edit that, or name
+                  the records yourself — either way nothing is stored until you save.
+                </Text>
+              </Space>
+            }
+          />
+        ) : null}
+
         <ProblemsPanel
           problems={draft.problems}
           warnings={draft.warnings}

@@ -398,6 +398,12 @@ async def validate_mapping(
     The shape problems come from ``mapping_io.parse`` with the control's path, the semantic
     ones from ``from_document`` — so a file that parses and still cannot load is reported as
     the list of paths that need fixing rather than as a mapping that will fail later.
+
+    The answer carries the document itself, not only its rendering: an upload or a paste is
+    applied to the editor's structured tabs from this reply, so a page that gets text back
+    and nothing else replaces forty rows with none. ``GET /mapping`` and the ``PUT`` answer
+    it the same way, and one caller reading two shapes is how a silently emptied editor
+    ships.
     """
     await _driver(service, project_name)
     document = _document_from(body)
@@ -409,6 +415,7 @@ async def validate_mapping(
         "warnings": list(effective.warnings),
         "nodes": len(dumped.get("nodes") or []),
         "edges": len(dumped.get("edges") or []),
+        "model": dumped,
         "text": mapping_io.to_yaml(document),
     }
 

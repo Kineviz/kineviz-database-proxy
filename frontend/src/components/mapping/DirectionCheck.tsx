@@ -107,13 +107,24 @@ const DirectionCheck: React.FC<Props> = ({ actions, edge, pairIndex, describe, o
   const pair = (edge.endpoints ?? [])[pairIndex];
   if (!pair) return null;
 
+  // The route requires `table` and the join needs both columns; an empty one reaches the engine
+  // as a statement about a table nobody named and comes back as a binder exception about the
+  // person's own draft. So the missing names are said here instead of being posted as a guess.
+  const table = (edge.table ?? '').trim();
+  const missing = [
+    !table ? 'the table whose rows this link joins' : '',
+    !pair.src.column ? `the near end's column${pair.src.label ? ` (${pair.src.label})` : ''}` : '',
+    !pair.dst.column ? `the far end's column${pair.dst.label ? ` (${pair.dst.label})` : ''}` : '',
+  ].filter(Boolean);
+
   const run = async (): Promise<void> => {
+    if (missing.length) return;
     setLoading(true);
     setFailure(null);
     try {
       const result = await actions.preview({
         edge: edge.type,
-        table: edge.table ?? '',
+        table,
         pair: pairIndex,
         src: pair.src,
         dst: pair.dst,
@@ -136,7 +147,13 @@ const DirectionCheck: React.FC<Props> = ({ actions, edge, pairIndex, describe, o
   return (
     <Space direction="vertical" size={6} style={{ width: '100%' }}>
       <Space size={6} wrap>
-        <Button size="small" icon={<ThunderboltOutlined />} loading={loading} onClick={run}>
+        <Button
+          size="small"
+          icon={<ThunderboltOutlined />}
+          loading={loading}
+          disabled={missing.length > 0}
+          onClick={run}
+        >
           Check direction
         </Button>
         {verdict ? (
@@ -150,6 +167,20 @@ const DirectionCheck: React.FC<Props> = ({ actions, edge, pairIndex, describe, o
       </Space>
 
       {loading ? <Spin size="small" /> : null}
+
+      {missing.length ? (
+        <Alert
+          type="info"
+          showIcon
+          message="This pair cannot be checked yet"
+          description={
+            <Text style={{ fontSize: 12 }}>
+              It needs {missing.join(' and ')}. A direction is a fact about real rows, and with no
+              join to run nothing has been ruled out either way.
+            </Text>
+          }
+        />
+      ) : null}
 
       {failure ? (
         <Alert

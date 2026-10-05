@@ -350,21 +350,26 @@ export interface MappingProblem {
  */
 export type MappingProblemLike = MappingProblem | string | (string | null)[];
 
-/** What auto-discovery would propose with no override, and why. */
+/**
+ * What auto-discovery would propose with no override, and why.
+ *
+ * No route answers this today — `/discover` answers `model` plus `warnings`, and the caps and
+ * the skips arrive as those sentences. It is the shape a per-entry reasoning would take, and
+ * `notes` is read as a fallback wherever an entry carries none of its own.
+ */
 export interface MappingAuto {
   nodes?: MappingNode[] | null;
   edges?: MappingEdge[] | null;
   /** Discovery's reasoning, keyed by label or type. */
   notes?: Record<string, string> | null;
-  /** Caps hit, e.g. `{ max_labels: 200 }` — 200 / 400 / 200. */
-  truncated?: Record<string, number> | null;
 }
 
 /**
  * What `/mapping`, `/validate`, `/discover` and the save answer.
  *
  * `warnings` and `problems` may be plain strings or path-named objects, so the
- * editor normalises both rather than asserting one spelling.
+ * editor normalises both rather than asserting one spelling. Every one of them answers the
+ * document as `model`, which the service hands over as `mapping`.
  */
 export interface MappingEnvelope {
   success?: boolean;
@@ -374,6 +379,12 @@ export interface MappingEnvelope {
   problems?: MappingProblemLike | MappingProblemLike[] | null;
   warnings?: MappingProblemLike | MappingProblemLike[] | null;
   auto?: MappingAuto | null;
+  /** `true` when the draft *loads*; a save answers it with `saved` beside it. */
+  valid?: boolean;
+  /** Only the save answers it: the write happened, whatever `valid` says. */
+  saved?: boolean;
+  /** Only the save answers it, and only for the `null` body that drops the override. */
+  removed?: boolean;
   error?: string | null;
 }
 

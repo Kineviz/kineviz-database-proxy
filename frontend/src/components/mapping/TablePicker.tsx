@@ -2,7 +2,7 @@ import React from 'react';
 import { Button, Select, Space, Spin, Typography } from 'antd';
 import { LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { projectService } from '../../services/projectService';
-import { TablePage } from '../../types/project';
+import { DatabaseConfig, TablePage } from '../../types/project';
 import { columnName, columnType, columnsOf, loadColumns } from './columns';
 
 const { Text } = Typography;
@@ -176,8 +176,19 @@ export interface TableChoice {
 interface TablePickerProps {
   project: string;
   value: string | null | undefined;
-  /** The schema the stored table belongs to, so the label reads qualified. */
+  /**
+   * The schema the stored table belongs to: it qualifies the label *and* narrows the page,
+   * because a table that is unique inside `sales` is not one list among three schemas.
+   */
   schema?: string | null;
+  /**
+   * A connection that has not been saved yet, for a picker that runs while a project is still
+   * a form. `POST /{project}/tables` is the same paged walk with the config in its body — so a
+   * person choosing which tables are their graph is not made to save a connection they may
+   * still abandon. Credentials go in a body and never a query string: a URL ends up in an
+   * access log. Without it the name has to be a project the proxy already holds.
+   */
+  connection?: DatabaseConfig | null;
   onChange: (choice: TableChoice) => void;
   disabled?: boolean;
   invalid?: boolean;
@@ -195,6 +206,7 @@ export const TablePicker: React.FC<TablePickerProps> = ({
   project,
   value,
   schema,
+  connection,
   onChange,
   disabled,
   invalid,
@@ -202,7 +214,11 @@ export const TablePicker: React.FC<TablePickerProps> = ({
 }) => {
   const load = React.useCallback(
     async (page: number): Promise<LoadResult> => {
-      const listed = await projectService.listRelationalTables(project, { page, pageSize: PICKER_PAGE_SIZE });
+      const paged = { page, pageSize: PICKER_PAGE_SIZE, schema: schema || undefined };
+      // One page either way: the saved project by name, the draft by the config in the body.
+      const listed = connection
+        ? await projectService.listDraftTables(project, connection, paged)
+        : await projectService.listRelationalTables(project, paged);
       const rows = listed.rows ?? [];
       return {
         total: listed.total ?? rows.length,
@@ -222,7 +238,7 @@ export const TablePicker: React.FC<TablePickerProps> = ({
         }),
       };
     },
-    [project],
+    [project, schema, connection],
   );
 
   return (
