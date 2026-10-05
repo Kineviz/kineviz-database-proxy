@@ -8,7 +8,7 @@ serves both the API and the built UI.
 
 Python runs through `uv` against `.venv`. Do not call `pip` directly.
 
-- `uv run pytest` — the acceptance gate (696 tests, ~10s). Add `-q` for brief output.
+- `uv run pytest` — the acceptance gate (~15s). Add `-q` for brief output.
   Offline by design; the engine-backed tests are skipped unless
   `GRAPHXR_PROXY_ENGINE_TESTS=1`.
 - `uv run pytest tests/test_dialect.py -k expand` — narrow run.
@@ -42,7 +42,9 @@ otherwise changing — match the surrounding style instead.
   `rocketgraph.py`, `neo4j.py`, `memgraph.py` (a subclass of `neo4j.py`),
   `kuzu.py`, `ladybug.py` (a subclass of `kuzu.py`) and `latticedb.py` (its own
   driver — LatticeDB is a separate engine, not a third Kuzu).
-  Shared machinery lives in `dialect.py` (statement generation), `intents.py`
+  Shared machinery lives in `dialect.py` — an entry that re-exports every name — whose body is
+  `dialect_core.py` (the statement builders) and `dialect_backends.py` (the per-backend token
+  tables, `DIALECTS`, `dialect_for`), `intents.py`
   (`GraphIntentMixin`), `graph_support.py` (per-driver capability + dialect
   wiring), and — for the bolt family — `bolt_mapping.py` (records -> `QueryData`)
   and `bolt_schema.py` (the Neo4j and Memgraph schema probes).
@@ -50,7 +52,7 @@ otherwise changing — match the surrounding style instead.
   driver. `driver.py` is the contract surface plus the connection, and its bodies are mixins:
   `driver_mapping` resolves a project's tables into an `EffectiveMapping`, `driver_query` runs
   one prepared statement, `driver_schema` answers the reads a client makes before it has a
-  query. **Cypher is the internal protocol**: `drivers/dialect.py` emits a Cypher string for
+  query. **Cypher is the internal protocol**: `dialect_core.py` emits a Cypher string for
   every backend including these, and `translate.py` → `plan.py` → `compile.py` re-read it into
   SQLAlchemy Core — so per-engine divergence lives only in `engines/*.py` behind
   `EngineSpelling`, and no shared module may branch on an engine's *name* (cast names go through
@@ -119,8 +121,8 @@ files TypeScript.
    abstract and async except `get_api_info`.
 3. Register it in `DriverFactory._drivers` in `drivers/factory.py`.
 4. For graph intents (`expand` / `pullCategory` / `pullRelationship` / `search`),
-   mix in `GraphIntentMixin` and declare a `GraphDbCapabilities` plus a
-   `StatementDialect` in `drivers/graph_support.py` — do not re-implement
+   mix in `GraphIntentMixin`, declare a `StatementDialect` in `drivers/dialect_backends.py`
+   and wire capability plus dialect in `drivers/graph_support.py` — do not re-implement
    traversal in the driver.
 5. Add tests under `tests/`; `tests/test_rocketgraph_*.py` shows the shape.
    `tests/test_driver_intents.py` is parametrised over every driver, so a new one
