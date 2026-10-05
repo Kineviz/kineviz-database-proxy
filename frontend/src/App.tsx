@@ -4,6 +4,7 @@ import { Layout, Spin } from 'antd';
 import AppHeader from './components/AppHeader';
 import ProjectManagement from './pages/ProjectManagement';
 import StoreLibrary from './pages/StoreLibrary';
+import GraphMapping from './pages/GraphMapping';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
 import { initializeApiKey, setAdminToken } from './services/projectService';
@@ -122,6 +123,7 @@ const App: React.FC = () => {
             <Route path="/admin" element={<ProjectManagement />} />
             <Route path="/projects" element={<ProjectManagement />} />
             <Route path="/files" element={<StoreLibrary />} />
+            <Route path="/mapping" element={<GraphMapping />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </div>

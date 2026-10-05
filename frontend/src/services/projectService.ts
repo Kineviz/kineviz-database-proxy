@@ -1,5 +1,6 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
-import { Project, ProjectCreate, ProjectUpdate, APIInfo, QueryRequest, QueryResponse, SchemaResponse, GraphSchemaResponse, SampleDataResponse, EmbeddedInspectResponse, EngineStatus, StoreListResponse } from '../types/project';
+import { message } from 'antd';
+import { Project, ProjectCreate, ProjectUpdate, APIInfo, QueryRequest, QueryResponse, SchemaResponse, GraphSchemaResponse, SampleDataResponse, EmbeddedInspectResponse, EngineStatus, StoreListResponse, GraphMappingDocument, MappingEnvelope, MappingProblemLike, MappingTextResponse, TablePage, PreviewRequest, PreviewResponse } from '../types/project';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:9080';
 
@@ -115,6 +116,13 @@ export function setAdminToken(token: string | null): void {
   }
 }
 
+/** One problem as the proxy sent it: an object, a sentence, or a `(path, message)` pair. */
+const problemText = (problem: MappingProblemLike): string => {
+  if (typeof problem === 'string') return problem;
+  if (Array.isArray(problem)) return [problem[0], problem[1]].filter(Boolean).join(': ');
+  return problem.message ?? '';
+};
+
 export class ProjectService {
   async getProjects(): Promise<Project[]> {
     const response = await api.get('/api/project/list');
@@ -127,7 +135,36 @@ export class ProjectService {
   }
 
   async createProject(project: ProjectCreate): Promise<Project> {
-    const response = await api.post('/api/project/create', project);
+    // A mapping a person brought with the project is text the browser only read, never
+    // parsed. `POST /api/project/create` takes a config, not a file, so the text follows
+    // the project onto the mapping route the moment it exists — one parser, on the server.
+    const { graph_mapping_yaml: mappingText, ...body } = project;
+    const response = await api.post('/api/project/create', body);
+    const name = body.name;
+    if (mappingText && mappingText.trim() && name) {
+      try {
+        const saved = await this.saveMapping(name, { yaml: mappingText });
+        const refused =
+          saved.problems === null || saved.problems === undefined
+            ? []
+            : Array.isArray(saved.problems)
+              ? (saved.problems as MappingProblemLike[])
+              : [saved.problems as MappingProblemLike];
+        if (refused.length) {
+          // The project is real and the file was not: say which half happened.
+          message.warning(
+            `Project created, but the mapping file was refused: ${
+              refused.map(problemText).filter(Boolean).join('; ') || 'see Graph Mapping'
+            }. Open Graph Mapping to fix it.`,
+          );
+        } else {
+          message.success('Mapping file applied to the new project');
+        }
+      } catch (caught) {
+        message.warning('Project created, but the mapping file could not be applied. Open Graph Mapping to upload it again.');
+        console.error('mapping import failed:', caught);
+      }
+    }
     return response.data;
   }
 
@@ -325,6 +362,128 @@ export class ProjectService {
   async deleteStore(relativePath: string, force = false): Promise<{ removed: string; used_by: string[] }> {
     const response = await api.delete('/api/embedded/stores', {
       params: { path: relativePath, force },
+    });
+    return response.data;
+  }
+
+  // -- relational graph mapping ------------------------------------------------
+  //
+  // The routes live under `/api/relational`, which is a literal prefix and so must be
+  // registered before `/api/{database_type}/…` — otherwise `mapping` reads as a database
+  // type. `{project}` is the project's **name**, the same identifier the generic
+  // `/api/{database_type}/{project_name}/…` surface resolves with `get_project_by_name`.
+  //
+  // Text and structure are separate calls on purpose. The browser never parses or emits
+  // YAML: it sends text and takes text back, and the only program that turns one into the
+  // other is the proxy.
+
+  /** The annotated example the proxy ships. Needs no project and reads no database. */
+  async getMappingExample(): Promise<MappingTextResponse> {
+    const response = await api.get('/api/relational/mapping/example');
+    return response.data;
+  }
+
+  /**
+   * What this project's graph is, as one document plus what the proxy thinks of it.
+   *
+   * Returns the **effective** mapping — auto-discovery composed with the override — so the
+   * editor's records and links come from this rather than from a re-read of the catalog.
+   */
+  async getMapping(project: string): Promise<MappingEnvelope> {
+    const response = await api.get(`/api/relational/${encodeURIComponent(project)}/mapping`);
+    return response.data;
+  }
+
+  /** The same document as text, which is what Download writes and the YAML pane shows. */
+  async getMappingText(project: string): Promise<MappingTextResponse> {
+    const response = await api.get(`/api/relational/${encodeURIComponent(project)}/mapping`, {
+      params: { format: 'yaml' },
+    });
+    return response.data;
+  }
+
+  /**
+   * Ask whether a draft would load, without loading it.
+   *
+   * Answers the parsed document plus every problem named by path, which is how a mistake
+   * ends up under the control that caused it instead of in a banner.
+   */
+  async validateMapping(
+    project: string,
+    body: { mapping: GraphMappingDocument } | { yaml: string },
+  ): Promise<MappingEnvelope> {
+    const response = await api.post(`/api/relational/${encodeURIComponent(project)}/validate`, body);
+    return response.data;
+  }
+
+  /** Save an override. `{ model: null }` drops it and leaves the project on auto-discovery. */
+  async saveMapping(
+    project: string,
+    body: { model: GraphMappingDocument } | { yaml: string } | { model: null },
+  ): Promise<MappingEnvelope> {
+    const response = await api.put(`/api/relational/${encodeURIComponent(project)}/mapping`, body);
+    return response.data;
+  }
+
+  /**
+   * What discovery would propose, with the reasoning behind each guess.
+   *
+   * Nothing is stored: this is the proposal a person is meant to disagree with.
+   */
+  async discoverMapping(project: string): Promise<MappingEnvelope> {
+    const response = await api.post(`/api/relational/${encodeURIComponent(project)}/discover`);
+    return response.data;
+  }
+
+  /**
+   * One page of the catalog.
+   *
+   * Paged at the proxy: an ERP schema holds thousands of tables and a picker that asked
+   * for all of them to draw one dropdown is the mistake the paging rule exists to stop.
+   */
+  async listRelationalTables(
+    project: string,
+    params: { page?: number; pageSize?: number; search?: string } = {},
+  ): Promise<TablePage> {
+    const response = await api.get(`/api/relational/${encodeURIComponent(project)}/tables`, {
+      params: {
+        page: params.page ?? 1,
+        page_size: params.pageSize ?? 50,
+        search: params.search || undefined,
+      },
+    });
+    return response.data;
+  }
+
+  /** One table's columns — what the column pickers and the property list read. */
+  async getTableColumns(
+    project: string,
+    table: string,
+    params: { page?: number; pageSize?: number; schema?: string } = {},
+  ): Promise<TablePage> {
+    const response = await api.get(`/api/relational/${encodeURIComponent(project)}/tables`, {
+      params: {
+        include: 'columns',
+        table,
+        schema: params.schema || undefined,
+        page: params.page ?? 1,
+        page_size: params.pageSize ?? 200,
+      },
+    });
+    return response.data;
+  }
+
+  /**
+   * Run one edge pair both ways against real rows.
+   *
+   * One call, because the question is which of the two directions is the sentence the
+   * person means, and answering it from two calls would let a half-failure look like a
+   * verdict.
+   */
+  async previewEdge(project: string, body: PreviewRequest): Promise<PreviewResponse> {
+    const response = await api.post(`/api/relational/${encodeURIComponent(project)}/preview`, body, {
+      // Two real joins against a customer's database; the JSON default is for local reads.
+      timeout: 60000,
     });
     return response.data;
   }

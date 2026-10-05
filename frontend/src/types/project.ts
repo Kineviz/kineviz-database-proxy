@@ -9,7 +9,26 @@ export type DatabaseType =
   | 'latticedb'
   | 'postgresql'
   | 'mysql'
+  | 'mssql'
   | 'mongodb';
+
+/**
+ * The engines reached as a server over a host and port with a table-and-column
+ * catalog behind them. Keep in step with `RELATIONAL_TYPES` in
+ * `drivers/relational/engine.py`; a type here is a project type the mapping
+ * editor can serve.
+ */
+export const RELATIONAL_TYPES: DatabaseType[] = ['mssql', 'postgresql', 'mysql'];
+
+export const isRelationalType = (type?: DatabaseType | string | null): boolean =>
+  !!type && (RELATIONAL_TYPES as string[]).includes(type);
+
+/** Default port per relational engine, matching the spec's engine surface. */
+export const RELATIONAL_DEFAULT_PORT: Record<string, number> = {
+  mssql: 1433,
+  postgresql: 5432,
+  mysql: 3306,
+};
 
 /**
  * The engines whose store is a local file rather than a server.
@@ -61,6 +80,11 @@ export interface DatabaseConfig {
   use_tls?: boolean;
   deployment_mode?: 'standalone' | 'plugin';
   api_base_path?: string;
+  // MSSQL, PostgreSQL and MySQL: the schema the graph is read out of. Empty means
+  // the engine's own default (dbo / public / the database itself).
+  schema_name?: string;
+  /** The override document. Absent or null means pure auto-discovery. */
+  graph_mapping?: GraphMappingDocument | null;
   options: Record<string, any>;
 }
 
@@ -77,6 +101,15 @@ export interface ProjectCreate {
   name: string;
   database_type: DatabaseType;
   database_config: DatabaseConfig;
+  /**
+   * Mapping file text the person attached while creating a relational project.
+   *
+   * It is stripped from the body before `POST /api/project/create` and sent to
+   * `PUT /api/relational/{project}/mapping` once the project exists, because the
+   * only program that parses this YAML is the proxy: the browser reads the file as
+   * text and never as structure.
+   */
+  graph_mapping_yaml?: string;
 }
 
 export interface ProjectUpdate {
@@ -212,4 +245,215 @@ export interface StoreListResponse {
   limit: number;
   folders: string[];
   external: ExternalStore[];
+}
+
+// -- relational graph mapping --------------------------------------------------
+//
+// These mirror `models/graph_mapping.py`, which is normative: the document is what
+// the editor holds and what a save writes back, and `GraphMapping` refuses unknown
+// keys, so nothing here may invent a field. `properties` is a **map** of column to
+// type (a hand-written list is accepted on the way in and comes back as a map), and
+// `tuning` is carried untouched because dropping it would be an edit nobody made.
+
+/** One end of a link pair: a declared label and the link-table column holding its key. */
+export interface MappingEndpoint {
+  label: string;
+  /** A column on the **link** table, never the node's own key column. */
+  column: string;
+  column_type?: string | null;
+}
+
+/** One `(src, dst)` a link type connects; several of these is a polymorphic link. */
+export interface MappingPair {
+  src: MappingEndpoint;
+  dst: MappingEndpoint;
+  /** Rows discovery saw for this pair; it decides which pair a schema panel shows. */
+  row_estimate?: number;
+}
+
+export interface MappingNode {
+  label: string;
+  /** Physical table; defaults to the label when empty. */
+  table?: string;
+  /**
+   * The table's own schema, which the wire spells `schema`. Lane A aliases it to
+   * `schema_name` in Python because `schema` would shadow `BaseModel.schema`; both
+   * spellings parse, so an edit that does not touch it passes it through unchanged.
+   */
+  schema?: string | null;
+  schema_name?: string | null;
+  /** The single column identity is minted from. A composite key is refused outright. */
+  key?: string | null;
+  /** Whitelist of columns: a column not here is invisible in GraphXR. */
+  properties?: Record<string, string> | string[] | null;
+  exclude_properties?: string[] | null;
+  /** False keeps the entry as a decision without putting it in the graph. */
+  include?: boolean;
+  /** The property a row of this record is labelled with. */
+  show_as?: string | null;
+  notes?: string | null;
+}
+
+export interface MappingEdge {
+  type: string;
+  table?: string;
+  schema?: string | null;
+  schema_name?: string | null;
+  /** The link table's own key, so parallel links stay distinct. Optional by design. */
+  key?: string | null;
+  /** True reads the link the other way round from what discovery proposed. */
+  flip?: boolean;
+  properties?: Record<string, string> | string[] | null;
+  exclude_properties?: string[] | null;
+  include?: boolean;
+  show_as?: string | null;
+  /** The reasoning behind the guess, so a person can disagree with a specific one. */
+  notes?: string | null;
+  endpoints?: MappingPair[] | null;
+}
+
+export interface GraphMappingDocument {
+  version?: number;
+  /** Engine default when empty: dbo, public, or the database itself. */
+  schema?: string | null;
+  schema_name?: string | null;
+  /** When non-empty, only these records are in the graph. */
+  include?: string[] | null;
+  /** The short form of an entry with `include: false`. */
+  exclude?: string[] | null;
+  nodes?: MappingNode[] | null;
+  edges?: MappingEdge[] | null;
+  /** Query-layer overrides. Not the editor's to change, and not to drop. */
+  tuning?: Record<string, unknown> | null;
+}
+
+/** How an entry came to be what it is, relative to what discovery proposed. */
+export type MappingProvenanceTag = 'auto' | 'renamed' | 'flipped' | 'added' | 'excluded';
+
+/**
+ * A validator complaint, named by the document path it is about
+ * (`edges[1].endpoints[0].dst.label`), which is what lets the editor put the message
+ * on the control that is wrong instead of in a banner.
+ */
+export interface MappingProblem {
+  path: string;
+  message: string;
+}
+
+/**
+ * How one problem may arrive: path-named, as a bare sentence (`warnings` are these), or as
+ * the `(path, message)` pair `EffectiveMapping.problems` holds before a route reshapes it.
+ */
+export type MappingProblemLike = MappingProblem | string | (string | null)[];
+
+/** What auto-discovery would propose with no override, and why. */
+export interface MappingAuto {
+  nodes?: MappingNode[] | null;
+  edges?: MappingEdge[] | null;
+  /** Discovery's reasoning, keyed by label or type. */
+  notes?: Record<string, string> | null;
+  /** Caps hit, e.g. `{ max_labels: 200 }` — 200 / 400 / 200. */
+  truncated?: Record<string, number> | null;
+}
+
+/**
+ * What `/mapping`, `/validate`, `/discover` and the save answer.
+ *
+ * `warnings` and `problems` may be plain strings or path-named objects, so the
+ * editor normalises both rather than asserting one spelling.
+ */
+export interface MappingEnvelope {
+  success?: boolean;
+  mapping?: GraphMappingDocument | null;
+  /** Per-entry tags, keyed either by document path or by label / type. */
+  provenance?: unknown;
+  problems?: MappingProblemLike | MappingProblemLike[] | null;
+  warnings?: MappingProblemLike | MappingProblemLike[] | null;
+  auto?: MappingAuto | null;
+  error?: string | null;
+}
+
+/** `?format=yaml` and `/mapping/example` both answer text plus its format. */
+export interface MappingTextResponse {
+  text?: string | null;
+  yaml?: string | null;
+  format?: string | null;
+  success?: boolean;
+  error?: string | null;
+}
+
+/** One column as the catalog reports it. Spelling varies by engine. */
+export interface RelationalColumn {
+  name?: string;
+  column?: string;
+  type?: string;
+  data_type?: string;
+  nullable?: boolean | null;
+  is_primary_key?: boolean | null;
+  is_unique?: boolean | null;
+}
+
+/** One row of the paged table listing. */
+export interface RelationalTableRow {
+  table: string;
+  schema?: string | null;
+  /** A count while listing, the columns themselves when `include=columns`. */
+  columns?: number | RelationalColumn[] | string[] | null;
+  row_estimate?: number | null;
+}
+
+export interface TablePage {
+  rows?: RelationalTableRow[] | null;
+  total?: number | null;
+  page?: number | null;
+  page_size?: number | null;
+  /** Present when one table's columns were asked for. */
+  table?: string | null;
+  row_estimate?: number | string | null;
+  schema?: string | null;
+  columns?: RelationalColumn[] | null;
+  /** The single-column key/unique candidates, which is what the key picker offers. */
+  key_candidates?: string[] | null;
+  success?: boolean;
+  error?: string | null;
+}
+
+/** The four answers a direction check can give. */
+export type DirectionVerdict = 'settled' | 'backwards' | 'you decide' | 'neither';
+
+/** One direction's rows and how many there were. */
+export interface PreviewSide {
+  rows?: Record<string, unknown>[] | null;
+  count?: number | null;
+  error?: string | null;
+  /** `from` / `to` column names of the rows, so a label can be read off. */
+  columns?: string[] | null;
+}
+
+export interface PreviewResponse {
+  edge?: string | null;
+  table?: string | null;
+  pair?: number | null;
+  /** True when the check ran the mapping's own flip, i.e. swapped ends. */
+  flip?: boolean | null;
+  /** The two directions the pair was run in, as the proxy names them. */
+  src?: MappingEndpoint | null;
+  dst?: MappingEndpoint | null;
+  /** The proxy's own summary: a flag today, and a verdict word if it ever names one. */
+  settled?: boolean | string | null;
+  forwards?: PreviewSide | null;
+  backwards?: PreviewSide | null;
+  message?: string | null;
+  verdict?: string | null;
+  error?: string | null;
+}
+
+export interface PreviewRequest {
+  edge: string;
+  table: string;
+  /** Which endpoint pair of that link to check. */
+  pair: number;
+  src: MappingEndpoint;
+  dst: MappingEndpoint;
+  limit?: number;
 }
