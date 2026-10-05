@@ -257,6 +257,44 @@ def test_a_name_that_is_not_a_table_is_answered_as_absent(client, projects, serv
     assert "not a table" in answer.json()["detail"]
 
 
+def test_a_table_whose_statistics_stayed_silent_arrives_as_no_number(client, projects, server):
+    """
+    The read the picker's tooltip and the Rows column are both built on.
+
+    ``counts`` stands for the engine's own statistics, which name only the tables they have
+    actually counted — so a ``0`` here would be the proxy reporting an empty table on the
+    engine's silence, which is every table of an unanalysed MySQL schema.
+    """
+    server.spelling.counts = {"Person": 12}
+
+    listed = client.get("/api/relational/mapped/tables?page=1&page_size=100").json()
+    by_name = {one["table"]: one["row_estimate"] for one in listed["rows"]}
+    assert by_name["Person"] == 12
+    assert by_name["Employment"] is None
+
+    one = client.get("/api/relational/mapped/tables?include=columns&table=Employment").json()
+    assert one["row_estimate"] is None
+
+
+def test_discovery_tells_the_editor_which_links_it_never_counted(client, projects, server):
+    """
+    The proposal's own row counts, on the wire, with the gap kept.
+
+    The editor sorts and ranks on what arrives here: an absent count that came over as a
+    ``0`` would put an unmeasured link in the same pile as a genuinely empty one, and the
+    pair it then reports is the pair the relationship gets drawn between.
+    """
+    server.spelling.counts = {"Employment": 1180}
+
+    answer = client.post("/api/relational/mapped/discover", json={}).json()
+
+    edges = {one["type"]: one for one in answer["model"]["edges"]}
+    assert edges["EMPLOYMENT"]["endpoints"][0]["row_estimate"] == 1180
+    link = edges["FK_ORDER_CUSTOMER"]["endpoints"][0]
+    assert link["row_estimate"] is None
+    assert "row_estimate" in link, "the gap is answered, not dropped from the payload"
+
+
 # ---------------------------------------------------------------------------
 # a connection that has not been saved
 # ---------------------------------------------------------------------------

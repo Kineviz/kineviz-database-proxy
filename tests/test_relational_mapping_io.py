@@ -239,10 +239,40 @@ def test_defaults_are_written_out_rather_than_left_to_be_guessed() -> None:
     text = to_yaml(parse(SIMPLE))
     assert "flip: false" in text
     assert "include: true" in text
-    assert "row_estimate: 0" in text
+    # A count is the one default left out, because writing `0` for a pair nobody counted
+    # would be the file claiming the engine said "empty". Absent *is* the answer, and it is
+    # the same answer the field not being there gives on the way back in.
+    assert "row_estimate" not in text
     # A null the person left empty is noise in a file they read, and means exactly what
     # the field not being there means.
     assert "null" not in text
+
+
+def test_an_uncounted_pair_and_a_counted_empty_one_are_two_different_files() -> None:
+    """
+    The mapping document's half of the round trip: absent stays absent, zero stays zero.
+
+    A serializer that turned one into the other would lose the distinction on the way to
+    disk, and the next load would rank the pair on a number no engine ever gave.
+    """
+    uncounted = parse(SIMPLE)
+    assert uncounted.edges[0].endpoints[0].row_estimate is None
+    assert parse(to_yaml(uncounted)).edges[0].endpoints[0].row_estimate is None
+
+    counted = parse(
+        SIMPLE.replace(
+            "      - src: {label: Person, column: person_id}\n"
+            "        dst: {label: Organization, column: organization_id}\n",
+            "      - src: {label: Person, column: person_id}\n"
+            "        dst: {label: Organization, column: organization_id}\n"
+            "        row_estimate: 0\n",
+        )
+    )
+    assert counted.edges[0].endpoints[0].row_estimate == 0
+    assert "row_estimate: 0" in to_yaml(counted)
+    again = parse(to_yaml(counted))
+    assert again == counted
+    assert again.edges[1].endpoints[0].row_estimate is None
 
 
 # ------------------------------------------------------------------- the example

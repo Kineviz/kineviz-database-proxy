@@ -38,7 +38,10 @@ def endpoint(label: str, column: str, column_type: Optional[str] = None) -> Mapp
     return MappingEndpoint(label=label, column=column, column_type=column_type)
 
 
-def pair(src: str, dst: str, src_col: str = "from_id", dst_col: str = "to_id", rows: int = 0) -> MappingPair:
+def pair(
+    src: str, dst: str, src_col: str = "from_id", dst_col: str = "to_id", rows: Optional[int] = 0
+) -> MappingPair:
+    """``rows=None`` is a pair no engine ever counted; ``rows=0`` is one it found empty."""
     return MappingPair(
         src=endpoint(src, src_col),
         dst=endpoint(dst, dst_col),

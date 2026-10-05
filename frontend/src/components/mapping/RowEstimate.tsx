@@ -10,9 +10,10 @@ const { Text } = Typography;
  *
  * The estimate is the engine's own — `sys.partitions`, `pg_class.reltuples`,
  * `information_schema.TABLES` — which is what makes it cheap enough to show on every row
- * and what makes it an estimate: an unanalysed table can report nothing at all, and that
- * is drawn as `unknown` rather than as `~0`, because a table that reads as empty is a table
- * a person stops looking at.
+ * and what makes it an estimate: those statistics name only the tables they have actually
+ * counted, so an unanalysed table reports nothing at all. That arrives as no number, and is
+ * drawn as `no statistics` rather than as `~0`, because a table that reads as empty is a
+ * table a person stops looking at.
  *
  * It rides on the same paged read as the table's columns, so a list of rows does not ask
  * the catalog twice for the same table.
@@ -29,6 +30,16 @@ const RowEstimate: React.FC<{ project: string; table: string | null; schema?: st
     return (
       <Tooltip title={error}>
         <Text type="danger">unknown</Text>
+      </Tooltip>
+    );
+  }
+  if (result.rowEstimate === null) {
+    // No number is not the same claim as zero: `~0` reads as "this table is empty", and a
+    // person stops looking at an empty table — which is what an unanalysed MySQL, or a
+    // PostgreSQL whose `pg_stats` the connection may not read, hands back for every table.
+    return (
+      <Tooltip title="The engine's statistics never named this table, so it is unmeasured rather than empty.">
+        <Text type="secondary">no statistics</Text>
       </Tooltip>
     );
   }

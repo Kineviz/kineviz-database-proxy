@@ -106,11 +106,13 @@ class MappingPair(_DocumentModel):
 
     src: MappingEndpoint = Field(..., description="The end the arrow leaves.")
     dst: MappingEndpoint = Field(..., description="The end the arrow arrives at.")
-    row_estimate: int = Field(
-        default=0,
+    row_estimate: Optional[int] = Field(
+        default=None,
         description=(
-            "Rows discovery saw for this edge's table. It picks which pair a schema "
-            "panel reports for a polymorphic type, so it is kept, not decorative."
+            "Rows discovery saw for this edge's table, or absent when its statistics never "
+            "named one — which is not an empty table and must not be written as one. It "
+            "picks which pair a schema panel reports for a polymorphic type, so it is kept, "
+            "not decorative."
         ),
     )
 

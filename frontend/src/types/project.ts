@@ -267,8 +267,12 @@ export interface MappingEndpoint {
 export interface MappingPair {
   src: MappingEndpoint;
   dst: MappingEndpoint;
-  /** Rows discovery saw for this pair; it decides which pair a schema panel shows. */
-  row_estimate?: number;
+  /**
+   * Rows discovery saw for this pair; it decides which pair a schema panel shows.
+   * `null` means the engine's statistics never named this table, which is not the same
+   * fact as `0` and must never be rendered as one.
+   */
+  row_estimate?: number | null;
 }
 
 export interface MappingNode {

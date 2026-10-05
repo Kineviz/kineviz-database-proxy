@@ -273,14 +273,32 @@ def test_row_estimates_arrive_per_page_and_carry_onto_the_pair() -> None:
     assert out.edges["FK_ORDER_CUSTOMER"].representative.row_estimate == 400
 
 
-def test_a_table_nobody_counted_stays_unknown_where_it_matters_and_zero_where_it_does_not() -> None:
-    # ``Pair.row_estimate`` is an int every consumer compares, so the draft says 0; what
-    # must not be lost is the catalog knowing it never counted, since that is what the
-    # caps rank on. Collapsing both at the boundary would make an unmeasured table the
-    # first candidate for being dropped.
+def test_a_table_nobody_counted_stays_unknown_all_the_way_into_the_pair() -> None:
+    # The catalog has always known it never counted; what it used to do on the way into the
+    # draft was fill that gap in with a 0, which is where the unknown became a claim an edge
+    # was ranked on. The ``None`` now travels into the proposal the editor reads.
     found = read()
     assert found.by_name["Employment"].row_estimate is None
-    assert edge_of(draft(found), "EMPLOYMENT").endpoints[0].row_estimate == 0
+    assert edge_of(draft(found), "EMPLOYMENT").endpoints[0].row_estimate is None
+
+
+def test_a_statistics_gap_changes_the_count_and_nothing_else_in_the_proposal() -> None:
+    """
+    An engine that answers nothing proposes the same graph as one that answers zero.
+
+    The two differ in the count and nowhere else: a proposal that also dropped the link, or
+    named it differently, for want of statistics would be a second way for a missing number
+    to be read as a fact about the schema.
+    """
+    nothing, zero = read(), read(rows={"Employment": 0})
+    assert edge_of(draft(nothing), "EMPLOYMENT").endpoints[0].row_estimate is None
+    assert edge_of(draft(zero), "EMPLOYMENT").endpoints[0].row_estimate == 0
+
+    uncounted, counted = draft(nothing).model_dump(by_alias=True), draft(zero).model_dump(by_alias=True)
+    for doc in (uncounted, counted):
+        for endpoint in (pair for edge in doc["edges"] for pair in edge["endpoints"]):
+            endpoint.pop("row_estimate", None)
+    assert uncounted == counted
 
 
 # --------------------------------------------------------------------------- caps

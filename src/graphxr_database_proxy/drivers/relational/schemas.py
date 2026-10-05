@@ -50,14 +50,32 @@ class Pair:
 
     src: Endpoint
     dst: Endpoint
-    #: Rows counted for this link's table. An int, because everything that consumes a
-    #: ``Pair`` compares or prints it; ``SchemaTable.row_estimate`` in the catalog is
-    #: where "nobody counted this" and "this is empty" are still told apart.
-    row_estimate: int = 0
+    #: Rows counted for this link's table, or ``None`` when its statistics never named one.
+    #: Nothing downstream may read that as zero: rank on it through ``size_rank``, which is
+    #: the one place the two kinds of "no rows" are told apart.
+    row_estimate: Optional[int] = None
 
     def swapped(self) -> "Pair":
         """The same link read the other way round; the count goes with it."""
         return Pair(src=self.dst, dst=self.src, row_estimate=self.row_estimate)
+
+
+def size_rank(pair: Pair) -> int:
+    """
+    A pair's size for ranking, with "nobody counted this" kept below "this is empty".
+
+    Unknown ranks ``-1``, under every measured pair including one with a real zero. It
+    loses rather than ties because of *what winning costs*: an edge's ``representative``
+    is the pair a relationship is drawn between, so a candidate that merely has no number
+    would get to pick an edge's direction out of a gap in the statistics — and a gap is
+    exactly what an unanalysed MySQL or a denied-`pg_stats` PostgreSQL hands us. Ranking
+    unknown at 0 would not fix that, because then it ties with an empty table and wins it
+    by document order, which is the same coin toss wearing a different hat.
+
+    Two candidates that were both counted still rank by size, and two that were neither
+    keep the document's order, so the answer a person sees does not move between reads.
+    """
+    return -1 if pair.row_estimate is None else pair.row_estimate
 
 
 #: What an edge with no pairs at all reports as its representative. Not a usable
@@ -122,10 +140,16 @@ class RelSchema:
         """
         The pair to report in a schema panel, which keys relationships by type and so
         can only show one. The most-populated pair is the one a person expects to see.
+
+        Ranked by ``size_rank``, so a pair no engine ever counted never wins this: the
+        pair chosen here becomes ``startCategory`` / ``endCategory`` on the relationship,
+        and a direction picked from a statistics gap would be an invented fact the canvas
+        then draws. Two uncounted pairs tie, and ``max`` keeps the earlier one — document
+        order, which is at least stable across a reload.
         """
         if not self.endpoints:
             return Pair(src=BLANK_ENDPOINT, dst=BLANK_ENDPOINT)
-        return max(self.endpoints, key=lambda pair: pair.row_estimate)
+        return max(self.endpoints, key=size_rank)
 
     def pairs_touching(self, labels: Set[str]) -> List[Pair]:
         """

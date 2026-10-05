@@ -211,7 +211,12 @@ export const TablePicker: React.FC<TablePickerProps> = ({
           return {
             value: row.table,
             label: qualified,
-            title: `${qualified} · ${row.row_estimate ?? '?'} rows`,
+            // "no statistics" and not "? rows": the engine's statistics never named this
+            // table, which is a different thing to know than that it holds no rows.
+            title:
+              row.row_estimate === null || row.row_estimate === undefined
+                ? `${qualified} · no statistics`
+                : `${qualified} · ${row.row_estimate.toLocaleString('en-US')} rows`,
             extra: { schema: row.schema ?? null },
           };
         }),

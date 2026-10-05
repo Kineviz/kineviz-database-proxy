@@ -50,8 +50,14 @@ def test_a_pair_swaps_every_end_and_keeps_the_count_it_was_measured_at() -> None
     assert swapped.swapped() == pair
 
 
-def test_a_pair_defaults_to_no_rows_rather_than_to_a_missing_number() -> None:
-    assert Pair(src=account(), dst=order()).row_estimate == 0
+def test_a_pair_nobody_counted_defaults_to_no_number_rather_than_to_an_empty_table() -> None:
+    # `0` is a claim the engine made; `None` is the absence of one. A default of 0 here
+    # would make every unanalysed MySQL link table look measured-and-empty, and would then
+    # let that fabricated number decide which pair the edge is drawn between.
+    assert Pair(src=account(), dst=order()).row_estimate is None
+    # The gap survives the swap too: a flipped edge that invented a count would rank itself
+    # differently from the same edge read forwards.
+    assert Pair(src=account(), dst=order()).swapped().row_estimate is None
 
 
 # ---------------------------------------------------------------------- records
@@ -109,6 +115,37 @@ def test_an_edge_reports_the_pair_most_likely_to_be_the_one_on_the_screen() -> N
     big = Pair(src=order(), dst=account(), row_estimate=900)
     schema = rel([small, big])
     assert schema.representative is big
+
+
+def test_a_pair_nobody_counted_never_represents_an_edge_one_was_counted_for() -> None:
+    uncounted = Pair(src=account(), dst=order())
+    counted = Pair(src=order(), dst=account(), row_estimate=900)
+    # Order both ways: the rule is "a gap loses", not "a gap happens to be first".
+    assert rel([uncounted, counted]).representative is counted
+    assert rel([counted, uncounted]).representative is counted
+
+
+def test_a_counted_empty_table_beats_the_table_nobody_counted() -> None:
+    """
+    The tie that decides an edge's direction.
+
+    Both candidates answer "as small as it gets" if an absent count is read as zero, so this
+    is where a statistics gap would silently pick which label a relationship starts at. A
+    pair the engine counted and found empty has *evidence*; an uncounted one has none.
+    """
+    uncounted = Pair(src=account(), dst=order())
+    counted_empty = Pair(src=order(), dst=account(), row_estimate=0)
+    assert rel([uncounted, counted_empty]).representative is counted_empty
+    assert rel([counted_empty, uncounted]).representative is counted_empty
+
+
+def test_two_uncounted_pairs_are_broken_by_document_order_not_by_which_is_reported() -> None:
+    first = Pair(src=account(), dst=order())
+    second = Pair(src=order(), dst=account())
+    # Nothing ranks them, so the only honest answer is the stable one: a reload of the same
+    # mapping must not redraw the edge the other way round.
+    assert rel([first, second]).representative is first
+    assert rel([second, first]).representative is second
 
 
 def test_an_edge_with_no_pairs_at_all_reports_a_blank_end_instead_of_raising() -> None:

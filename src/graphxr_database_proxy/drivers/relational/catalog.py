@@ -405,7 +405,7 @@ class _Proposal:
                         MappingPair(
                             src=self._end(table, first),
                             dst=self._end(table, second),
-                            row_estimate=table.row_estimate or 0,
+                            row_estimate=table.row_estimate,
                         )
                     ],
                     notes=_link_reason(table),
@@ -468,7 +468,7 @@ class _Proposal:
                                     column=column,
                                     column_type=table.columns.get(column, UNKNOWN_TYPE),
                                 ),
-                                row_estimate=table.row_estimate or 0,
+                                row_estimate=table.row_estimate,
                             )
                         ],
                         notes=_fk_reason(table, fk),
