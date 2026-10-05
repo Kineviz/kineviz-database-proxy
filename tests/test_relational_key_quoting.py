@@ -59,7 +59,9 @@ def driver_on(source: Dict[str, Any], name: str) -> Any:
     document = propose(FakeInspector(source)).model_dump(by_alias=True)
     return driver_for(
         project(name, graph_mapping=document),
-        row_factory=graph_rows(keys=["alice"]),
+        # Two vertices per statement: the seeded Person and the record its link arrives at, so
+        # the neighbour needs its own key. One key would make the two ends the same node.
+        row_factory=graph_rows(keys=["alice", 5]),
         inspector=FakeInspector(source),
     )
 

@@ -155,7 +155,9 @@ async def test_the_schema_is_read_one_page_of_names_at_a_time() -> None:
 
 
 async def test_a_sample_is_bounded_where_the_bound_belongs() -> None:
-    wired = driver_for(mapped_project(), row_factory=graph_rows([1001]))
+    # A sample projects the mapping's own columns and no ``__gx`` key at all, so there is no
+    # vertex here to give a key to.
+    wired = driver_for(mapped_project(), row_factory=graph_rows([]))
 
     found = await wired.driver.get_sample_data()
 
@@ -198,6 +200,8 @@ async def test_a_cell_that_json_cannot_carry_is_not_sent_to_a_browser() -> None:
 
 
 async def test_a_graph_query_returns_a_graph_whose_ids_the_engine_can_match() -> None:
+    # ``RETURN n`` projects one vertex, so one key is the whole answer — and it is the key the
+    # minted id has to carry, which is what this case is actually about.
     wired = driver_for(mapped_project(), row_factory=graph_rows([1001]))
 
     found = await wired.driver.execute_query("MATCH (n:Person) RETURN n LIMIT 5")

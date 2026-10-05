@@ -58,7 +58,12 @@ class IntentServer:
     """
 
     def __init__(self) -> None:
-        self.engine = FakeEngine(row_factory=graph_rows([1001]))
+        # One key per entity, and this box has to carry the widest statement anyone routes
+        # through it: a one-hop expand joins v0 (the seed) to v1 and one link, while the legacy
+        # two-hop a ``tests/test_relational_query_route.py`` posts chains v0 -> v1 -> v2 over
+        # e0 and e1. A repeated key is not a shorter answer but a different graph: the middle
+        # of a chain would take the seed's identity, and the seed would end up managing itself.
+        self.engine = FakeEngine(row_factory=graph_rows([1001, 1002, 1003], edge_keys=[7, 8]))
         self.inspector = FakeInspector(SPEC)
         self._patch: Any = None
 

@@ -171,14 +171,20 @@ class FakeEngine:
 _GX = COLUMN_PREFIX + "_"
 
 
-def _gx_slot(name: str) -> Optional[Tuple[str, str]]:
-    """``__gx_v0_k0`` → ``('v', 'k0')``; a column the driver projects itself is ``None``."""
+def _gx_slot(name: str) -> Optional[Tuple[str, int, str]]:
+    """
+    ``__gx_v1_k0`` → ``('v', 1, 'k0')``; a column the driver projects itself is ``None``.
+
+    The number in the entity part is the ordinal compile.py gave that vertex or edge, and the
+    caller has to see it: ``_k0`` is the same suffix on every entity, so the ordinal is the
+    only thing that tells ``v0`` from ``v1``.
+    """
     if not name.startswith(_GX):
         return None
     parts = name[len(_GX) :].split("_")
     if len(parts) != 2 or not parts[0][1:].isdigit():
         return None
-    return parts[0][0], parts[1]
+    return parts[0][0], int(parts[0][1:]), parts[1]
 
 
 def graph_rows(keys: Sequence[Any], edge_keys: Sequence[Any] = (7,), values: str = "value") -> Any:
@@ -191,7 +197,24 @@ def graph_rows(keys: Sequence[Any], edge_keys: Sequence[Any] = (7,), values: str
     — without pinning the compiler's label scheme. A column that is not one of the compiler's
     (a sample projecting ``full_name``) is answered by name, because the driver's own reads
     project the mapping's columns and a test on them wants the columns back.
+
+    ``keys[n]`` answers vertex ``n`` and ``edge_keys[n]`` answers edge ``n``, so a caller
+    whose statement joins two vertices has to supply two keys. Asking for a vertex the list
+    does not carry fails the test rather than repeating the last key: the same key on two
+    vertices is the same node id, and the neighbour of a seed silently becomes the seed —
+    a ``Person:7 -[MANAGER]-> Person:7`` self-link on the canvas and no symptom anywhere.
     """
+
+    def answer(source: Sequence[Any], kind: str, ordinal: int, asked: str) -> Any:
+        if ordinal >= len(source):
+            pytest.fail(
+                "graph_rows: {}{} ({}) needs {} keys but {} were given ({}); give this "
+                "statement one key per entity it joins".format(
+                    kind, ordinal, asked, ordinal + 1, len(source),
+                    ", ".join(repr(one) for one in source),
+                )
+            )
+        return source[ordinal]
 
     def build(statement: Any) -> List[Dict[str, Any]]:
         row: Dict[str, Any] = {}
@@ -201,13 +224,13 @@ def graph_rows(keys: Sequence[Any], edge_keys: Sequence[Any] = (7,), values: str
             if slot is None:
                 row[name] = "{}-{}".format(name, values)
                 continue
-            kind, field = slot
+            kind, ordinal, field = slot
             if field[0] != "k":
                 row[name] = "{}-{}".format(name, values)
                 continue
-            source = list(keys if kind == "v" else edge_keys)
-            index = int(field[1:])
-            row[name] = source[index] if index < len(source) else source[-1]
+            row[name] = answer(
+                keys if kind == "v" else edge_keys, kind, ordinal, name
+            )
         return [row]
 
     return build
@@ -470,3 +493,53 @@ async def test_row_estimates_come_from_statistics_and_default_to_absent() -> Non
 
 def test_name_pages_are_bounded_and_the_default_is_smaller_than_the_ceiling() -> None:
     assert DEFAULT_NAME_PAGE < pool_module.MAX_NAME_PAGE
+
+
+# ---------------------------------------------------------------------------
+# the graph row stand-in
+# ---------------------------------------------------------------------------
+
+
+def _two_vertex_statement() -> Any:
+    """A SELECT projecting what one hop does: the seed's key, the neighbour's, the link's."""
+    from sqlalchemy import column, select, table
+
+    person = table("Person", column("person_id"))
+    return select(
+        person.c.person_id.label("__gx_v0_k0"),
+        person.c.person_id.label("__gx_v1_k0"),
+        person.c.person_id.label("__gx_e0_k0"),
+    )
+
+
+def test_each_vertex_of_a_statement_gets_the_key_the_caller_gave_it() -> None:
+    """
+    ``v0`` and ``v1`` are two entities, so they have to be able to be two keys.
+
+    The ordinal is the only thing distinguishing them — every entity's key column ends in
+    ``_k0`` — and a stand-in that reads only the suffix answers a hop with its seed at both
+    ends, which converts to a self-link and a neighbourhood that never existed.
+    """
+    row = graph_rows([1001, 1002], edge_keys=[7])(_two_vertex_statement())[0]
+
+    assert row["__gx_v0_k0"] == 1001
+    assert row["__gx_v1_k0"] == 1002
+    assert row["__gx_e0_k0"] == 7
+
+
+def test_a_vertex_with_no_key_of_its_own_fails_instead_of_reusing_the_seed_s() -> None:
+    """The out-of-range answer is a failed test, not ``keys[-1]``."""
+    with pytest.raises(pytest.fail.Exception, match="v1 .* needs 2 keys"):
+        graph_rows([1001])(_two_vertex_statement())
+
+
+async def test_a_short_key_list_is_not_laundered_into_an_ordinary_refusal() -> None:
+    """
+    Every driver path turns an ``Exception`` into ``success=False``, so the stand-in's refusal
+    has to arrive as something that is not an ``Exception`` — or a caller that forgot a key
+    would read back as a database that answered nothing.
+    """
+    wired = driver_for(mapped_project(), row_factory=graph_rows([1001]))
+
+    with pytest.raises(pytest.fail.Exception):
+        await wired.driver.execute_query("MATCH (a:Person)-[r:EMPLOYMENT]->(b) RETURN a, r, b")
