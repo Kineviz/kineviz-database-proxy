@@ -1,10 +1,10 @@
 """
-Discovery from a live schema, against a fake inspector and no database at all.
+What a table means as a node or an edge, against a fake inspector and no database at all.
 
-The reading and the judgement are pinned separately on purpose. A catalog read that
-pulled the whole library to answer one page would pass every other test in this file
-and still be the thing that takes a 3 000-table ERP down, so the page-by-page
-assertions carry as much weight as the classification ones.
+The paged walk is pinned in `test_relational_reflect.py`, which holds the fake inspector
+this file reads a schema through. What stays here is the judgement half — and the row
+estimates, still asserted per page, because an estimate attached to the wrong table
+passes the walk and still mis-ranks a link.
 """
 
 from __future__ import annotations
