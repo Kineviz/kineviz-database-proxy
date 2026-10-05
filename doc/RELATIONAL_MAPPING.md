@@ -159,6 +159,33 @@ works at where"; flipped it answers "where employs whom". Both are valid graphs.
 is *yours* is a question real rows answer, not a schema — see
 [Check the direction](#check-the-direction-before-you-believe-the-graph).
 
+### A stated type is a request, not an order
+
+Two readers look at the type you write, and they do not answer the same way.
+
+**A property's stated type is corrected wherever the schema has an answer.** The catalog's
+own spelling replaces yours for a column it can name — `varchar(50)` written over a column
+the database calls `integer` binds as `INTEGER`, and nothing is warned about it. Only where
+the reader had **no answer at all** — it warns "Did not recognize type" and writes down
+`NULL` — is your declaration the only type information anybody has; it then stands, and the
+loader says so: *this schema names no type for column 'odd', so the declared 'varchar(100)'
+is what a filter on it binds as*. That is the one place a mapping is the escape hatch a
+refused filter is pointing at.
+
+**A key's type is not yours to state.** There is no `keyType` field, because the id
+`<Label>:<key>` and every re-selected seed bind against the key column's own type, so the
+proxy reads that off the schema — once. The read only runs while the key still says nobody
+looked: blank, or the `STRING` placeholder. The `NULL` that the very same reader hands back
+is not looked at again, and is used as the key's declared type. So a key that ends up on a
+name this engine has no binding for — that marker, or a column whose own type name is absent
+from this engine's table, `geometry` for one — has the whole record refused, by name, for
+**every** statement that reaches it, not only the ones
+filtering on it: *node label 'Widget' is keyed by column 'id', whose
+declared type 'NULL' this engine cannot bind as the column's own type*. Naming that column in
+`properties` does not lift it once discovery knows the table: the `STRING` discovery leaves
+behind is read before your file is, and a key column never becomes a property anyway. Key the
+label on a column this engine can name.
+
 ### Why the reasoning lives in fields
 
 `notes` and `show_as` exist because the editor regenerates the file from the document, and a
@@ -320,6 +347,7 @@ you are overriding.
 | A link is missing | a composite foreign key, or an end outside the graph, or `include: false` on a record it needed | state the edge yourself; pull the record back in |
 | An edge joins nothing | it runs backwards, or an endpoint column is the wrong one | **Check direction**, then flip or fix the column |
 | A column does not show in GraphXR | `properties` is a whitelist and the column is not on it | name it, or clear the whitelist |
+| A query is refused **by name** — "has no type to bind as", or "cannot bind as the column's own type" | the name on that column is one this engine cannot bind. Two ways get there: the name came from the **graph-side** vocabulary a schema reports back (`INT64`, `INT32`, `STRING`, `BYTES` bind on none of the three engines; `BOOL`, `DOUBLE`, `JSON` on only some), or the column really is a type with no binding here, `geometry` for one | former: spell the type the way your own database does — case does not matter, `(n)` and `unsigned` may be left off, and each engine's names are listed in [Where the rules live](#where-the-rules-live). latter: no name fixes it — `exclude_properties` that column, or key the label on another |
 | Two links between the same pair are one | the edge has no key of its own | give it its own `key` |
 | Too many links, or a table nobody asked for | discovery proposed every record table it could key | `exclude`, or `include` with a short list |
 | The first expand is slow or huge | a polymorphic type fanning out over every pair | keep the pairs you mean, or exclude the type |
@@ -346,6 +374,7 @@ database is refused in words instead of answered with an empty list. Such a draf
 | Parsing, the 1 MiB cap, the export | `drivers/relational/mapping_io.py` |
 | What is valid, and why not | `drivers/relational/mapping.py`, and the four `mapping_props.py` / `mapping_index.py` / `mapping_pairs.py` / `mapping_scope.py` the loader was split into |
 | What discovery reads and refuses, the caps | `drivers/relational/catalog.py`, `reflect.py` |
+| Which column-type names an engine can actually bind | `drivers/relational/engines/mssql.py`, `mysql.py`, `postgresql.py` — the `_COLUMN_TYPES` table each one looks a declared type up in |
 | The IR everything downstream is written against | `drivers/relational/schemas.py` |
 | The shipped example | `drivers/relational/data/mapping.example.yml` |
 | The editor | `frontend/src/pages/GraphMapping.tsx`, `frontend/src/components/mapping/` |

@@ -147,6 +147,30 @@ OrderItem   <- OrderItem   notes: not a node: its primary key is ['order_id', 'l
 谁"。两种都是合法的图。哪一个才是**你要**的那个，只有真实的数据能回答，schema 回答不了
 ——见[保存前先检查方向](#保存前先检查方向)。
 
+### 你写的类型只是一个请求，不是一道命令
+
+有两个读者会来看你写的类型，它们的回答方式并不一样。
+
+**属性的声明类型，只要 schema 给得出答案，就会被改掉。** catalog 能叫出名字的列，会用它
+自己的拼写覆盖你写的那一个：给一个数据库里其实是 `integer` 的列写 `varchar(50)`，最后绑定
+用的就是 `INTEGER`，而且一句警告都没有。只有负责读取的那一方**压根没有答案**的时候——它会
+发出 "Did not recognize type" 这条警告，然后写下 `NULL`——你的声明才是场上仅存的类型信息，
+这时它留得下来，loader 也会说明这一点：*this schema names no type for column 'odd', so the declared
+'varchar(100)' is what a filter on it binds as*。这是 mapping 唯一一次真的成为被拒的过滤器
+所指的那条出路。
+
+**key 的类型轮不到你来声明。** 文档里没有 `keyType` 这个字段，因为 id `<Label>:<key>` 和每
+一次重新选中的 seed 都要按 key 列自己的类型来绑定，所以代理去 schema 里读它——只读一次。
+这次读取只在这个 key 仍然表示"没人查过"时才发生：空的，或者还是 `STRING` 占位符。而同一个
+读取器交回来的那个 `NULL` 不会被再看第二遍，它就直接被当作这个 key 的声明类型。所以一个最
+终落在本引擎无法绑定的类型名上的 key——那个标记，或者一列真的是这里没有绑定的类型，比如
+`geometry`——
+会让整条记录被按名字拒绝，而且是在**每一条**触达它的语句上，不只是那些过滤 key 的语句：
+*node label 'Widget' is keyed by column 'id', whose declared type 'NULL' this engine cannot
+bind as the column's own type*。自动发现认识这张表的时候，把这一列写进 `properties` 也救不
+回来：自动发现留下的那个 `STRING` 比你的文件先被读到，而 key 列无论如何都不会变成属性。把这个
+标签的 key 换成本引擎能叫出名字的一列。
+
 ### 为什么理由要写在字段里
 
 `notes` 和 `show_as` 的存在理由很实际：编辑器是**从文档重新生成文件**的，而 YAML 注释是
@@ -294,6 +318,7 @@ Links 页上每个端点对都有一个 **Check direction**，把这条边*正�
 | 少了一条边 | 复合外键、某一端不在图里、或者它需要的记录被 `include: false` 排除了 | 自己声明这条边；把那条记录放回图里 |
 | 一条边连不上任何东西 | 方向反了，或者端点列选错了 | 先 **Check direction**，然后 flip 或改列 |
 | 某一列在 GraphXR 里看不到 | `properties` 是白名单，而这一列不在名单上 | 点名它，或者清掉白名单 |
+| 一条查询被**按名字**拒绝——报错说 "has no type to bind as"，或者说 "cannot bind as the column's own type" | 这一列上的类型名是本引擎绑不了的。到这一步有两条路：名字是从 schema 报回来的那套**图侧**词表里抄的（`INT64`、`INT32`、`STRING`、`BYTES` 三个引擎都绑不了，`BOOL`、`DOUBLE`、`JSON` 只在其中个别引擎上能绑），或者这一列真的是这里没有绑定的类型，比如一个 `geometry` | 前一种：按你自己的数据库拼写这个类型的写法来写——不区分大小写，`(n)` 和 `unsigned` 可以省略——每个引擎的名单见[规则住在哪里](#规则住在哪里)。后一种：换个拼写解决不了——用 `exclude_properties` 排除这一列，或者把标签的 key 换到别的列上 |
 | 同一对记录之间的两条边变成了一条 | 这条边没有自己的 key | 给它写上自己的 `key` |
 | 边太多，或者冒出一张没人想要的表 | 自动发现把所有能定 key 的记录表都提了出来 | 用 `exclude`，或者用一份短的 `include` |
 | 第一次 expand 很慢或者爆开 | 一个多态类型在每一对端点上扇出 | 只留下你需要的端点对，或者排除这个类型 |
@@ -318,6 +343,7 @@ Links 页上每个端点对都有一个 **Check direction**，把这条边*正�
 | 解析、1 MiB 上限、导出 | `drivers/relational/mapping_io.py` |
 | 什么算合法，以及为什么不合法 | `drivers/relational/mapping.py`，以及 loader 拆出去的那四个 `mapping_props.py`／`mapping_index.py`／`mapping_pairs.py`／`mapping_scope.py` |
 | 自动发现读什么、拒什么、上限 | `drivers/relational/catalog.py`、`reflect.py` |
+| 每个引擎真正能绑定哪些列类型名 | `drivers/relational/engines/mssql.py`、`mysql.py`、`postgresql.py`——各自那张 `_COLUMN_TYPES` 表，声明的类型就是在这儿查表的 |
 | 下游一切代码所依据的中间表示 | `drivers/relational/schemas.py` |
 | 自带的样例文件 | `drivers/relational/data/mapping.example.yml` |
 | 编辑器 | `frontend/src/pages/GraphMapping.tsx`、`frontend/src/components/mapping/` |
