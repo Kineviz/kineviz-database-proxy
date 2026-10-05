@@ -54,6 +54,20 @@ class CompileError(Exception):
     """A branch cannot be compiled. The message says which part."""
 
 
+class UnbindableKey(CompileError):
+    """
+    A key column whose type this engine cannot name, so a seed cannot be re-selected.
+
+    The returning half of ``<Label>:<key>`` binds a seed against the key column *as that
+    column's own type* (``expression.PredicateScope.bind`` → ``spelling.column_type``).
+    Every engine spells that binding with ``_COLUMN_TYPES.get(base, sa.String())``: a type
+    it does not recognise falls back to a bare ``String``, and a ``String`` bind against a
+    ``geometry`` (or an un-analysed, blank) key column compares text, matches nothing, and
+    answers an empty graph — the one failure that looks exactly like a row that was never
+    there. Refused with the column and its type named, instead.
+    """
+
+
 class RepeatedRelationshipVariable(CompileError):
     """
     The pattern uses one relationship variable twice.
@@ -319,6 +333,7 @@ class _Builder:
             if vertex.var not in self.branch.labels:
                 continue
             schema = self.node(self.label_of(vertex.var))
+            _require_bindable_key(self.spelling, "node label", schema.label, schema.key, schema.key_type)
             columns = schema.all_props()
             alias = self.vertex_alias(vertex.var)
             variables.append(
@@ -333,6 +348,7 @@ class _Builder:
             )
         for bound in self.branch.edges:
             schema = self.rel(bound.rel_type)
+            _require_bindable_key(self.spelling, "relationship type", schema.type, schema.key, schema.key_type)
             columns = edge_columns(schema, bound.pair)
             alias = self.edge_alias(bound)
             variables.append(
@@ -615,6 +631,29 @@ def _column_names(columns: Sequence[object]) -> Tuple[str, ...]:
         name = getattr(column, "name", None)
         out.append(str(name))
     return tuple(out)
+
+
+def _require_bindable_key(
+    spelling: EngineSpelling, what: str, name: str, key: Optional[str], key_type: Optional[str]
+) -> None:
+    """
+    The key column's own type must be nameable, or a seed cannot be re-selected.
+
+    ``column_type`` answers the generic ``String`` for any declared type the engine does
+    not name — the same fallback ``expression`` binds with — so a key left with that
+    fallback would send a text parameter, match nothing, and fill a canvas with nothing
+    under a name that looks like a real answer. A label or link with no key of its own is
+    not checked here: ``convert.py`` mints those from their endpoints, not a bind.
+    """
+    if not key:
+        return
+    if type(spelling.column_type(key_type or "")) is not sa.String:
+        return
+    raise UnbindableKey(
+        "%s %r is keyed by column %r, whose declared type %r this engine cannot bind as the "
+        "column's own type; a seed could not be re-selected, so the lookup is refused rather "
+        "than answered with an empty result." % (what, name, key, key_type or "")
+    )
 
 
 def edge_columns(schema: RelSchema, pair: Pair) -> Dict[str, str]:
