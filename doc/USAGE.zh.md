@@ -32,9 +32,10 @@ npm run dev
 ### 创建新项目
 1. 点击 "Add Project" 按钮
 2. 填写项目基本信息：
-   - 项目名称
-   - 描述
-   - 数据库类型（目前支持 Google Cloud Spanner）
+   - **Project Name**：项目的显示名
+   - **Database Type**：项目指向的引擎——图数据库、嵌入式库文件，或者
+     `SQL Server` / `PostgreSQL` / `MySQL`
+   - **Database Configuration**：连接参数
 
 ### 数据库配置
 3. 选择认证方式：
@@ -70,13 +71,51 @@ Kuzu 和 Ladybug 在哪都能装。
 
 引擎如何选择、装在哪里、打不开时怎么排查，见 [EMBEDDED_STORES.zh.md](EMBEDDED_STORES.zh.md)。
 
+### 关系型（SQL Server / PostgreSQL / MySQL）
+把客户自己的数据库当成图来服务。这张卡片问的是 **Host**、**Port**、**Use TLS**、**Database**、
+**Schema**，以及 Credentials 里的 **Username** / **Password**：选好类型之后，端口和 schema 会直接填上
+那个引擎自己的默认值，登录方式只有用户名 / 密码一种。
+
+字段下面有两个按钮。**Test Connection** 按表单上当前的内容去试连，不用先保存项目。
+**Browse tables** 对着同一个还没保存的连接列出表名，一次读一页。
+
+新建项目还可以带上 **Mapping file (optional)**——一份你已经确认过的 `.yml`、`.yaml` 或 `.json`。
+浏览器只把它当文本读，解析发生在项目建好之后的代理里，所以文件被拒只会留下一句提醒，项目本身不会丢。
+
+这些字段各自意味着什么、mapping 怎么描述一张表，见
+[RELATIONAL_MAPPING.zh.md](RELATIONAL_MAPPING.zh.md#建项目的时候要填什么)；mapping 本身怎么改，见下面的
+「Graph Mapping 页」。
+
 ### 连接测试
-- 点击 "Test Connection" 验证数据库连接
-- 查看连接状态和响应时间
+- **Test Connection** 在关系型、Neo4j / Memgraph、RocketGraph 项目的连接卡片里。
+- 它用的就是表单当前的值：不用先保存项目，试连本身也不保存任何东西。
+- 答案是一句 `Connection successful`，或者 `Connection failed: …`。
 
 ### API URL 生成
-- 点击 "API URLs" 获取 GraphXR 集成链接
-- 一键复制到剪贴板
+- 项目列表每一行有两个图标：复制图标把 GraphXR 要用的连接地址放进剪贴板；链接图标打开 **API URLs**，
+  里面除了这个地址，还列着 query、schema、graphSchema、sampleData，每个都能单独复制。
+- 关系型项目走的还是那套通用路由，所以地址是 `http://<host>:9080/api/mssql/<project>`
+  （`postgresql`、`mysql` 换在同一个位置）。`/api/relational/…` 是 mapping 页用的管理路由，不是填给
+  GraphXR 的；路由清单见 [RELATIONAL_API.md](RELATIONAL_API.md)（这份没有中文对照）。
+
+### Graph Mapping 页
+顶部菜单的 **Graph Mapping**（或者关系型那一行的 mapping 图标）打开的是把表目录读成图的那一页。它只对
+已经存在的项目起作用，选中的项目会写进网址（`?project=`），所以一个链接就能回到同一份复核；非关系型的
+项目会灰着列在那里并写明原因——它们的数据库自己就叫得出节点的名字。
+
+- **Records**、**Links**、**YAML** 是同一份草稿的三个视图，不是三份文档。**Add a record** /
+  **Add a link** 加行，取消勾选就是把这条从图里拿掉；链接上的 **Check direction** 会用真实数据两头各跑
+  一次，答案是 `Settled`、`Backwards`、`You decide` 或 `Neither`。
+- 工具条上有 **Upload mapping**、**Download**、**Re-discover**、**Example**、**Reset to
+  auto-discovery**、**Reload** 和 **Save mapping**。Re-discover 只是提一个方案，什么都不存；它在大
+  schema 里漏掉了什么，就写在这个方案旁边。**Example** 显示代理自带的那份带注释的示例文件——要看就看它，
+  别抄到别处去。
+- 标签页是空的，不等于图是空的：只是还没人覆盖自动发现。
+- 读不进来的文件只报问题、不动草稿，每一条都带着「该改哪个控件」的路径；能解析但仍有问题的 mapping
+  **会**被存下来，页面也会明说——自动发现会把剩下的补齐。
+
+文档自己的规则在 [RELATIONAL_MAPPING.zh.md](RELATIONAL_MAPPING.zh.md)，这些按钮背后的路由在
+[RELATIONAL_API.md](RELATIONAL_API.md)。
 
 
 ## 🎯 GraphXR 集成

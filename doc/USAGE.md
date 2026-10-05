@@ -29,7 +29,8 @@
 1. Click the "Add Project" button
 2. Fill in basic information:
    - **Project Name**: Display name for the project
-   - **Database Type**: Currently supports `spanner`
+   - **Database Type**: The engine the project points at — a graph engine, an embedded store,
+     or one of `SQL Server` / `PostgreSQL` / `MySQL`
    - **Database Configuration**: Connection parameters
 
 ### Project Configuration Options
@@ -67,6 +68,66 @@ a project on one.
 
 See [EMBEDDED_STORES.md](EMBEDDED_STORES.md) for how the engine is chosen, where
 it is installed, and what to do when a store will not open.
+
+#### SQL Server / PostgreSQL / MySQL (relational)
+
+A customer's own database, served to GraphXR as a graph. The card asks for **Host**, **Port**,
+**Use TLS**, **Database**, **Schema**, and a **Username** / **Password** under Credentials; the
+port and the schema arrive filled with the engine's own defaults as soon as you pick the type,
+and username / password is the only way in.
+
+Two buttons sit below the fields. **Test Connection** probes the connection as the form holds it,
+before anything is saved. **Browse tables** opens a table picker against that same unsaved
+connection and reads it a page of names at a time.
+
+A new project may also carry **Mapping file (optional)** — a reviewed `.yml`, `.yaml` or `.json`.
+The browser only reads it as text and the proxy parses it once the project exists, so a file it
+refuses costs you a warning, never the project.
+
+What the fields mean, and what the mapping says about a table, are
+[RELATIONAL_MAPPING.md](RELATIONAL_MAPPING.md#creating-the-project); editing the mapping itself is
+[Mapping a Relational Project](#mapping-a-relational-project) below.
+
+### Testing the Connection
+
+**Test Connection** is inside the connection card of a relational, a Neo4j / Memgraph or a
+RocketGraph project. It uses the settings exactly as typed — nothing needs to be saved first, and
+the probe saves nothing — and answers yes or no with one sentence, `Connection successful` or
+`Connection failed: …`.
+
+### Getting the GraphXR URL
+
+Each project row carries two icons: the copy icon puts the GraphXR connection URL on the
+clipboard, and the link icon opens the **API URLs** modal, which lists that URL together with the
+query, schema, graph-schema and sample-data endpoints, each with its own copy button.
+
+A relational project is served on the same generic routes as every other type, so its URL is
+`http://<host>:9080/api/mssql/<project>` — `postgresql` and `mysql` in the same slot. The
+`/api/relational/…` routes are the mapping page's admin surface, not what GraphXR is pointed at;
+they are listed in [RELATIONAL_API.md](RELATIONAL_API.md).
+
+### Mapping a Relational Project
+
+**Graph Mapping** in the header, or the mapping icon on a relational project's row, opens the page
+where a table catalog is read as a graph. It works on a project that already exists, and keeps the
+chosen one in the URL (`?project=`) so a link lands on the same review. Non-relational projects
+are listed greyed out with the reason: their database already names its own nodes.
+
+- **Records**, **Links** and **YAML** are three views of one draft, not three documents. Add rows
+  with **Add a record** / **Add a link**, untick one to take it out of the graph, and run
+  **Check direction** on a link to see whether the join runs the way the sentence in the room
+  assumes — it answers `Settled`, `Backwards`, `You decide` or `Neither`.
+- The toolbar has **Upload mapping**, **Download**, **Re-discover**, **Example**, **Reset to
+  auto-discovery**, **Reload** and **Save mapping**. Re-discover only proposes, and what discovery
+  left out of a large schema is shown beside the proposal. **Example** shows the annotated file
+  the proxy ships — read it there rather than copying it somewhere it will drift.
+- Empty tabs are not an empty graph. They mean nobody has overridden auto-discovery yet.
+- A file that will not load is reported with the path of each control that needs fixing, and
+  nothing is applied. A mapping that parses but still has problems **is** stored, and the page
+  says so: an incomplete mapping is a legal thing to keep while discovery fills in the rest.
+
+The document and its rules are [RELATIONAL_MAPPING.md](RELATIONAL_MAPPING.md); the routes behind
+these buttons are [RELATIONAL_API.md](RELATIONAL_API.md).
 
 ### Editing Projects
 1. Click the edit icon next to the project name
