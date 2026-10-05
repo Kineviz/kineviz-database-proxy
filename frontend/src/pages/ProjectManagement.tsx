@@ -141,12 +141,12 @@ const ProjectManagement: React.FC = () => {
       navigate('/listProjects');
       loadProjects();
       // A mapping file rode with the create and the proxy — never the browser — decided
-      // whether it loads. `createProject` warns in place when it refuses one; the project
-      // is real either way, so this is an offer to fix the file, not an error about it.
+      // whether it loads. `createProject` warns in place about whatever will not load; the
+      // project and the mapping are both real, so this is an offer to fix the file.
       if (values.graph_mapping_yaml?.trim() && created?.name) {
         Modal.confirm({
           title: `${created.name} was created with a mapping file`,
-          content: `The text went to /api/relational/${created.name}/mapping. If the warning above says it was refused, the project still exists and nothing was lost: open Graph Mapping, fix the file and apply it there.`,
+          content: `The text went to /api/relational/${created.name}/mapping. If the warning above reports problems, the file was stored and the graph will not load until they are fixed: open Graph Mapping, fix the file and apply it there.`,
           okText: 'Open Graph Mapping',
           cancelText: 'Stay on Projects',
           onOk: () => navigate(`/mapping?project=${encodeURIComponent(created.name)}`),

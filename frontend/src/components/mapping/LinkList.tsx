@@ -21,6 +21,7 @@ import {
   PROVENANCE_COLOR,
   formatCount,
   problemField,
+  proposalNote,
   provenanceTag,
 } from './reducer';
 import { MappingActions } from './actions';
@@ -269,7 +270,8 @@ const LinkList: React.FC<Props> = ({ project, draft, dispatch, actions }) => {
           description={
             <Text style={{ fontSize: 12 }}>
               A link ends at a record. Add one on the Records tab, or let discovery propose them — a
-              link typed against a label that is not declared is refused when the mapping is saved.
+              link typed against a label that is not declared is stored and then named as a problem:
+              GraphXR will not read this schema until every end names a label that is.
             </Text>
           }
         />
@@ -285,7 +287,9 @@ const LinkList: React.FC<Props> = ({ project, draft, dispatch, actions }) => {
           columnWidth: 34,
           expandedRowRender: (edge) => {
             const notes = problemField(draft.problemIndex, 'edges', edge.type, 'notes');
-            const reasoning = edge.notes || draft.auto?.notes?.[edge.type];
+            // The proposal's own reasoning for this link, not the entry's: reading the entry's
+            // note here made the divergence below impossible to reach.
+            const reasoning = proposalNote(draft.proposal, 'edges', edge.type);
             const structural = (edge.endpoints ?? []).reduce<string[]>(
               (found, pair) => [...found, pair.src.column, pair.dst.column],
               [],
@@ -321,7 +325,7 @@ const LinkList: React.FC<Props> = ({ project, draft, dispatch, actions }) => {
                     rows={1}
                     autoSize={{ minRows: 1, maxRows: 4 }}
                     style={{ width: 520 }}
-                    defaultValue={edge.notes ?? draft.auto?.notes?.[edge.type] ?? ''}
+                    defaultValue={edge.notes ?? reasoning ?? ''}
                     placeholder="what this table means, and which way round the sentence goes"
                     onBlur={(event) =>
                       dispatch({ kind: 'edge-patch', type: edge.type, patch: { notes: event.target.value || null } })
@@ -380,7 +384,7 @@ const LinkList: React.FC<Props> = ({ project, draft, dispatch, actions }) => {
         </Button>
         <Text type="secondary" style={{ fontSize: 12 }}>
           {formatCount(edges.length)} link {edges.length === 1 ? 'type' : 'types'} in this draft — a link
-          whose table is not named is refused when it is saved.
+          with no table is read as the table named exactly like its type.
         </Text>
       </Space>
     </Space>

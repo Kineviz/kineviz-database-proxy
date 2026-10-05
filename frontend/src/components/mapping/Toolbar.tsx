@@ -21,7 +21,6 @@ import {
   UndoOutlined,
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
-import type { MappingProblem } from '../../types/project';
 import { MappingAction, DraftState, errorMessage, toProblems } from './reducer';
 import { MappingActions, textOf } from './actions';
 
@@ -83,14 +82,9 @@ const Toolbar: React.FC<Props> = ({ draft, dispatch, actions, saving, onSave, on
   const [busy, setBusy] = React.useState<string | null>(null);
   const [example, setExample] = React.useState<string | null>(null);
   const [exampleOpen, setExampleOpen] = React.useState(false);
-  /**
-   * What the last proposal left out.
-   *
-   * `/discover` answers its caps and its skips as sentences in `warnings` — there is no
-   * structured `truncated` on any route — so they are kept here, beside the call that produced
-   * them, and shown for exactly as long as the proposal they describe is on the screen.
-   */
-  const [leftOut, setLeftOut] = React.useState<MappingProblem[]>([]);
+  // The sentences `/discover` answered beside the proposal now on the screen; they live in the
+  // draft, not here, so they cannot outlive it.
+  const leftOut = draft.proposal?.leftOut ?? [];
 
   /** Read the dropped file as text, then let the proxy say what it is. */
   const readFile: UploadProps['beforeUpload'] = (file) => {
@@ -190,10 +184,14 @@ const Toolbar: React.FC<Props> = ({ draft, dispatch, actions, saving, onSave, on
     setBusy('discover');
     try {
       const answer = await actions.discover();
-      dispatch({ kind: 'replace', document: answer.mapping ?? null, provenance: answer.provenance });
-      // The route reports caps and skips as sentences; they belong to this proposal, so they
-      // are read from this answer rather than from anything the page could derive here.
-      setLeftOut(toProblems(answer.warnings));
+      // One action carries the whole proposal: the document, and the reasoning each of its
+      // entries arrived with, which is what the note fields are compared against from now on.
+      dispatch({
+        kind: 'proposal',
+        document: answer.mapping ?? null,
+        provenance: answer.provenance,
+        leftOut: toProblems(answer.warnings),
+      });
       // The proposal is a draft to review, not a save: the person has to agree to it.
       message.success('Discovery proposed a mapping. Nothing is stored until you save it.');
     } catch (caught: unknown) {
@@ -232,39 +230,17 @@ const Toolbar: React.FC<Props> = ({ draft, dispatch, actions, saving, onSave, on
         </Tooltip>
         <Divider type="vertical" />
         <Tooltip title="Drop the override: the project goes back to reading the schema straight.">
-          <Button
-            icon={<UndoOutlined />}
-            danger
-            onClick={() => {
-              // Both of these put the stored mapping (or none) back on the screen, so the
-              // sentences that described the proposal no longer on it stop being true.
-              setLeftOut([]);
-              onReset();
-            }}
-          >
+          <Button icon={<UndoOutlined />} danger onClick={onReset}>
             Reset to auto-discovery
           </Button>
         </Tooltip>
         <Divider type="vertical" />
-        <Button
-          icon={<ReloadOutlined />}
-          onClick={() => {
-            setLeftOut([]);
-            onReload();
-          }}
-        >
+        <Button icon={<ReloadOutlined />} onClick={onReload}>
           Reload
         </Button>
         {draft.dirty ? (
           <Tooltip title="Throw away the draft and edit what is stored again.">
-            <Button
-              onClick={() => {
-                setLeftOut([]);
-                dispatch({ kind: 'discard' });
-              }}
-            >
-              Discard
-            </Button>
+            <Button onClick={() => dispatch({ kind: 'discard' })}>Discard</Button>
           </Tooltip>
         ) : null}
         <Button type="primary" icon={<SaveOutlined />} loading={saving} disabled={!draft.dirty} onClick={onSave}>
@@ -272,7 +248,8 @@ const Toolbar: React.FC<Props> = ({ draft, dispatch, actions, saving, onSave, on
         </Button>
         {problemCount ? (
           <Text type="danger" style={{ fontSize: 12 }}>
-            {problemCount} {problemCount === 1 ? 'problem' : 'problems'} — the save will be refused
+            {problemCount} {problemCount === 1 ? 'problem' : 'problems'} — the save stores them, and
+            GraphXR will not read this schema until they are fixed
           </Text>
         ) : null}
       </Space>

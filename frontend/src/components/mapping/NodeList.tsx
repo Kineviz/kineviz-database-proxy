@@ -20,6 +20,7 @@ import {
   PROVENANCE_COLOR,
   linksDependingOn,
   problemField,
+  proposalNote,
   provenanceTag,
   toProblems,
 } from './reducer';
@@ -307,7 +308,7 @@ const NodeList: React.FC<Props> = ({ project, draft, dispatch, actions }) => {
           title={`Delete ${node.label} from the mapping?`}
           description={
             linksDependingOn(draft.document, node.label).length
-              ? 'Links pointing at it stay in the document and will be refused when it is saved.'
+              ? 'Links pointing at it stay in the document: the save stores them, and GraphXR will not read this schema until every end names a declared label again.'
               : 'It goes back to being whatever auto-discovery makes of that table.'
           }
           okText="Delete"
@@ -342,40 +343,43 @@ const NodeList: React.FC<Props> = ({ project, draft, dispatch, actions }) => {
         pagination={{ pageSize: 20, showSizeChanger: true, size: 'small', hideOnSinglePage: false }}
         expandable={{
           columnWidth: 34,
-          expandedRowRender: (node) => (
-            <Space direction="vertical" size={8} style={{ width: '100%' }}>
-              <PropertyEditor
-                project={project}
-                list="nodes"
-                name={node.label}
-                entry={node}
-                table={node.table ?? node.label}
-                schema={node.schema ?? draft.document.schema ?? null}
-                dispatch={dispatch}
-              />
-              <Space align="start" size={8}>
-                <Text type="secondary" style={{ fontSize: 12, width: 110 }}>
-                  Why this is a record
-                </Text>
-                <Input.TextArea
-                  size="small"
-                  rows={1}
-                  autoSize={{ minRows: 1, maxRows: 4 }}
-                  style={{ width: 520 }}
-                  defaultValue={node.notes ?? draft.auto?.notes?.[node.label] ?? ''}
-                  placeholder={draft.auto?.notes?.[node.label] || 'what this table means, and why its key is the one it is'}
-                  onBlur={(event) =>
-                    dispatch({ kind: 'node-patch', label: node.label, patch: { notes: event.target.value || null } })
-                  }
+          expandedRowRender: (node) => {
+            const said = proposalNote(draft.proposal, 'nodes', node.label);
+            return (
+              <Space direction="vertical" size={8} style={{ width: '100%' }}>
+                <PropertyEditor
+                  project={project}
+                  list="nodes"
+                  name={node.label}
+                  entry={node}
+                  table={node.table ?? node.label}
+                  schema={node.schema ?? draft.document.schema ?? null}
+                  dispatch={dispatch}
                 />
+                <Space align="start" size={8}>
+                  <Text type="secondary" style={{ fontSize: 12, width: 110 }}>
+                    Why this is a record
+                  </Text>
+                  <Input.TextArea
+                    size="small"
+                    rows={1}
+                    autoSize={{ minRows: 1, maxRows: 4 }}
+                    style={{ width: 520 }}
+                    defaultValue={node.notes ?? said ?? ''}
+                    placeholder={said || 'what this table means, and why its key is the one it is'}
+                    onBlur={(event) =>
+                      dispatch({ kind: 'node-patch', label: node.label, patch: { notes: event.target.value || null } })
+                    }
+                  />
+                </Space>
+                {said && said !== node.notes ? (
+                  <Text type="secondary" style={{ fontSize: 12 }}>
+                    discovery said: {said}
+                  </Text>
+                ) : null}
               </Space>
-              {draft.auto?.notes?.[node.label] && draft.auto.notes[node.label] !== node.notes ? (
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  discovery said: {draft.auto.notes[node.label]}
-                </Text>
-              ) : null}
-            </Space>
-          ),
+            );
+          },
         }}
       />
 
@@ -389,8 +393,8 @@ const NodeList: React.FC<Props> = ({ project, draft, dispatch, actions }) => {
         Add a record
       </Button>
       <Text type="secondary" style={{ fontSize: 12, display: 'block' }}>
-        A record with no table is refused when the mapping is saved — add one to reach a table the mapping
-        does not already declare.
+        A record with no table is read as the table named exactly like its label — name one when the table
+        is spelled differently, or the record finds no key and stays out of the graph.
       </Text>
     </Space>
   );

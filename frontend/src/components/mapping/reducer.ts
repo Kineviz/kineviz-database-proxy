@@ -1,6 +1,5 @@
 import {
   GraphMappingDocument,
-  MappingAuto,
   MappingEdge,
   MappingEndpoint,
   MappingNode,
@@ -114,8 +113,8 @@ export interface DraftState {
   /** What the proxy has, so `dirty` is a comparison and not a flag every control sets. */
   stored: GraphMappingDocument;
   provenance: Record<string, MappingProvenanceTag>;
-  /** Auto-discovery's proposal and its reasoning, which provenance is a diff against. */
-  auto: MappingAuto | null;
+  /** What discovery last proposed, which an entry a person has since edited is read against. */
+  proposal: Proposal | null;
   problems: MappingProblem[];
   warnings: MappingProblem[];
   /**
@@ -128,12 +127,19 @@ export interface DraftState {
 
 export type MappingAction =
   /** A document from the proxy, or from a server-parsed file: a new start, not an edit. */
-  | { kind: 'load'; document: GraphMappingDocument | null; provenance?: unknown; auto?: MappingAuto | null;
+  | { kind: 'load'; document: GraphMappingDocument | null; provenance?: unknown;
       problems?: MappingProblem[]; warnings?: MappingProblem[] }
   /** Take the entries of a document and keep this one's document-level fields. */
   | { kind: 'merge'; document: GraphMappingDocument }
   /** Replace the whole draft, document level included — pasted YAML lands this way. */
   | { kind: 'replace'; document: GraphMappingDocument | null; provenance?: unknown }
+  /**
+   * What `/discover` proposed: the same whole-document install, plus the reasoning the draft
+   * is now a diff against. Only this route gets the second half, which is why it is its own
+   * kind — an uploaded file carries its author's `notes` and calling those "discovery said"
+   * would put words in a machine's mouth.
+   */
+  | { kind: 'proposal'; document: GraphMappingDocument | null; provenance?: unknown; leftOut?: MappingProblem[] }
   | { kind: 'discard' }
   | { kind: 'saved'; document?: GraphMappingDocument | null; problems?: MappingProblem[]; warnings?: MappingProblem[] }
   | { kind: 'problems'; problems?: MappingProblem[]; warnings?: MappingProblem[] }
@@ -154,6 +160,43 @@ export type MappingAction =
   | { kind: 'property-toggle'; list: 'nodes' | 'edges'; name: string; column: string; type?: string; on: boolean };
 
 const nameOf = (entry: MappingNode | MappingEdge): string => (entry as MappingNode).label ?? (entry as MappingEdge).type;
+
+/**
+ * The last thing auto-discovery proposed, kept because a draft is read against it.
+ *
+ * No route answers this as a separate object: `/discover` answers one document whose entries
+ * each carry their own `notes`, plus the caps and skips as sentences in `warnings`. Both
+ * halves describe the proposal, so both are held together and both go the moment a document
+ * that did not come from discovery is installed — a sentence about a proposal no longer on
+ * the screen is a lie on it.
+ */
+export interface Proposal {
+  /** What discovery said for each entry, keyed `nodes:Person` / `edges:WORKS_FOR`. */
+  notes: Record<string, string>;
+  leftOut: MappingProblem[];
+}
+
+/** The reasoning off the entries as they arrived, rather than handed in beside them. */
+const proposalNotes = (document: GraphMappingDocument): Record<string, string> => {
+  const notes: Record<string, string> = {};
+  const keyed = (list: 'nodes' | 'edges'): void => {
+    // Keyed by list and name, the way provenance and problems are: a record and a link can
+    // carry the same name, and one sentence must not be quoted at both of them.
+    (document[list] ?? []).forEach((entry) => {
+      if (entry.notes) notes[`${list}:${nameOf(entry)}`] = entry.notes;
+    });
+  };
+  keyed('nodes');
+  keyed('edges');
+  return notes;
+};
+
+/** What the proposal on the screen said about this entry, or null when none is. */
+export const proposalNote = (
+  proposal: Proposal | null,
+  list: 'nodes' | 'edges',
+  name: string,
+): string | null => proposal?.notes[`${list}:${name}`] ?? null;
 
 /** Find an entry by name, or add one, and run `edit` on that one entry. */
 const upsert = <T extends MappingNode | MappingEdge>(
@@ -201,7 +244,7 @@ export const emptyDraft = (): DraftState => {
     document,
     stored: document,
     provenance: {},
-    auto: null,
+    proposal: null,
     problems: [],
     warnings: [],
     problemIndex: indexProblems([], document),
@@ -280,6 +323,12 @@ const applyAction = (state: DraftState, action: MappingAction): DraftState => {
   const nodes = document.nodes ?? [];
   const edges = document.edges ?? [];
   const edited = (next: GraphMappingDocument): DraftState => ({ ...state, document: next, dirty: true });
+  /** A whole document that did not arrive as a proposal has no reasoning to diff against. */
+  const installed = (next: GraphMappingDocument, provenance?: unknown): DraftState => ({
+    ...edited(next),
+    provenance: provenance ? indexProvenance(provenance) : state.provenance,
+    proposal: null,
+  });
 
   switch (action.kind) {
     case 'load': {
@@ -288,7 +337,7 @@ const applyAction = (state: DraftState, action: MappingAction): DraftState => {
         document: stored,
         stored,
         provenance: indexProvenance(action.provenance),
-        auto: action.auto ?? null,
+        proposal: null,
         problems: action.problems ?? [],
         warnings: action.warnings ?? [],
         problemIndex: blankIndex(),
@@ -298,7 +347,7 @@ const applyAction = (state: DraftState, action: MappingAction): DraftState => {
 
     case 'merge': {
       const next = normalizeDocument(action.document);
-      return edited({
+      return installed({
         ...next,
         schema: document.schema ?? next.schema,
         include: document.include?.length ? document.include : next.include,
@@ -308,15 +357,27 @@ const applyAction = (state: DraftState, action: MappingAction): DraftState => {
     }
 
     case 'replace':
+      return installed(normalizeDocument(action.document), action.provenance);
+
+    case 'proposal': {
+      const next = normalizeDocument(action.document);
       return {
-        ...state,
-        document: normalizeDocument(action.document),
+        ...edited(next),
         provenance: action.provenance ? indexProvenance(action.provenance) : state.provenance,
-        dirty: true,
+        proposal: { notes: proposalNotes(next), leftOut: action.leftOut ?? [] },
       };
+    }
 
     case 'discard':
-      return { ...state, document: state.stored, problems: [], warnings: [], problemIndex: blankIndex(), dirty: false };
+      return {
+        ...state,
+        document: state.stored,
+        proposal: null,
+        problems: [],
+        warnings: [],
+        problemIndex: blankIndex(),
+        dirty: false,
+      };
 
     case 'saved': {
       // The proxy answers the document it stored, so that — not the draft — becomes both

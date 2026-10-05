@@ -13,8 +13,8 @@ const { Text, Paragraph } = Typography;
  * described, and a person who has a reviewed file wants to paste it. Both go through the
  * server: the browser is given text and returns text, and the one program that turns
  * structure into YAML and YAML back into structure is the proxy, which is also the one that
- * refuses a document it cannot load. So there is no second parser here to keep in step with
- * `pyyaml`, and no half-written file the editor believes is fine.
+ * reads a pasted file and names whatever will not load about it. So there is no second parser
+ * here to keep in step with `pyyaml`, and no half-written file the editor believes is fine.
  *
  * Text is never applied on a keystroke. Pasting replaces the whole draft, so it is a
  * deliberate act — and the deliberate act is only offered once `POST …/validate` has said

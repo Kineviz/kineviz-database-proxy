@@ -182,18 +182,20 @@ export class ProjectService {
     if (mappingText && mappingText.trim() && name) {
       try {
         const saved = await this.saveMapping(name, { yaml: mappingText });
-        const refused =
+        const problems =
           saved.problems === null || saved.problems === undefined
             ? []
             : Array.isArray(saved.problems)
               ? (saved.problems as MappingProblemLike[])
               : [saved.problems as MappingProblemLike];
-        if (refused.length) {
-          // The project is real and the file was not: say which half happened.
+        if (problems.length) {
+          // The project is real and so is this mapping: the save reports what will not load rather
+          // than refusing it, so what is left to do is named, not the file.
           message.warning(
-            `Project created, but the mapping file was refused: ${
-              refused.map(problemText).filter(Boolean).join('; ') || 'see Graph Mapping'
-            }. Open Graph Mapping to fix it.`,
+            `Project created, and the mapping saved with ${problems.length} ${
+              problems.length === 1 ? 'problem' : 'problems'
+            }: ${problems.map(problemText).filter(Boolean).join('; ') || 'see Graph Mapping'}. ` +
+              'GraphXR will not read this schema until they are fixed.',
           );
         } else {
           message.success('Mapping file applied to the new project');

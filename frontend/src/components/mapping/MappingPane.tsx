@@ -64,7 +64,6 @@ const MappingPane: React.FC<Props> = ({ project, databaseType }) => {
           kind: 'load',
           document: answer.mapping ?? null,
           provenance: answer.provenance,
-          auto: answer.auto ?? null,
           problems: toProblems(answer.problems),
           warnings: toProblems(answer.warnings),
         });
@@ -209,7 +208,7 @@ const MappingPane: React.FC<Props> = ({ project, databaseType }) => {
       <Paragraph type="secondary" style={{ marginBottom: 12 }}>
         One document describes this schema as a graph: which tables are records, which are links, which
         column identifies a row, and which way round each link goes. Save is one call, and a mapping the
-        proxy cannot load is reported rather than stored.
+        proxy cannot load is stored and reported rather than refused — its problems name the control to fix.
       </Paragraph>
 
       {loading ? (
