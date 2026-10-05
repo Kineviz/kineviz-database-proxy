@@ -456,7 +456,8 @@ export class ProjectService {
    * Answers every problem named by path, so a mistake sits under the control that caused it.
    * The route reads `model` or `yaml` and refuses a body with neither, so the editor's older
    * `{ mapping: … }` spelling is renamed here: as it stood every form-path check came back
-   * refused. `/validate` answers text and counts but no document, so `mapping` stays null.
+   * refused. `/validate` answers `model` and `text` the way the save does, so the structured
+  * tabs and the YAML tab are both fed from one check, with no second parser in the browser.
    */
   async validateMapping(
     project: string,
