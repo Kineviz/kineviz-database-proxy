@@ -237,7 +237,7 @@ def _document_from(body: MappingBody) -> GraphMapping:
 
 def _mapping_answer(project: Project, document: Optional[GraphMapping]) -> Dict[str, Any]:
     """
-    One document, as the page wants it: ``{"valid", "problems", "text", "model"}``.
+    One document, as the page wants it: ``{"valid", "problems", "text", "model", "provenance"}``.
 
     ``model`` is the document the editor holds and ``text`` is the same thing as a file, so
     the form and the YAML tab are two views of one answer rather than two answers. The
@@ -404,6 +404,13 @@ async def validate_mapping(
     and nothing else replaces forty rows with none. ``GET /mapping`` and the ``PUT`` answer
     it the same way, and one caller reading two shapes is how a silently emptied editor
     ships.
+
+    It carries this document's provenance for the same reason. The check is the route a page
+    installs a document *from*, and the tags are computed off the document by the pass this
+    route already runs — so a reply that handed back the rows but not the word for who chose
+    each one would leave the editor showing the previous document's badges beside the new
+    document's rows. A check that finds problems answers the tags it could resolve, same as
+    its ``problems`` list: reported, and the page decides what to keep.
     """
     await _driver(service, project_name)
     document = _document_from(body)
@@ -413,6 +420,7 @@ async def validate_mapping(
         "valid": not effective.problems,
         "problems": [{"path": path, "message": text} for path, text in effective.problems],
         "warnings": list(effective.warnings),
+        "provenance": dict(effective.provenance),
         "nodes": len(dumped.get("nodes") or []),
         "edges": len(dumped.get("edges") or []),
         "model": dumped,
@@ -434,6 +442,13 @@ async def discover_mapping(
     PUTs it when they accept it. The walk is capped and paged by ``catalog``, and the answer
     carries the caps and skips so "three hundred tables became forty labels" has a reason on
     the screen.
+
+    No provenance, and that is the decision rather than an oversight. Every entry here is
+    ``propose``'s own, so the loader could only ever answer one word for all of them, and
+    ``source: "draft"`` already says that word about the whole document; a tag per row would
+    be a second, weaker place to read it. The page therefore shows no badges for a proposal —
+    ``POST …/validate`` is where a document arrives with tags, and a save is where the stored
+    one does.
     """
     driver = await _driver(
         service,

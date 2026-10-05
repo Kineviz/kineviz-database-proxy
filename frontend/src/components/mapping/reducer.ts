@@ -141,7 +141,9 @@ export type MappingAction =
    */
   | { kind: 'proposal'; document: GraphMappingDocument | null; provenance?: unknown; leftOut?: MappingProblem[] }
   | { kind: 'discard' }
-  | { kind: 'saved'; document?: GraphMappingDocument | null; problems?: MappingProblem[]; warnings?: MappingProblem[] }
+  /** What the proxy stored — the document *and* the tags it computed for that document. */
+  | { kind: 'saved'; document?: GraphMappingDocument | null; provenance?: unknown;
+      problems?: MappingProblem[]; warnings?: MappingProblem[] }
   | { kind: 'problems'; problems?: MappingProblem[]; warnings?: MappingProblem[] }
   | { kind: 'level'; patch: Partial<Pick<GraphMappingDocument, 'version' | 'schema' | 'include' | 'exclude'>> }
   | { kind: 'node-add'; node: MappingNode }
@@ -398,6 +400,9 @@ const applyAction = (state: DraftState, action: MappingAction): DraftState => {
       // The proxy answers the document it stored, so that — not the draft — becomes both
       // the draft and the baseline. A rename or a dropped link it made for us shows up
       // without a reload, and a refused save leaves the draft exactly as it was.
+      // The tags come back with it from the same pass: a save can rename a record or take a
+      // link out for us, and a badge computed against the document that left the screen would
+      // be describing a mapping that is no longer on it.
       const problems = action.problems ?? [];
       const next = normalizeDocument(action.document ?? undefined);
       const stored = action.document ? next : state.stored;
@@ -405,6 +410,7 @@ const applyAction = (state: DraftState, action: MappingAction): DraftState => {
         ...state,
         document: action.document ? next : state.document,
         stored,
+        provenance: action.provenance ? indexProvenance(action.provenance) : state.provenance,
         problems,
         warnings: action.warnings ?? state.warnings,
         problemIndex: blankIndex(),

@@ -119,7 +119,10 @@ const YamlPane: React.FC<Props> = ({ draft, dispatch, actions, note }) => {
         message.error('That text still has problems, so the tabs are unchanged');
         return;
       }
-      dispatch({ kind: 'replace', document: answer.mapping ?? null });
+      // The tags travel with the document this answer installed, the same pair `/validate`
+      // replies with: pasting someone else's file must not leave this screen's old badges
+      // sitting on rows that came from it.
+      dispatch({ kind: 'replace', document: answer.mapping ?? null, provenance: answer.provenance });
       setEditing(false);
       message.success('The structured tabs now show what you pasted');
     } catch (caught: unknown) {

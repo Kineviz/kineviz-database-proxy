@@ -101,6 +101,7 @@ const MappingPane: React.FC<Props> = ({ project, databaseType }) => {
       dispatch({
         kind: 'saved',
         document: answer.mapping ?? draft.document,
+        provenance: answer.provenance,
         problems,
         warnings: toProblems(answer.warnings),
       });
