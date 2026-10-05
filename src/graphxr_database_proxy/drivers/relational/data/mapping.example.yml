@@ -1,0 +1,147 @@
+# Graph mapping: which tables are dots, which are lines, and how a line finds its
+# two ends. Every part of this is optional — leave the file out and the proxy
+# discovers the same first draft from the foreign keys on its own. What you write
+# here is what it stops guessing.
+#
+# Upload it on the mapping page. .yml, .yaml and .json all work: one parser, and
+# YAML reads JSON. Download writes the same document back out, and the page's YAML
+# tab shows exactly that text while you click — which is why the reasoning lives in
+# `notes` and not in comments: a comment is the first thing a save destroys.
+version: 1
+
+# The schema every table below lives in, unless an entry names its own.
+# Engine defaults: dbo (MSSQL), public (PostgreSQL), the database itself (MySQL).
+schema: dbo
+
+# `include`, when non-empty, means everything else is out of the graph. `exclude` is
+# the other way round. A name in either list matches a label or a table, whichever one
+# you happen to remember.
+exclude:
+  - sysdiagrams
+
+nodes:
+  # A record table becomes one label.
+  #
+  # `key` is the single column that identifies a row, and it has to be one column: the
+  # graph contract carries one key pair per node and an Expand seeds on exactly that, so
+  # a table keyed by (a, b) cannot be expanded at all. Leave `key` out and discovery's
+  # candidate is used — its primary key, else its widest single-column NOT NULL unique.
+  - label: Person
+    table: Person
+    key: person_id
+    # `properties` is a whitelist: a column that is not here is invisible in GraphXR,
+    # which is usually how a person learns an unmapped column existed, a week later,
+    # looking for it in a graph. Leave it empty to take every column of the table.
+    # `exclude_properties` is the other way to narrow it, and is what a blob column is
+    # for. A bare list of names also works when you do not care about the types.
+    properties:
+      person_id: int
+      full_name: nvarchar(100)
+      hire_date: date
+    exclude_properties:
+      - photo_blob
+    # What a row should be called. The direction preview prints these instead of ids,
+    # because `1001 -> 2001` cannot read as wrong while
+    # "Avery Chen -> Northwind Logistics" can.
+    show_as: full_name
+    notes: one row per living person; person_id is the surrogate key the FKs point at
+
+  - label: Organization
+    table: Organization
+    key: org_id
+    show_as: legal_name
+    notes: Employment rows join to this, and nothing joins back to Employment
+
+  # A table named after a reserved word is quoted for you, at the SQL boundary. Write
+  # the name as it is: brackets, backticks and double quotes in here would be part of
+  # the identifier, and an identifier is letters, digits and underscore.
+  - label: Order
+    table: Order
+    key: order_id
+    show_as: order_number
+    # A table's own schema, when the document's is not the one it lives in.
+    schema: sales
+
+  - label: Region
+    table: Region
+    key: region_code
+    show_as: region_name
+
+  # `include: false` keeps a table out of the graph and records why, in a field. This is
+  # what discovery writes for a table it could not key, so the reason survives the edit.
+  - label: AuditLog
+    table: AuditLog
+    include: false
+    notes: 40 million rows keyed by (entity, when); a graph of it answers nothing
+
+edges:
+  # A link table: two foreign keys, and nothing points back at it.
+  #
+  # `key` is the edge's OWN key — its primary key, else its widest single-column unique.
+  # That is what keeps two people working at one organization on different dates two
+  # separate links. With no key of its own the id is minted from the two endpoint keys
+  # sorted, which stays stable when you flip the direction but collapses duplicate links
+  # between the same pair onto one id.
+  - type: WORKS_FOR
+    table: Employment
+    key: employment_id
+    endpoints:
+      # Each endpoint names a node label, and the column **on this link table** that
+      # holds that end's key. The node's own side comes from its `key`, so the join is
+      # Employment.person_id = Person.person_id — a column named `org_ref` here would
+      # still join to Organization's key, whatever it is called.
+      - src:
+          label: Person
+          column: person_id
+        dst:
+          label: Organization
+          column: organization_id
+    # `flip` reads the link the other way round from what discovery proposed. Discovery
+    # follows the foreign key, which is a direction but not always the one the sentence
+    # in the room uses: as written this answers "who works at where"; flipped it answers
+    # "where employs whom". It swaps every endpoint pair, not one.
+    flip: false
+    properties:
+      started_on: date
+      role: nvarchar(40)
+    notes: one line per person per organization, so a person appears once per employer
+
+  # The same type over a second pair is a polymorphic link. Several `endpoints` on one
+  # edge, and an untyped Expand fans out per pair rather than once.
+  - type: MANAGES
+    table: PersonManager
+    key: manager_id
+    endpoints:
+      - src:
+          label: Person
+          column: person_id
+        dst:
+          label: Person
+          column: manager_id
+    notes: a self reference, so one label sits on both ends
+
+  # An edge with no foreign key anywhere: state the table and the columns outright. This
+  # is how a schema that joins on a code column nobody constrained still becomes a graph.
+  # Nothing checks the join for you — it either returns rows or it does not, and the
+  # preview is what tells you which before you go looking for it in a canvas.
+  - type: SHIPS_TO
+    table: OrderLine
+    key: line_id
+    endpoints:
+      - src:
+          label: Order
+          column: order_id
+        dst:
+          label: Region
+          column: region_code
+    notes: OrderLine.region_code has no constraint behind it and never will
+
+# Query-layer overrides, all optional and all with sensible defaults. They are keyed the
+# way the driver reads them; the comment names what each one is for, not a value to keep
+# in step with.
+#
+# tuning:
+#   id_list_inline_max: 2000     # how big a seed list can go inline in the statement
+#   id_list_chunk_size: 1000     # how it is cut up when it is bigger
+#   max_branches: 64             # fan-out ceiling for a pattern with several pairs
+#   auto_limit: 1000             # what a statement with no LIMIT is given
