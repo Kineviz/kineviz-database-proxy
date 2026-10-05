@@ -23,6 +23,7 @@ from sqlalchemy import URL
 from sqlalchemy.dialects import postgresql as sa_types
 from sqlalchemy.types import TypeEngine
 
+from .. import ids
 from ..engine import (
     CONNECT_ARGS_OPTION,
     DEFAULT_CONNECT_TIMEOUT_SECONDS,
@@ -451,6 +452,13 @@ class PostgreSQLEngine(EngineSpelling):
         # Never read here — ``= ANY`` carries the list itself — and ``json``, not
         # ``jsonb``, which would have the server re-encode a document it only parses.
         return "json"
+
+    def shredded_column_type(self, declared_type: Optional[str]) -> str:
+        # Never read here either: the ``= ANY`` bind carries the element type itself.
+        # The answer says what this engine would declare if it ever shredded — the
+        # ``bigint`` its integer keys widen to and plain ``text`` for everything else,
+        # both names its own binder reads.
+        return "bigint" if ids.is_integral_type(declared_type) else "text"
 
     def fanout_chunk_size(self, info: ServerInfo) -> int:
         # Never used: ``= ANY`` carries a selection of any size in one parameter.

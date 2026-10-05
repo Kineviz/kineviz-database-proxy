@@ -391,6 +391,31 @@ def test_a_big_selection_on_mysql_is_shredded_from_one_json_value():
     assert _shred_parameter_types(scope, condition) == {"gx_json1": "JSON"}
 
 
+def test_a_text_key_selection_is_shredded_as_sql_server_declares_it():
+    spelling = MSSQLEngine()
+    server = ServerInfo(engine="mssql", major=15, minor=0, compat_level=150)
+    scope = _scope(spelling=spelling, server=server)
+    values = ", ".join("'u%d'" % index for index in range(2001))
+    condition = compile_predicate(_where("n.name IN [%s]" % values), scope)
+    rendered = _sql(scope, condition, mssql.dialect())
+    # The text branch of the shred had never been pinned as SQL: 450 is SQL Server's
+    # index-key width, and the declaration is the engine's own answer, not a literal
+    # the compiler kept for it.
+    assert "WITH ([value] nvarchar(450) '$')" in rendered
+    assert spelling.shredded_column_type("varchar(50)") == "nvarchar(450)"
+
+
+def test_a_text_key_selection_is_shredded_as_mysql_declares_it():
+    spelling = MySQLEngine()
+    server = ServerInfo(engine="mysql", major=8, minor=0, build=35)
+    scope = _scope(spelling=spelling, server=server)
+    values = ", ".join("'u%d'" % index for index in range(2001))
+    condition = compile_predicate(_where("n.name IN [%s]" % values), scope)
+    rendered = _sql(scope, condition, mysql.dialect())
+    assert "COLUMNS (gx_value VARCHAR(450) PATH '$')" in rendered
+    assert spelling.shredded_column_type("varchar(50)") == "VARCHAR(450)"
+
+
 def test_a_server_too_old_for_the_bulk_form_is_told_so_and_cut_into_chunks():
     server = ServerInfo(engine="mssql", major=12, minor=0, compat_level=110)
     scope = _scope(spelling=MSSQLEngine(), server=server)

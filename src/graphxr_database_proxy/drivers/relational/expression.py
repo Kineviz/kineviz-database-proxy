@@ -61,14 +61,11 @@ EDGE_KIND = "edge"
 
 #: ``OPENJSON``'s ``WITH`` clause and ``JSON_TABLE``'s ``COLUMNS`` clause both have to
 #: declare the type they shred into, or the comparison converts the column instead of
-#: the value and the index is gone. Anything whole-number is shredded as a bigint.
-_BULK_WHOLE_TYPE = "bigint"
-_BULK_TEXT_TYPE = "nvarchar(450)"
-_MYSQL_BULK_WHOLE_TYPE = "BIGINT"
-_MYSQL_BULK_TEXT_TYPE = "VARCHAR(450)"
-#: ...and the column each table function then exposes, which travels with the source
-#: that declares it: ``OPENJSON``'s ``WITH`` names a bare column, ``JSON_TABLE`` needs
-#: the alias its ``AS`` gives the row source in front of its name.
+#: the value and the index is gone; that declaration is the engine's own answer
+#: (``EngineSpelling.shredded_column_type``), never a type name hardcoded here.
+#: What each table function then exposes travels with the source that declares it:
+#: ``OPENJSON``'s ``WITH`` names a bare column, ``JSON_TABLE`` needs the alias its
+#: ``AS`` gives the row source in front of its name.
 _BULK_PROJECTION_OPENJSON = "[value]"
 _BULK_PROJECTION_JSON_TABLE = "gx_jt.gx_value"
 
@@ -475,30 +472,22 @@ def _jsonable(value: object) -> object:
     return str(value)
 
 
-def _openjson_type(declared_type: str) -> str:
-    return _BULK_WHOLE_TYPE if ids.is_integral_type(declared_type) else _BULK_TEXT_TYPE
-
-
-def _mysql_column_type(declared_type: str) -> str:
-    return _MYSQL_BULK_WHOLE_TYPE if ids.is_integral_type(declared_type) else _MYSQL_BULK_TEXT_TYPE
-
-
-def _openjson_source(name: str, declared_type: str) -> str:
+def _openjson_source(name: str, value_type: str) -> str:
     """
-    One JSON document, shredded with its column type declared.
+    One JSON document, shredded with the engine's declared column type.
 
     The ``WITH`` clause is not decoration: without it ``OPENJSON`` answers ``nvarchar``
     and the comparison converts the column, which is the same index loss a wrongly
     typed bind costs.
     """
-    return "OPENJSON(:%s) WITH ([value] %s '$')" % (name, _openjson_type(declared_type))
+    return "OPENJSON(:%s) WITH ([value] %s '$')" % (name, value_type)
 
 
-def _json_table_source(name: str, declared_type: str) -> str:
+def _json_table_source(name: str, value_type: str) -> str:
     """``JSON_TABLE`` for the same one-parameter list on MySQL 8.0.4 and later."""
     return (
         "JSON_TABLE(:%s, '$[*]' COLUMNS (gx_value %s PATH '$')) AS gx_jt"
-        % (name, _mysql_column_type(declared_type))
+        % (name, value_type)
     )
 
 
@@ -517,16 +506,18 @@ def _shred(
     The parameter inside the ``text()`` is the same named bind the collector made, so
     one value crosses the wire once and with a type attached: an untyped document would
     arrive as whatever the DBAPI guessed, which is the conversion the ``WITH`` /
-    ``COLUMNS`` clause exists to prevent. What that type is called is the engine's
-    answer (``json_document_type``), never a name read off it here.
+    ``COLUMNS`` clause exists to prevent. Both names that clause needs — the document's
+    type and the shredded column's — are the engine's own answers
+    (``json_document_type``, ``shredded_column_type``), never names read off it here.
     """
     name = scope.new_name(prefix)
     document = json.dumps([_jsonable(value) for value in values], separators=(",", ":"))
     document_type = scope.spelling.json_document_type()
+    value_type = scope.spelling.shredded_column_type(declared_type)
     scope.put(name, document)
     param = bindparam(name, value=document, type_=scope.spelling.column_type(document_type))
     inner = select(literal_column(projection)).select_from(
-        text(str(source(name, declared_type))).bindparams(param)
+        text(str(source(name, value_type))).bindparams(param)
     )
     return column.in_(inner)
 

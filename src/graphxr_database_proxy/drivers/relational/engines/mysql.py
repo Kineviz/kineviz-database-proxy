@@ -24,6 +24,7 @@ from sqlalchemy import URL
 from sqlalchemy.dialects import mysql as sa_types
 from sqlalchemy.types import TypeEngine
 
+from .. import ids
 from ..engine import (
     CONNECT_ARGS_OPTION,
     DEFAULT_CONNECT_TIMEOUT_SECONDS,
@@ -468,6 +469,13 @@ class MySQLEngine(EngineSpelling):
         # ``JSON_TABLE`` takes a JSON value, and naming the type is what stops PyMySQL
         # sending the document as a string the server then has to resolve on its own.
         return "json"
+
+    def shredded_column_type(self, declared_type: Optional[str]) -> str:
+        # Whole keys shred as ``BIGINT``; text as ``VARCHAR(450)`` — 1 800 bytes under
+        # utf8mb4, inside the InnoDB index-key limit, so the shredded column compares
+        # against the key without MySQL converting the column, which is the failure
+        # this engine's whole module is written around.
+        return "BIGINT" if ids.is_integral_type(declared_type) else "VARCHAR(450)"
 
     def fanout_chunk_size(self, info: ServerInfo) -> int:
         return MYSQL_FANOUT_CHUNK

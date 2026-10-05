@@ -334,6 +334,49 @@ def test_a_shredded_document_is_typed_by_the_engine_that_shreds_it(
     # prevent.
     assert type(spelling.column_type(document_type)).__name__ == bound_type
 
+
+@pytest.mark.parametrize(
+    "name,whole,text_type",
+    [
+        ("mssql", "bigint", "nvarchar(450)"),
+        ("mysql", "BIGINT", "VARCHAR(450)"),
+        ("postgresql", "bigint", "text"),
+    ],
+)
+def test_a_shredded_column_is_declared_by_the_engine_that_shreds_it(
+    name: str, whole: str, text_type: str
+) -> None:
+    # These two answers per engine used to be four literals in the compiler, with
+    # SQL Server's index-key width written out a second time for a different
+    # decision. They are the engine's own answers now, and the shredded SQL the
+    # pipeline pins byte-for-byte is those answers.
+    spelling = engine(name)
+    assert spelling.shredded_column_type("bigint") == whole
+    assert spelling.shredded_column_type("varchar(50)") == text_type
+
+
+def _shred_answers(name: str) -> Set[str]:
+    """Every column declaration one engine can answer, collected by asking it."""
+    spelling = engine(name)
+    return {spelling.shredded_column_type(declared) for declared in _CAST_SAMPLES}
+
+
+def test_the_engines_answer_only_shred_names_their_own_binder_reads() -> None:
+    # The tripwire ``test_the_engines_answer_only_cast_names_this_parser_reads`` is
+    # for casts: the declaration goes into the table function's clause verbatim, so
+    # an engine that starts answering a spelling its own binder cannot bind fails
+    # here, beside the engine that answered it.
+    assert _shred_answers("mssql") == {"bigint", "nvarchar(450)"}
+    assert _shred_answers("mysql") == {"BIGINT", "VARCHAR(450)"}
+    assert _shred_answers("postgresql") == {"bigint", "text"}
+    for name in ALL_ENGINES:
+        spelling = engine(name)
+        for declared in _CAST_SAMPLES:
+            answer = spelling.shredded_column_type(declared)
+            # ``is_known_type`` is the parse check: asking ``column_type`` alone
+            # cannot tell a real binding from the generic String fallback.
+            assert spelling.is_known_type(answer), (name, declared, answer)
+
 def test_group_and_like_casts_follow_the_bridges_reasoning() -> None:
     mssql = engine("mssql")
     # GROUP BY is illegal on the LOB types, and 450 is the index-key size, not a guess.

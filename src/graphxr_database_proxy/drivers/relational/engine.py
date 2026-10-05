@@ -682,6 +682,17 @@ class EngineSpelling(abc.ABC):
         """
 
     @abc.abstractmethod
+    def shredded_column_type(self, declared_type: Optional[str]) -> str:
+        """The type this engine declares the value column of a shred into.
+
+        ``OPENJSON``'s ``WITH`` and ``JSON_TABLE``'s ``COLUMNS`` both demand a type for
+        the column they produce: an undeclared shred answers its own default and the
+        comparison then converts the column, not the value — the index loss the clause
+        exists to prevent. The answer is pasted into that clause verbatim, so it has to
+        be a declared name this engine's own vocabulary and :meth:`column_type` read.
+        """
+
+    @abc.abstractmethod
     def fanout_chunk_size(self, info: ServerInfo) -> int:
         """Ids per branch when the list has to be chopped up."""
 

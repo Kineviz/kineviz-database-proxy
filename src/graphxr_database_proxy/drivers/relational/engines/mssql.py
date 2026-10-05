@@ -18,6 +18,7 @@ from sqlalchemy import URL
 from sqlalchemy.dialects import mssql as sa_types
 from sqlalchemy.types import TypeEngine
 
+from .. import ids
 from ..engine import (
     CONNECT_ARGS_OPTION,
     DEFAULT_CONNECT_TIMEOUT_SECONDS,
@@ -455,6 +456,13 @@ class MSSQLEngine(EngineSpelling):
         # SQL Server has no JSON type: the document crosses as Unicode text, and a
         # selection of tens of thousands of ids is longer than any bounded column.
         return "nvarchar(max)"
+
+    def shredded_column_type(self, declared_type: Optional[str]) -> str:
+        # Whole keys shred as ``bigint`` and text keys as ``nvarchar(450)``, the
+        # index-key width ``group_key_cast`` shares: a value column SQL Server cannot
+        # compare against an index key without converting one side is the conversion
+        # the ``WITH`` clause was written to stop.
+        return "bigint" if ids.is_integral_type(declared_type) else "nvarchar(450)"
 
     def fanout_chunk_size(self, info: ServerInfo) -> int:
         return MSSQL_FANOUT_CHUNK
