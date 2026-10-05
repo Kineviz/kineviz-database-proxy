@@ -153,7 +153,11 @@ The adapter takes the backend from the URL segment — `proxyBackendFromUrl()` o
 
 - `proxy/capabilities.ts` — `proxyCapabilitiesFor(backend)`, which must mirror
   what the driver's own `/capabilities` reports. This is a second copy of that
-  record, on purpose: the client needs it before any round-trip.
+  record, on purpose: the client needs it before any round-trip. **`intents` is
+  the one field that is not mirrored** — `supportedIntents()` reads it from the
+  live document, asks once, and a 404 from an older build answers `[]`, which is
+  what puts the adapter into legacy mode. The client never has to believe a
+  capability claim it did not probe.
 - `proxy/dialect.ts` — `proxyLegacyProfile(backend)`, the statement profile for
   **legacy mode**.
 
