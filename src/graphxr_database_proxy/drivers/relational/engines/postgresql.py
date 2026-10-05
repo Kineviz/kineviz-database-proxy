@@ -311,7 +311,7 @@ class PostgreSQLEngine(EngineSpelling):
             return "STRING"
         return None
 
-    def column_type(self, declared_type: Optional[str]) -> TypeEngine:
+    def column_type(self, declared_type: Optional[str]) -> Optional[TypeEngine]:
         """The declared type, so a parameter is sent as that type.
 
         The pyodbc story does not repeat itself here: psycopg 3 adapts a Python
@@ -323,10 +323,11 @@ class PostgreSQLEngine(EngineSpelling):
         index scan. Same conclusion as the bridge reached by ``setinputsizes``: say
         the type.
         """
+        # None means this map has no name for the type. What is absent is the geometric
+        # and text-search vocabulary, which PostgreSQL reads off an untyped literal
+        # anyway: adding those is a decision taken beside ``_TYPE_TABLE``, not here.
         declared = parse_declared_type(declared_type or "")
-        # A user-defined enum has no built-in type to name; binding it as text is
-        # what PostgreSQL compares by.
-        return _COLUMN_TYPES.get(declared.base, sa.String())
+        return _COLUMN_TYPES.get(declared.base)
 
     def unkeyable_types(self) -> frozenset:
         return UNKEYABLE_TYPES

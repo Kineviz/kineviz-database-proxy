@@ -126,12 +126,31 @@ def test_parsed_type_keeps_the_parts_a_cast_decision_needs() -> None:
 def test_column_type_keeps_the_distinctions_that_cost_an_index(name: str) -> None:
     spelling = engine(name)
     assert isinstance(spelling.column_type("varchar(50)"), sa.types.String)
-    assert isinstance(spelling.column_type(None), sa.types.String)
     assert isinstance(spelling.column_type("bigint"), sa.types.Integer)
     # SQL Server compares nvarchar against varchar differently, so they must not bind
     # the same way; the other two engines have one text type and get one answer.
     mssql = engine("mssql")
     assert repr(mssql.column_type("varchar(50)")) != repr(mssql.column_type("nvarchar(50)"))
+
+
+@pytest.mark.parametrize("name", ALL_ENGINES)
+def test_a_type_the_engine_has_no_name_for_is_answered_as_none(name: str) -> None:
+    """
+    The two duties are answered apart, because they fail apart.
+
+    A bind against a text stand-in is a *wrong predicate* that raises nothing, so the
+    engine's answer for a type it does not name has to be distinguishable from the answer
+    for ``varchar`` — which is why this is None and not ``sa.String()``. Declaring a
+    projected column only chooses how the value is decoded, so that duty says text, out
+    loud, at ``declared_column_type``.
+    """
+    spelling = engine(name)
+    for declared in (None, "", "widget", "STRING"):
+        assert spelling.column_type(declared) is None, declared
+    assert isinstance(spelling.declared_column_type("widget"), sa.types.String)
+    # The text stand-in is only ever the *other* answer: a nameable type is handed over as
+    # the very object the engine's table holds, so nothing in the bind path re-derives it.
+    assert spelling.declared_column_type("bigint") is spelling.column_type("bigint")
 
 @pytest.mark.parametrize(
     "name,declared,ok",

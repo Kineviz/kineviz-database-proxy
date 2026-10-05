@@ -16,6 +16,7 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.dialects import mssql, mysql, postgresql
 from sqlalchemy.exc import CompileError as SACompileError
+from sqlalchemy.sql import visitors
 
 from graphxr_database_proxy.drivers.relational import compile as compile_module
 from graphxr_database_proxy.drivers.relational import plan, query
@@ -140,6 +141,40 @@ def sql(statement: str, spelling=MSSQLEngine(), dialect=MSSQL, **kwargs) -> str:
 
 
 # -- the projection and the manifest --
+
+
+#: One label with a column SQL Server's vocabulary knows and its type table does not name.
+UNNAMEABLE_NODES = {
+    "Detail": NodeSchema(
+        label="Detail",
+        table="T_DETAIL",
+        key="id",
+        key_type="bigint",
+        props={"id": "bigint", "doc": "xml"},
+    )
+}
+
+
+def test_a_column_the_engine_cannot_name_is_declared_and_not_refused():
+    """
+    The projection is the one duty that may not refuse: ``doc`` is read out and never sent
+    in, so its unnamed type costs a decode, not a wrong answer, and the statement still
+    carries it as text. ``NullType`` would be the literal truth and would change the SQL of
+    anything compared against it, so the declaration says which duty it is doing.
+
+    The same column in a predicate does refuse, from the same front door — that half is what
+    keeps the projection honest rather than an excuse to drop the guard.
+    """
+    compiled = compile_one("MATCH (d:Detail) RETURN d", MSSQLEngine(), MSSQL, nodes=UNNAMEABLE_NODES)
+    projected = [
+        element
+        for element in visitors.iterate(compiled.select)
+        if isinstance(element, sa.Column) and element.name == "doc"
+    ]
+    assert projected, compiled.sql
+    assert all(isinstance(column.type, sa.String) for column in projected), [column.type for column in projected]
+    with pytest.raises(compile_module.UnbindableType):
+        compile_one("MATCH (d:Detail) WHERE d.doc = 'x' RETURN d", MSSQLEngine(), MSSQL, nodes=UNNAMEABLE_NODES)
 
 
 def test_every_projected_column_is_named_and_the_manifest_says_what_it_means():

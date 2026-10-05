@@ -34,7 +34,7 @@ from sqlalchemy import MetaData, Table, and_, cast, func, select
 from sqlalchemy.sql.expression import Select
 
 from . import expression
-from .engine import EngineSpelling, ServerInfo
+from .engine import EngineSpelling, ServerInfo, UnbindableType
 from .expression import BoundVariable, PredicateScope
 from .ir import BoundEdge, ConcretePlan, MatchPlan
 from .predicate import split_name, unquote
@@ -54,17 +54,18 @@ class CompileError(Exception):
     """A branch cannot be compiled. The message says which part."""
 
 
-class UnbindableKey(CompileError):
+class UnbindableKey(CompileError, UnbindableType):
     """
     A key column whose type this engine cannot name, so a seed cannot be re-selected.
 
     The returning half of ``<Label>:<key>`` binds a seed against the key column *as that
-    column's own type* (``expression.PredicateScope.bind`` → ``spelling.column_type``).
-    Every engine spells that binding with ``_COLUMN_TYPES.get(base, sa.String())``: a type
-    it does not recognise falls back to a bare ``String``, and a ``String`` bind against a
-    ``geometry`` (or an un-analysed, blank) key column compares text, matches nothing, and
-    answers an empty graph — the one failure that looks exactly like a row that was never
-    there. Refused with the column and its type named, instead.
+    column's own type*. ``spelling.column_type`` answers None for a declared type the
+    engine has no name for — a ``geometry``, or an un-analysed blank — and None against a
+    key means a text parameter, no match, and an empty graph that looks exactly like a row
+    that was never there. This is that refusal at its cheapest point, where the label, the
+    column and its declared type are all still in hand; the bind seam
+    (``expression.PredicateScope.bind_type``) raises the same fact for a value no key check
+    was ever going to run against.
     """
 
 
@@ -280,7 +281,9 @@ class _Builder:
         existing = self._tables.get(key)
         if existing is not None:
             return existing
-        args = [sa.Column(column, self.spelling.column_type(type_name)) for column, type_name in columns.items()]
+        # Declaring a column is not binding one: nothing leaves for these types, so the
+        # unnamed ones stay text here and refuse where a value is actually sent.
+        args = [sa.Column(column, self.spelling.declared_column_type(type_name)) for column, type_name in columns.items()]
         table = Table(name, self.metadata, *args, schema=schema)
         self._tables[key] = table
         return table
@@ -639,15 +642,17 @@ def _require_bindable_key(
     """
     The key column's own type must be nameable, or a seed cannot be re-selected.
 
-    ``column_type`` answers the generic ``String`` for any declared type the engine does
-    not name — the same fallback ``expression`` binds with — so a key left with that
-    fallback would send a text parameter, match nothing, and fill a canvas with nothing
-    under a name that looks like a real answer. A label or link with no key of its own is
-    not checked here: ``convert.py`` mints those from their endpoints, not a bind.
+    ``column_type`` answers None for a declared type the engine has no name for, and a key
+    left with no name sends a text parameter, matches nothing, and fills a canvas with
+    nothing under a name that looks like a real answer. Asking here rather than at the bind
+    is what buys the message its cost: the label and its key column are known while the
+    scope is being built, and no statement has to be half-compiled to find out. A label or
+    link with no key of its own is not checked: ``convert.py`` mints those from their
+    endpoints, not a bind.
     """
     if not key:
         return
-    if type(spelling.column_type(key_type or "")) is not sa.String:
+    if spelling.column_type(key_type or "") is not None:
         return
     raise UnbindableKey(
         "%s %r is keyed by column %r, whose declared type %r this engine cannot bind as the "

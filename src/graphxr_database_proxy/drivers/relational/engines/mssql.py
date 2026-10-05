@@ -13,7 +13,6 @@ from __future__ import annotations
 import re
 from typing import Dict, Mapping, Optional, Sequence, Tuple
 
-import sqlalchemy as sa
 from sqlalchemy import URL
 from sqlalchemy.dialects import mssql as sa_types
 from sqlalchemy.types import TypeEngine
@@ -294,7 +293,7 @@ class MSSQLEngine(EngineSpelling):
         # ``float(25)`` are both DOUBLE, and ``(max)`` only matters for the casts.
         return None
 
-    def column_type(self, declared_type: Optional[str]) -> TypeEngine:
+    def column_type(self, declared_type: Optional[str]) -> Optional[TypeEngine]:
         """Bind as the column's own type, which is the point of the whole exercise.
 
         A text parameter against a ``varchar`` column and an ``nvarchar`` parameter
@@ -304,9 +303,14 @@ class MSSQLEngine(EngineSpelling):
         say so. So ``varchar`` must not arrive as Unicode and ``nvarchar`` must not
         arrive as plain varchar, which is why this map keeps both spellings and
         ``normalise_type`` does not.
+
+        None means this map has no name for that type. That is the honest answer for the
+        types SQL Server gives no equality at all — ``xml``, the spatial types,
+        ``sql_variant`` — where a text parameter is not a slower plan but the server's own
+        type error.
         """
         declared = parse_declared_type(declared_type or "")
-        return _COLUMN_TYPES.get(declared.base, sa.String())
+        return _COLUMN_TYPES.get(declared.base)
 
     def unkeyable_types(self) -> frozenset:
         return UNKEYABLE_TYPES

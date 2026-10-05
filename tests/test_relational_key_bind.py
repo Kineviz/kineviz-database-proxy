@@ -261,3 +261,26 @@ def test_a_key_column_whose_type_the_parser_cannot_read_fails_with_a_named_reaso
         seed_lookup(engine["spelling"], _UNREADABLE_KEY_TYPE, "'2024-01-31'")
     message = str(refused.value)
     assert _UNREADABLE_KEY_TYPE in message and "k" in message, message
+
+
+#: Each engine's *own* type that its vocabulary knows and its type table does not bind, so
+#: the refusal is pinned where the two tables actually differ rather than on one spelling
+#: that happens to be missing everywhere. A mapping keyed on any of these was refused
+#: before too -- the guard tested the fallback that None now replaces -- and each engine's
+#: answer is its own because the tables are its own.
+_KEY_TYPE_WITH_NO_BINDING = {"mssql": "hierarchyid", "mysql": "geometry", "postgresql": "point"}
+
+
+@by_engine
+def test_a_key_on_a_type_this_engine_does_not_bind_refuses_with_its_own_spelling(
+    engine: Dict[str, Any]
+) -> None:
+    declared = _KEY_TYPE_WITH_NO_BINDING[engine["name"]]
+    # The engine knows the type — it maps it into the shared vocabulary for ``/graphSchema``
+    # — and has no binding for it. That is the gap the guard covers, and it is a real column
+    # type, not an invented one.
+    assert engine["spelling"].is_known_type(declared), declared
+    with pytest.raises(compile.CompileError) as refused:
+        seed_lookup(engine["spelling"], declared, "'anything'")
+    message = str(refused.value)
+    assert declared in message and "k" in message and "Seed" in message, message

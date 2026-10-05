@@ -19,7 +19,6 @@ from __future__ import annotations
 import re
 from typing import Dict, Mapping, Optional, Sequence, Tuple
 
-import sqlalchemy as sa
 from sqlalchemy import URL
 from sqlalchemy.dialects import mysql as sa_types
 from sqlalchemy.types import TypeEngine
@@ -335,7 +334,7 @@ class MySQLEngine(EngineSpelling):
             return "BOOL" if declared.precision in (None, 1) else "INT64"
         return None
 
-    def column_type(self, declared_type: Optional[str]) -> TypeEngine:
+    def column_type(self, declared_type: Optional[str]) -> Optional[TypeEngine]:
         """Bind as the column's declared type, because MySQL converts otherwise.
 
         A numeric parameter against a ``VARCHAR`` key column makes MySQL cast *the
@@ -345,9 +344,12 @@ class MySQLEngine(EngineSpelling):
         the other direction. Neither case raises, which is what makes this the
         engine's version of the bridge's pyodbc lesson: the fix is a typed parameter,
         never a cast written around the column.
+
+        None means this map has no name for that type: the spatial types have none, and a
+        text parameter against a ``POINT`` column is not a comparison MySQL defines.
         """
         declared = parse_declared_type(declared_type or "")
-        return _COLUMN_TYPES.get(declared.base, sa.String())
+        return _COLUMN_TYPES.get(declared.base)
 
     def unkeyable_types(self) -> frozenset:
         return UNKEYABLE_TYPES

@@ -37,7 +37,7 @@ from sqlalchemy.sql.elements import BindParameter, ColumnElement
 from sqlalchemy.types import TypeEngine
 
 from . import ids
-from .engine import EngineSpelling, ServerInfo, cast_sqlalchemy_type
+from .engine import EngineSpelling, ServerInfo, UnbindableType, cast_sqlalchemy_type
 from .predicate import (
     And,
     BoolProp,
@@ -144,12 +144,50 @@ class PredicateScope:
         """Record one bound value, so the caller can pass the dict to ``execute``."""
         self.parameters[name] = value
 
-    def bind(self, value: object, declared_type: Optional[str], prefix: str = "gx_p") -> BindParameter:
-        """One value, read as its column's type and bound as a parameter of that type."""
+    def bind_type(self, declared_type: Optional[str], column: Optional[str] = None) -> TypeEngine:
+        """
+        The type to bind a value with, or the named refusal when the engine has none.
+
+        A text stand-in here is the silent half of ``<Label>:<key>``: the value goes out as
+        text, the column answers nothing, and an empty canvas is what the person is left to
+        explain. ``compile`` refuses a *key* this early already; this is the same fact for
+        every other value, where no key check was ever going to run.
+        """
+        named = self.spelling.column_type(declared_type)
+        if named is not None:
+            return named
+        raise UnbindableType(
+            "%s is compared against a column declared %r, which %s has no type to bind as; "
+            "sending the value as text would be a different predicate, so it is refused rather "
+            "than answered with whatever text happens to match. Map that column to a type this "
+            "engine names, or exclude it from the label."
+            % (column or "a value", declared_type or "", self.spelling.name)
+        )
+
+    def bind(
+        self,
+        value: object,
+        declared_type: Optional[str],
+        prefix: str = "gx_p",
+        *,
+        column: Optional[str] = None,
+    ) -> BindParameter:
+        """One value, read as its column's type and bound as a parameter of that type.
+
+        The type is settled before the parameter is named, so a refusal leaves nothing in
+        ``parameters`` for the caller to wonder about.
+        """
+        bind_type = self.bind_type(declared_type, column)
         name = self.new_name(prefix)
         coerced = ids.coerce_value(value, declared_type)
         self.put(name, coerced)
-        return bindparam(name, value=coerced, type_=self.spelling.column_type(declared_type))
+        return bindparam(name, value=coerced, type_=bind_type)
+
+    def bind_text(self, value: str, prefix: str = "gx_p") -> BindParameter:
+        """A value that is text because the *operator* says so, whatever its column is."""
+        name = self.new_name(prefix)
+        self.put(name, value)
+        return bindparam(name, value=value, type_=sa.Text())
 
     def resolve(self, var: str, prop: str) -> Tuple[ColumnElement, str]:
         """The column one ``var.prop`` names, with the declared type it was declared as."""
@@ -179,6 +217,12 @@ def _names(columns: Mapping[str, object]) -> str:
     if not keys:
         return "no columns at all"
     return ", ".join(keys[:12]) + (", ..." if len(keys) > 12 else "")
+
+
+def _column_label(column: object) -> Optional[str]:
+    """The column's own name, for a refusal a person can find in their mapping."""
+    name = getattr(column, "name", None)
+    return str(name) if name else None
 
 
 def compile_predicate(expr: Optional[Expression], scope: PredicateScope) -> Optional[ColumnElement]:
@@ -257,9 +301,10 @@ def _side(operand: Operand, other: Operand, scope: PredicateScope) -> Tuple[Colu
         return column, declared
     if isinstance(operand, Lit):
         declared = ""
+        other_column = None
         if isinstance(other, Prop) and other.prop:
-            declared = scope.resolve(other.var, other.prop)[1]
-        return scope.bind(operand.value, declared or None), declared
+            other_column, declared = scope.resolve(other.var, other.prop)
+        return scope.bind(operand.value, declared or None, column=_column_label(other_column)), declared
     column, declared = _column(operand, scope)
     return column, declared
 
@@ -310,7 +355,7 @@ def _entity_comparison(lhs: Operand, op: str, rhs: Operand, scope: PredicateScop
         answer = _compare_values(value, op if other is rhs else _mirror(op), other.value)
         return true() if answer else false()
     column, declared = _column(other, scope)
-    return column.op(op)(scope.bind(value, declared or None))
+    return column.op(op)(scope.bind(value, declared or None, column=_column_label(column)))
 
 
 def _mirror(op: str) -> str:
@@ -385,7 +430,9 @@ def _regex(column: ColumnElement, value: object, scope: PredicateScope) -> Colum
         )
     if not isinstance(value, str):
         raise UnsupportedPredicate("a regular expression must be a string, got %r" % (value,))
-    return column.regexp_match(scope.bind(value, None))
+    # ``~`` and ``REGEXP`` take a text pattern, so this is the one bind that asks nothing
+    # of the column it matches against.
+    return column.regexp_match(scope.bind_text(value))
 
 
 def _bool_prop(expr: BoolProp, scope: PredicateScope) -> ColumnElement:
@@ -399,7 +446,7 @@ def _bool_prop(expr: BoolProp, scope: PredicateScope) -> ColumnElement:
     answer a question nobody asked.
     """
     column, declared = _column(expr.lhs, scope)
-    return column == scope.bind(True, declared or None)
+    return column == scope.bind(True, declared or None, column=_column_label(column))
 
 
 def _in_list(expr: InList, scope: PredicateScope) -> ColumnElement:
@@ -435,7 +482,7 @@ def _membership(column: ColumnElement, values: Sequence[object], declared_type: 
             "chunk of %d (plan the chunks with fanout_slots and substitute them with replace_slot)."
             % (len(values), scope.spelling.name, max(1, scope.spelling.fanout_chunk_size(scope.server)))
         )
-    binds = [scope.bind(value, declared_type or None) for value in values]
+    binds = [scope.bind(value, declared_type or None, column=_column_label(column)) for value in values]
     return column.in_(binds)
 
 
@@ -444,7 +491,7 @@ def _bulk_membership(column: ColumnElement, values: Sequence[object], declared_t
     if form == "any":
         from sqlalchemy.dialects.postgresql import ARRAY
 
-        element = scope.spelling.column_type(declared_type or None)
+        element = scope.bind_type(declared_type or None, _column_label(column))
         name = scope.new_name("gx_any")
         coerced = [ids.coerce_value(value, declared_type or None) for value in values]
         scope.put(name, coerced)
@@ -462,7 +509,7 @@ def _bulk_membership(column: ColumnElement, values: Sequence[object], declared_t
         )
     # ``placeholders`` is what an engine says when its bulk form is a plain IN; the
     # size that reached here is the engine's own call, so honour it.
-    binds = [scope.bind(value, declared_type or None) for value in values]
+    binds = [scope.bind(value, declared_type or None, column=_column_label(column)) for value in values]
     return column.in_(binds)
 
 
@@ -514,8 +561,18 @@ def _shred(
     document = json.dumps([_jsonable(value) for value in values], separators=(",", ":"))
     document_type = scope.spelling.json_document_type()
     value_type = scope.spelling.shredded_column_type(declared_type)
+    # ``document_type`` is the engine's *own* answer, so a name it cannot bind is the
+    # engine contradicting itself rather than a column nobody mapped: say which is broken,
+    # because no edit to a mapping fixes it.
+    document_bind_type = scope.spelling.column_type(document_type)
+    if document_bind_type is None:
+        raise UnbindableType(
+            "%s binds a shredded id list as %r, which its own column_type refuses to name; "
+            "json_document_type and the engine's type table disagree."
+            % (scope.spelling.name, document_type)
+        )
     scope.put(name, document)
-    param = bindparam(name, value=document, type_=scope.spelling.column_type(document_type))
+    param = bindparam(name, value=document, type_=document_bind_type)
     inner = select(literal_column(projection)).select_from(
         text(str(source(name, value_type))).bindparams(param)
     )

@@ -84,6 +84,7 @@ from .engine_config import (
 )
 from .engine_spelling import (
     EngineSpelling,
+    UnbindableType,
 )
 from .engine_registry import (
     UnknownEngine,

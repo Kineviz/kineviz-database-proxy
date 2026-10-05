@@ -121,7 +121,7 @@ def table_of(
     return Table(
         name,
         meta,
-        *[SAColumn(str(column), spelling.column_type(declared)) for column, declared in columns.items()],
+        *[SAColumn(str(column), spelling.declared_column_type(declared)) for column, declared in columns.items()],
         schema=schema,
     )
 

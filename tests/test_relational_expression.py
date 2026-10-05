@@ -31,10 +31,12 @@ from graphxr_database_proxy.drivers.relational.expression import (
     compile_predicate,
 )
 
-#: The mapping the fixtures stand on: one node table and one link table.
+#: The mapping the fixtures stand on: one node table and one link table. Every declared
+#: type has to be one all three engines name — the bind path refuses a type an engine
+#: cannot name, and ``datetime`` is not a PostgreSQL type.
 _COLUMNS: Dict[str, Dict[str, str]] = {
     "Person": {"person_id": "bigint", "name": "varchar(50)", "hired": "date", "isfraud": "bit"},
-    "Employment": {"employment_id": "bigint", "person_id": "bigint", "organization_id": "bigint", "since": "datetime"},
+    "Employment": {"employment_id": "bigint", "person_id": "bigint", "organization_id": "bigint", "since": "timestamp"},
 }
 _TYPES: Dict[str, str] = {"Person": "PERSON_TABLE", "Employment": "Employment"}
 _KEYS = {"Person": "person_id", "Employment": "employment_id"}

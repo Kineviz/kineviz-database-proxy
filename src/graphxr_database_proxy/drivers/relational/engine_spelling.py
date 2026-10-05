@@ -11,12 +11,24 @@ import abc
 from typing import Dict, Mapping, Optional, Sequence, Tuple
 
 from sqlalchemy import URL, text
-from sqlalchemy.types import TypeEngine
+from sqlalchemy.types import String, TypeEngine
 
 from .engine_config import ConnectConfig
 from .engine_server import ProbedConnection, ServerInfo
 from .engine_terms import _CONTROL_CHARS, _IDENTIFIER_SAFE, NameCaseRule
 from .engine_types import DeclaredType, parse_declared_type
+
+
+class UnbindableType(Exception):
+    """
+    A declared type this engine has no binding for, so a value cannot be sent as that column.
+
+    Raised by whoever needed the type, because only that caller knows what was being
+    asked: the bind seam names the column and the value's journey, ``compile`` names the
+    label or link whose key it is. The engine's own answer is the bare ``None`` — the
+    refusal to guess — and never a stand-in it would be impossible to tell apart from a
+    real one downstream.
+    """
 
 
 class EngineSpelling(abc.ABC):
@@ -137,9 +149,8 @@ class EngineSpelling(abc.ABC):
         return declared.base in self.type_table()
 
     @abc.abstractmethod
-    def column_type(self, declared_type: Optional[str]) -> TypeEngine:
-        """A SQLAlchemy type for a declared column type, so a parameter is bound as
-        the column's own type.
+    def column_type(self, declared_type: Optional[str]) -> Optional[TypeEngine]:
+        """This engine's own type for a declared column type, or None when it has none.
 
         This is the seam's answer to the bridge's ``param_type_for``: pyodbc sent
         every Python string as ``nvarchar``, and comparing one against a ``varchar``
@@ -148,7 +159,22 @@ class EngineSpelling(abc.ABC):
         binds typed parameters, so the remaining job is to hand it the real type —
         which is why ``normalise_type`` loses the distinction and ``column_type``
         must not.
+
+        The one answer it must not give either is a text type for a name it does not
+        know: that is indistinguishable from the real thing downstream, and it is how a
+        key on a ``geometry`` column became a text parameter that matched nothing. Say
+        None, and let the caller say what that costs (:exc:`UnbindableType`).
         """
+
+    def declared_column_type(self, declared_type: Optional[str]) -> TypeEngine:
+        """A type to declare a column with: the engine's own, or text when it has none.
+
+        Only a bind can be answered wrong by an unnamed type, so only a bind may refuse.
+        A projected column is never sent anywhere; the worst its type can cost is how the
+        value is decoded. This is where that choice is allowed to be made, out loud.
+        """
+        named = self.column_type(declared_type)
+        return named if named is not None else String()
 
     def single_column_key_ok(
         self, declared_type: Optional[str], *, nullable: bool = False
