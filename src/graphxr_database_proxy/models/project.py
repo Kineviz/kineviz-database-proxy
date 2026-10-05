@@ -15,7 +15,12 @@ class DatabaseType(str, Enum):
     """
     Supported database types
 
-    Values match the API endpoint paths (e.g., /api/spanner/{project_id})
+    Values match the API endpoint paths (e.g., /api/spanner/{project_id}), and
+    for a graph driver the value doubles as the statement dialect's name, so a
+    value string is a wire contract rather than a display label.
+
+    `postgresql`, `mysql` and `mssql` are the relational family this round
+    implements; `mongodb` is still an unimplemented placeholder.
     """
     SPANNER = "spanner"
     BIGQUERY = "bigquery"
@@ -27,6 +32,7 @@ class DatabaseType(str, Enum):
     LATTICEDB = "latticedb"
     POSTGRESQL = "postgresql"
     MYSQL = "mysql"
+    MSSQL = "mssql"
     MONGODB = "mongodb"
 
 

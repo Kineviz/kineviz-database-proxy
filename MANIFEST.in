@@ -10,6 +10,9 @@ include *.md
 include pyproject.toml
 include requirements.txt
 
+# Shipped package data: the relational mapping example the UI serves
+recursive-include src/graphxr_database_proxy/drivers/relational/data *.yml
+
 # 包含示例和文档
 recursive-include examples *.py
 recursive-include doc *.md

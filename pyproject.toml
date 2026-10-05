@@ -38,12 +38,27 @@ dependencies = [
     # Wheel-tag matching, so the proxy can tell whether an engine release will
     # install here before it tries. See drivers/embedded/pypi.py.
     "packaging>=23.0",
+    # The shared plumbing of the three relational drivers: statement generation
+    # and the cross-engine catalog read. A runtime dependency, not an extra,
+    # because mssql / postgresql / mysql all use it; the DBAPIs under
+    # [project.optional-dependencies] are the parts that are per-engine.
+    "sqlalchemy>=2.0",
 ]
 
 [project.optional-dependencies]
 ui = [
     "aiofiles>=23.0.0",
 ]
+# One group per relational engine, holding only its DBAPI. They are extras
+# because a DBAPI is a compiled extension that may have no wheel for this
+# interpreter, and the driver imports it lazily — SQLAlchemy can build the
+# statement for all three engines with none of them installed.
+# pyodbc is deliberately *not* the SQL Server default: 5.2.0 tops out at cp313
+# and this project's venv is CPython 3.14.2, while pymssql ships cp314 wheels.
+mssql = ["pymssql>=2.3"]
+postgresql = ["psycopg[binary]>=3.1"]
+mysql = ["PyMySQL>=1.1"]
+relational = ["graphxr-database-proxy[mssql,postgresql,mysql]"]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
@@ -54,8 +69,9 @@ dev = [
     "mypy>=1.5.0",
     "pre-commit>=3.0.0",
 ]
+# `relational` pulls the three DBAPI groups, so it is the one name to extend.
 all = [
-    "graphxr-database-proxy[ui,dev]",
+    "graphxr-database-proxy[ui,dev,relational]",
 ]
 
 [project.scripts]
@@ -71,7 +87,13 @@ Repository = "https://github.com/Kineviz/graphxr-database-proxy"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"graphxr_database_proxy" = ["static/*", "static/**/*"]
+"graphxr_database_proxy" = [
+    "static/*",
+    "static/**/*",
+    # The annotated mapping example the UI shows and a person can upload.
+    # MANIFEST.in carries the matching rule for the sdist.
+    "drivers/relational/data/*.yml",
+]
 
 [tool.black]
 line-length = 88
