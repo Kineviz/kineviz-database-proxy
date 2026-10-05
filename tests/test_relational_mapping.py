@@ -155,9 +155,23 @@ def test_an_identifier_the_engine_cannot_quote_is_refused_by_its_own_path() -> N
     assert "letters, digits and underscore" in messages(out)
 
 
-def test_a_table_name_starting_with_a_digit_is_refused() -> None:
+def test_a_table_name_starting_with_a_digit_is_the_engines_own_spelling() -> None:
+    """
+    A table name is the engine's, not ours to correct: ``2person`` is ordinary, and every
+    one of the three engines quotes it — ``[2person]``, ``"2person"``, ``` `2person` ```.
+
+    This case used to pin the opposite, when one regex served both kinds of name.
+    """
     out = from_document(document(nodes=[person_node(table="2person")]), None)
-    assert paths(out) == ["nodes[0].table"]
+    assert out.valid, out.problems
+    assert out.nodes["Person"].table == "2person"
+
+
+def test_a_label_starting_with_a_digit_is_still_refused() -> None:
+    """The other half of the same name: a label becomes Cypher, where it has to stay an identifier."""
+    out = from_document(document(nodes=[person_node(label="2person", table="2person")]), None)
+    assert paths(out) == ["nodes[0].label"]
+    assert "letters, digits and underscore" in messages(out)
 
 
 def test_a_misspelled_endpoint_label_names_the_path_and_the_labels_that_exist() -> None:

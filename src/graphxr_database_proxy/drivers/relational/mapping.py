@@ -55,9 +55,17 @@ from .mapping_provenance import (
 from .mapping_scope import _Scope, _any_hit
 from .schemas import Endpoint, NodeSchema, Pair, RelSchema
 
-#: Letters, digits and underscore, not starting with a digit: what every one of the
-#: three engines accepts unquoted, and what statement text is built from.
+#: Letters, digits and underscore, not starting with a digit. This is the rule for the
+#: **graph** half of a mapping — a label or a relationship type — because those are
+#: compiled into Cypher and into an id of the form ``<Label>:<key>``, where a space
+#: would need a second quoting rule and buy nothing. Database-side names are not
+#: checked against it: see :meth:`_Loader.db_name`.
 SAFE_IDENT = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+#: The one thing no quoted identifier can hold either, on any of the three engines.
+#: A control character in a name is not an ERP spelling a person has to live with, it
+#: is a document that arrived broken.
+DB_NAME_CONTROL = re.compile(r"[\x00-\x1f]")
 
 #: Kept in one sentence because a person has to be able to see that a composite key is
 #: a contract limit, not a corner someone ran out of time on.
@@ -174,13 +182,39 @@ class _Loader:
         self.out.warnings.append("{}: {}".format(path, message))
 
     def ident(self, value: object, path: str, what: str) -> str:
-        """Check an identifier, and hand back "" when it is not one."""
+        """Check a graph-side name, and hand back "" when it is not a legal one."""
         text = str(value or "")
         if not SAFE_IDENT.match(text):
             self.problem(
                 path,
                 "{!r} is not a legal {} (letters, digits and underscore, not starting "
                 "with a digit)".format(text, what),
+            )
+            return ""
+        return text
+
+    def db_name(self, value: object, path: str, what: str) -> str:
+        """
+        A database-side name, kept exactly as the engine spells it.
+
+        ``Order Items``, ``Order Lines`` and a column called ``first name`` are ordinary
+        spellings in a real schema, and a schema cannot be renamed to suit a regex: the
+        names here are the engine's own, and every one of them reaches SQL through
+        SQLAlchemy, which quotes them per dialect. Refusing them made a mapping that
+        discovery proposes and the loader then rejects, so such a project could not be
+        mapped at all. Existence is not checked here either — ``check_table`` and
+        ``check_column`` say so against a live catalog, as a warning, because a mapping
+        is routinely written against a schema the proxy cannot see.
+        """
+        text = str(value or "")
+        if not text:
+            self.problem(path, "no {} is declared".format(what))
+            return ""
+        if DB_NAME_CONTROL.search(text):
+            self.problem(
+                path,
+                "{!r} is not a legal {}: it holds a control character, which no engine "
+                "can carry in an identifier".format(text, what),
             )
             return ""
         return text
@@ -203,7 +237,7 @@ class _Loader:
             return None
         if not parts:
             return None
-        return self.ident(parts[0], path, "{} key".format(what))
+        return self.db_name(parts[0], path, "{} key".format(what))
 
     def check_table(self, path: str, table: str) -> None:
         if self.index.live and table not in self.index.tables:
@@ -228,7 +262,7 @@ class _Loader:
         for i, node in enumerate(self.doc.nodes):
             path = "nodes[{}]".format(i)
             label = self.ident(node.label, path + ".label", "node label")
-            table = self.ident(node.table or node.label, path + ".table", "table name")
+            table = self.db_name(node.table or node.label, path + ".table", "table name")
             if not label or not table:
                 self.broken.add(str(node.label))
                 continue
@@ -379,7 +413,7 @@ class _Loader:
         must say so on purpose.
         """
         etype = self.ident(edge.type, path + ".type", "relationship type")
-        table = self.ident(edge.table or edge.type, path + ".table", "table name")
+        table = self.db_name(edge.table or edge.type, path + ".table", "table name")
         if not etype or not table:
             return
         if not edge.include or self.scope.out([edge.type, table]):
@@ -509,7 +543,7 @@ class _Loader:
         """One end of one pair, resolved to a label this mapping actually declares."""
         path = "{}.{}".format(where, side)
         label = self.ident(end.label, path + ".label", "node label")
-        column = self.ident(end.column, path + ".column", "column name")
+        column = self.db_name(end.column, path + ".column", "column name")
         if not label or not column:
             return None, _ERROR
         resolved = self.renames.get(label, label)

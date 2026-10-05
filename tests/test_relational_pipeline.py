@@ -10,7 +10,7 @@ text, so nothing in this file depends on a server being reachable.
 
 from __future__ import annotations
 
-from typing import Any, List
+from typing import Any, Dict, List, Optional
 
 import pytest
 import sqlalchemy as sa
@@ -18,6 +18,8 @@ from sqlalchemy.dialects import mssql, mysql, postgresql
 
 from graphxr_database_proxy.drivers.relational import compile as compile_module
 from graphxr_database_proxy.drivers.relational import convert, ids, plan, query, schemas
+from graphxr_database_proxy.drivers.relational.mapping import from_document
+from graphxr_database_proxy.models.graph_mapping import GraphMapping
 from graphxr_database_proxy.drivers.relational.engine import ServerInfo
 from graphxr_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
 from graphxr_database_proxy.drivers.relational.engines.mysql import MySQLEngine
@@ -81,10 +83,12 @@ ENGINES = {
 }
 
 
-def _branch(statement: str, index: int = 0) -> "tuple[Any, Any]":
+def _branch(
+    statement: str, index: int = 0, nodes: Optional[Dict[str, Any]] = None
+) -> "tuple[Any, Any]":
     """``(prepared, branch)`` — the two steps the driver runs before it compiles anything."""
     prepared = query.prepare(statement, default_limit=0)
-    branches = plan.concrete_plans(prepared.plan, NODES, EDGES)
+    branches = plan.concrete_plans(prepared.plan, NODES if nodes is None else nodes, EDGES)
     assert branches, "a pattern this mapping cannot answer is a fixture bug, not a test"
     return prepared, branches[index]
 
@@ -186,12 +190,16 @@ _SCHEMA = (
     "CREATE TABLE Organization (organization_id INTEGER PRIMARY KEY, name TEXT)",
     "CREATE TABLE Employment (employment_id INTEGER PRIMARY KEY, person_id INTEGER, organization_id INTEGER, since TEXT)",
     "CREATE TABLE Knows (a_id INTEGER, b_id INTEGER)",
+    # Spaced on purpose: the name a real order-entry schema arrives with, and the thing
+    # the loader used to refuse. SQLite quotes both with "".
+    'CREATE TABLE "Order Items" ("order item id" INTEGER PRIMARY KEY, "unit price" TEXT)',
 )
 _ROWS = (
     "INSERT INTO Person VALUES (1001, 'Avery', '1984-03-01', 7), (1002, 'Bo', '1990-07-07', 3), (1003, 'O''Neil', '2001-01-01', NULL)",
     "INSERT INTO Organization VALUES (2001, 'Acme'), (2002, 'Globex')",
     "INSERT INTO Employment VALUES (11, 1001, 2001, '2024-01-31'), (12, 1001, 2002, '2025-02-01'), (13, 1002, 2001, '2026-03-03')",
     "INSERT INTO Knows VALUES (1001, 1002), (1002, 1001)",
+    'INSERT INTO "Order Items" VALUES (3001, \'12.50\'), (3002, \'7.00\')',
 )
 
 
@@ -212,11 +220,20 @@ def library() -> Any:
     engine.dispose()
 
 
-def run(library: Any, statement: str, index: int = 0) -> convert.GraphConversion:
+def run(
+    library: Any,
+    statement: str,
+    index: int = 0,
+    nodes: Optional[Dict[str, Any]] = None,
+) -> convert.GraphConversion:
     """One branch, executed for real, and read back as a graph."""
-    prepared, branch = _branch(statement, index)
+    prepared, branch = _branch(statement, index, nodes)
     compiled = compile_module.compile_statement(
-        branch, NODES, EDGES, spelling=PostgreSQLEngine(), spec=prepared.spec
+        branch,
+        NODES if nodes is None else nodes,
+        EDGES,
+        spelling=PostgreSQLEngine(),
+        spec=prepared.spec,
     )
     rows = [dict(row._mapping) for row in library.execute(compiled.select, compiled.parameters)]
     return convert.convert_rows(rows, compiled.manifest)
@@ -259,6 +276,53 @@ def test_a_value_with_a_quote_in_it_is_bound_and_not_written_into_the_text(libra
     """The proof that the injection defence is real: the row comes back, nothing blows up."""
     result = run(library, "MATCH (p:Person) WHERE p.name = \"O'Neil\" RETURN p")
     assert node_ids(result) == ["Person:1003"]
+
+
+#: The file a person would have to write for the spaced table below, with no catalog to
+#: propose it: this is the document the loader used to refuse, override and all.
+SPACED_DOCUMENT = {
+    "version": 1,
+    "nodes": [
+        {
+            "label": "LineItem",
+            "table": "Order Items",
+            "key": "order item id",
+            "properties": {"order item id": "int", "unit price": "varchar(20)"},
+        }
+    ],
+    "edges": [],
+}
+
+
+def test_a_table_and_a_column_the_engine_spells_with_a_space_answer_rows(library: Any):
+    """
+    The chain end to end, from the file a person writes to the rows a canvas draws.
+
+    The schema this runs on is not this file's ``NODES`` fixture — it is what
+    ``from_document`` agreed to, so the loader's spelling, the compiler's quoting, the
+    server's answer and the ids minted from the rows all sit under one assertion. A fixture
+    could have claimed anything about a spaced name; this claims nothing the loader refused.
+    """
+    loaded = from_document(GraphMapping.model_validate(SPACED_DOCUMENT), None)
+    assert loaded.problems == [], loaded.problems
+    assert loaded.nodes["LineItem"].table == "Order Items"
+    assert loaded.nodes["LineItem"].key == "order item id"
+
+    result = run(library, "MATCH (l:LineItem) RETURN l", nodes=loaded.nodes)
+    assert node_ids(result) == ["LineItem:3001", "LineItem:3002"]
+    assert result.graph.nodes[0].properties["unit price"] == "12.50"
+
+    seeded = run(
+        library, 'MATCH (l:LineItem) WHERE l.`unit price` = "12.50" RETURN l', nodes=loaded.nodes
+    )
+    assert node_ids(seeded) == ["LineItem:3001"]
+
+    again = run(
+        library,
+        "MATCH (l:LineItem) WHERE l.`order item id` IN [3001, 3002] RETURN l",
+        nodes=loaded.nodes,
+    )
+    assert node_ids(again) == node_ids(result)
 
 
 def test_the_limit_is_applied_by_the_server_and_the_page_is_stable(library: Any):
