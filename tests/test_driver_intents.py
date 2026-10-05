@@ -49,8 +49,10 @@ from graphxr_database_proxy.drivers.mssql import MssqlDriver
 from graphxr_database_proxy.drivers.mysql import MysqlDriver
 from graphxr_database_proxy.drivers.neo4j import Neo4jDriver
 from graphxr_database_proxy.drivers.postgresql import PostgresqlDriver
+from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
 from graphxr_database_proxy.drivers.rocketgraph import RocketGraphDriver
 from graphxr_database_proxy.drivers.spanner import SpannerDriver
+from tests.test_relational_capability_record import relational_backends
 
 ALL_DRIVERS = (
     SpannerDriver,
@@ -202,3 +204,29 @@ def test_latticedb_does_not_offer_multi_hop_that_would_crash_its_engine():
     # the proxy then silently ignores.
     assert LatticeDbDriver.graph_capabilities.expand.multiHop is False
     assert LATTICEDB_DIALECT.supports_multi_hop is False
+
+
+def test_the_relational_records_differ_in_nothing_but_their_name():
+    # One family function (`_relational_capabilities`) behind three names, in the shape the
+    # embedded and GQL pairs above are pinned: a difference that appears later is a
+    # deliberate one, and the client mirrors one record for all three.
+    base = MSSQL_CAPABILITIES.model_dump(by_alias=True)
+    assert base.pop("type") == "mssql"
+    for record in (POSTGRESQL_CAPABILITIES, MYSQL_CAPABILITIES):
+        other = record.model_dump(by_alias=True)
+        assert other.pop("type") in ("postgresql", "mysql")
+        assert base == other
+
+
+def test_the_relational_drivers_the_factory_registers_are_the_ones_this_list_hands_round():
+    """
+    One answer rather than two: the hand-typed `ALL_DRIVERS` above and the backend list the
+    capability-record tests derive from the registry have to cover the same engines, so a
+    fourth relational driver cannot be recorded in one file and skipped in the other.
+    """
+    derived = {DriverFactory._drivers[backend] for backend in relational_backends()}
+    assert derived <= set(ALL_DRIVERS)
+    assert {cls for cls in ALL_DRIVERS if issubclass(cls, RelationalDriver)} == derived
+    for driver_class in derived:
+        assert driver_class.graph_capabilities.type == driver_class.database_type
+        assert driver_class.graph_dialect.name == driver_class.database_type
