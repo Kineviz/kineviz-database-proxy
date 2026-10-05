@@ -20,7 +20,10 @@ from .dialect import (
     LADYBUG_DIALECT,
     LATTICEDB_DIALECT,
     MEMGRAPH_DIALECT,
+    MSSQL_DIALECT,
+    MYSQL_DIALECT,
     NEO4J_DIALECT,
+    POSTGRESQL_DIALECT,
     ROCKETGRAPH_DIALECT,
     SPANNER_DIALECT,
     StatementDialect,
@@ -223,6 +226,51 @@ def _latticedb_capabilities() -> GraphDbCapabilities:
     return capabilities
 
 
+def _relational_capabilities(name: str) -> GraphDbCapabilities:
+    """
+    MSSQL, PostgreSQL and MySQL: a customer's tables served as a graph, one record
+    per engine identical modulo the name.
+
+    The shape is RocketGraph's and the embedded family's identity problem arriving for
+    a third reason. A relational row has no node identity to re-select a seed by, so
+    node ids are ``<Label>:<key>``, an expand pins its seeds with a key predicate, and
+    ``schema.source`` has to be ``"proxy"``: the category keys that predicate needs
+    come from the mapping, not from the customer's database.
+
+    Three claims are withheld on purpose:
+
+      - ``both`` is not offered as a direction. One statement whose SQL fans out the
+        orientations per endpoint pair answers ``all``, so the wide direction is
+        served -- and a link row that carries its own endpoints has no orientation to
+        lose, which is why Kuzu's reason does not apply but the answer still matches.
+      - ``internalRelationships`` and ``excludeRelationshipIds``: a key predicate
+        pins one end of a traversal, and an edge minted from its endpoints has no
+        identity an ``IN`` could match against.
+      - ``write`` and ``fulltextSearch``. This proxy reads a database it does not own,
+        and none of the three engines has a full-text index the contract could point
+        at without the customer creating one.
+    """
+    capabilities = GraphDbCapabilities(type=name, queryLanguages=["cypher"])
+    capabilities.identity.nodeId = "label-key"
+    capabilities.expand.predicate = "primary-key"
+    capabilities.expand.directions = ["all", "from", "to"]
+    capabilities.expand.multiHop = True
+    capabilities.expand.relationshipTypeFilter = True
+    capabilities.expand.internalRelationships = False
+    capabilities.expand.excludeRelationshipIds = False
+    capabilities.pull.category = True
+    capabilities.pull.relationship = True
+    capabilities.pull.excludeLoaded = True
+    # The database is one schema of one server, pinned in the project's own config,
+    # and no route switches it: claiming this would offer a control with nothing
+    # behind it, exactly as for the bolt family.
+    capabilities.multiDatabase = False
+    capabilities.fulltextSearch.supported = False
+    capabilities.intents = ["expand", "pullCategory", "pullRelationship"]
+    assert_capabilities_consistent(capabilities)
+    return capabilities
+
+
 SPANNER_CAPABILITIES = _spanner_capabilities()
 BIGQUERY_CAPABILITIES = _bigquery_capabilities()
 ROCKETGRAPH_CAPABILITIES = _rocketgraph_capabilities()
@@ -231,6 +279,9 @@ MEMGRAPH_CAPABILITIES = _memgraph_capabilities()
 KUZU_CAPABILITIES = _embedded_capabilities("kuzu")
 LADYBUG_CAPABILITIES = _embedded_capabilities("ladybug")
 LATTICEDB_CAPABILITIES = _latticedb_capabilities()
+MSSQL_CAPABILITIES = _relational_capabilities("mssql")
+POSTGRESQL_CAPABILITIES = _relational_capabilities("postgresql")
+MYSQL_CAPABILITIES = _relational_capabilities("mysql")
 
 
 class GraphIntentSupport(GraphIntentMixin):
@@ -304,3 +355,30 @@ class LadybugGraphIntents(GraphIntentSupport):
 class LatticeDbGraphIntents(GraphIntentSupport):
     graph_capabilities = LATTICEDB_CAPABILITIES
     graph_dialect = LATTICEDB_DIALECT
+
+
+class RelationalGraphIntents(GraphIntentSupport):
+    """
+    The family base for the relational engines.
+
+    It adds no behaviour of its own: the categories and key types a ``primary-key``
+    backend needs are ``GraphIntentSupport``'s already, and a relational driver feeds
+    them from the mapping it rendered as its graph schema. What the subclass carries is
+    the *pair* — one engine's capability record and that engine's compiler seam — so
+    that adding a fourth relational backend is one of each, and nothing else.
+    """
+
+
+class MssqlGraphIntents(RelationalGraphIntents):
+    graph_capabilities = MSSQL_CAPABILITIES
+    graph_dialect = MSSQL_DIALECT
+
+
+class PostgresqlGraphIntents(RelationalGraphIntents):
+    graph_capabilities = POSTGRESQL_CAPABILITIES
+    graph_dialect = POSTGRESQL_DIALECT
+
+
+class MysqlGraphIntents(RelationalGraphIntents):
+    graph_capabilities = MYSQL_CAPABILITIES
+    graph_dialect = MYSQL_DIALECT

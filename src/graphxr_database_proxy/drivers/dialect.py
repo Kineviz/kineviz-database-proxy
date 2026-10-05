@@ -795,6 +795,50 @@ def _lattice_dialect() -> StatementDialect:
     )
 
 
+def _relational_dialect(name: str) -> StatementDialect:
+    """
+    MSSQL, PostgreSQL and MySQL share one token table, because the statement these
+    dialects emit is never SQL: it is Cypher that ``drivers/relational/translate.py``
+    reads and ``compile.py`` turns into per-engine SQL.
+
+    So the per-engine differences (quoting, ``TOP`` / ``ROW_NUMBER`` / ``LIMIT``,
+    parameter ceilings) are the compiler's and the engine spelling's job, and nothing
+    here. What is here is the same identity problem RocketGraph and the embedded
+    family have:
+
+      - ``predicate="primary-key"``. A relational row is addressed by its key column;
+        there is no node identity to re-select a seed by, so node ids are
+        ``<Label>:<key>`` and a seed comes back as ``n.<key> IN [...]``.
+      - ``key_access = var.prop``, *unquoted*. The default escapes the property with
+        backticks, which is what a Cypher parser over a store it owns wants; here the
+        property is a column name the translator hands to the compiler, and one more
+        layer of quoting is one more thing to unquote.
+      - ``rel_type_expr=type(r)`` with ``relationship_filter="pattern"``: selected and
+        hidden types can go in the pattern *and* be filtered in a predicate, because a
+        type is a column of the link table rather than a thing the SQL has to know.
+      - ``rel_id_expr=None``, so an edge cannot be excluded by id, and
+        ``supports_only_between_selected=False``: a key predicate pins one end of a
+        traversal and no SQL here can pin the other for free.
+      - ``return_vars=("n", "r", "m")`` because a link row carries the two records it
+        joins, and an edge's endpoint *ids* are minted from their keys.
+      - ``node_id_expr`` is inert on every path a ``primary-key`` dialect takes; it is
+        spelled like the engines' own so a reader is not left with a hole.
+    """
+    return StatementDialect(
+        name=name,
+        predicate="primary-key",
+        node_id_expr=lambda var: f"id({var})",
+        rel_id_expr=None,
+        rel_type_expr=lambda var: f"type({var})",
+        relationship_filter="pattern",
+        return_vars=("n", "r", "m"),
+        return_separator=", ",
+        key_access=lambda var, prop: f"{var}.{prop}",
+        supports_multi_hop=True,
+        supports_only_between_selected=False,
+    )
+
+
 #: LatticeDB is its own project rather than a fork of either other engine, and
 #: shares no tokens with them beyond the word MATCH.
 LATTICEDB_DIALECT = _lattice_dialect()
@@ -807,6 +851,12 @@ KUZU_DIALECT = _embedded_dialect("kuzu")
 #: casing in the results.
 LADYBUG_DIALECT = _embedded_dialect("ladybug")
 
+#: The three relational engines, one table and three names. SQL here is what
+#: ``compile.py`` emits, never what a dialect token spells.
+MSSQL_DIALECT = _relational_dialect("mssql")
+POSTGRESQL_DIALECT = _relational_dialect("postgresql")
+MYSQL_DIALECT = _relational_dialect("mysql")
+
 DIALECTS: Dict[str, StatementDialect] = {
     "spanner": SPANNER_DIALECT,
     "bigquery": BIGQUERY_DIALECT,
@@ -816,6 +866,9 @@ DIALECTS: Dict[str, StatementDialect] = {
     "kuzu": KUZU_DIALECT,
     "ladybug": LADYBUG_DIALECT,
     "latticedb": LATTICEDB_DIALECT,
+    "mssql": MSSQL_DIALECT,
+    "postgresql": POSTGRESQL_DIALECT,
+    "mysql": MYSQL_DIALECT,
 }
 
 

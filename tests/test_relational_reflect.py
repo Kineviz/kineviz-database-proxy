@@ -134,6 +134,9 @@ class FakeInspector:
     def get_multi_columns(
         self, tables: Optional[Sequence[str]] = None, schema: Optional[str] = None
     ) -> Dict[str, List[Dict[str, Any]]]:
+        # A name the schema does not hold comes back *absent*, which is what a real dialect's
+        # ``get_multi_*`` does with a table it cannot find: it is how ``/tables?table=`` can
+        # answer 404 rather than 500. The ask is still logged in full.
         self.calls.append(("columns", tuple(tables or ())))
         return {
             name: [
@@ -141,6 +144,7 @@ class FakeInspector:
                 for column, kind, nullable in self.spec[name]["columns"]
             ]
             for name in tables or ()
+            if name in self.spec
         }
 
     def get_multi_pk_constraint(
@@ -149,6 +153,8 @@ class FakeInspector:
         self.calls.append(("pk", tuple(tables or ())))
         out: Dict[str, Dict[str, Any]] = {}
         for name in tables or ():
+            if name not in self.spec:
+                continue
             constraint, columns = self.spec[name]["pk"]
             out[name] = {"constraint_name": constraint, "constrained_columns": list(columns)}
         return out
@@ -159,6 +165,8 @@ class FakeInspector:
         self.calls.append(("fk", tuple(tables or ())))
         out: Dict[str, List[Dict[str, Any]]] = {}
         for name in tables or ():
+            if name not in self.spec:
+                continue
             out[name] = [
                 {
                     "name": fk[0],
@@ -177,6 +185,7 @@ class FakeInspector:
         return {
             name: [{"constrained_columns": list(cols)} for cols in self.spec[name].get("unique", [])]
             for name in tables or ()
+            if name in self.spec
         }
 
     def _parent_key(self, name: str) -> str:

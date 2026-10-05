@@ -31,6 +31,7 @@ from fastapi.responses import FileResponse
 
 from .api.projects import router as projects_router
 from .api.embedded import router as embedded_router
+from .api.relational import router as relational_router
 from .api.database import router as database_router
 from .api.google import router as google_router
 from .api.settings import router as settings_router
@@ -66,6 +67,9 @@ app.include_router(projects_router)
 # Before database_router on purpose: its generic /api/{database_type}/{project_name}
 # route would otherwise swallow /api/embedded/... .
 app.include_router(embedded_router)
+# Before database_router for the same reason as embedded_router: its generic
+# /api/{database_type}/{project_name} pattern would otherwise swallow /api/relational/...
+app.include_router(relational_router)
 app.include_router(database_router)
 app.include_router(google_router)
 app.include_router(settings_router)

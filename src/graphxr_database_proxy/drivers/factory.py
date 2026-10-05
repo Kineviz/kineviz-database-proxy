@@ -12,12 +12,15 @@ from .memgraph import MemgraphDriver
 from .kuzu import KuzuDriver
 from .ladybug import LadybugDriver
 from .latticedb import LatticeDbDriver
+from .mssql import MssqlDriver
+from .mysql import MysqlDriver
+from .postgresql import PostgresqlDriver
 from ..models.project import Project, DatabaseConfig, DatabaseType
 
 
 class DriverFactory:
     """Factory for creating database drivers"""
-    
+
     _drivers: Dict[DatabaseType, Type[BaseDatabaseDriver]] = {
         DatabaseType.SPANNER: SpannerDriver,
         DatabaseType.BIGQUERY: BigQueryDriver,
@@ -27,6 +30,9 @@ class DriverFactory:
         DatabaseType.KUZU: KuzuDriver,
         DatabaseType.LADYBUG: LadybugDriver,
         DatabaseType.LATTICEDB: LatticeDbDriver,
+        DatabaseType.MSSQL: MssqlDriver,
+        DatabaseType.POSTGRESQL: PostgresqlDriver,
+        DatabaseType.MYSQL: MysqlDriver,
     }
     
     @classmethod

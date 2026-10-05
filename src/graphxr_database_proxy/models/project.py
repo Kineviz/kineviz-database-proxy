@@ -132,6 +132,20 @@ class DatabaseConfig(BaseModel):
     # no multi-database concept and ignores it). A host that already carries a bolt
     # URI scheme -- "neo4j+s://example.databases.neo4j.io" -- is used verbatim.
 
+    # mssql / postgresql / mysql (relational):
+    #   schema_name   the *relational* schema the tables live in -- dbo on SQL
+    #                 Server, public on PostgreSQL, the database itself on MySQL.
+    #                 Read it through ``EngineSpelling.configured_schema``, which
+    #                 owns the precedence (this field, then ``options["schema"]``,
+    #                 then the engine default), so nothing else has to know it.
+    #   graph_mapping the override document from ``models/graph_mapping``, in the
+    #                 JSON shape that document dumps to. It lives on the config
+    #                 because ``graph_schema_cache.cache_key`` hashes the whole
+    #                 config, so saving a mapping invalidates the cached graph
+    #                 schema by itself and the save path needs no explicit bust.
+    schema_name: Optional[str] = None
+    graph_mapping: Optional[Dict[str, Any]] = None
+
     # Additional options
     options: Dict[str, Any] = Field(default_factory=dict)
 

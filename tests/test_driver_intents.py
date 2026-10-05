@@ -19,7 +19,10 @@ from graphxr_database_proxy.drivers.dialect import (
     LADYBUG_DIALECT,
     LATTICEDB_DIALECT,
     MEMGRAPH_DIALECT,
+    MSSQL_DIALECT,
+    MYSQL_DIALECT,
     NEO4J_DIALECT,
+    POSTGRESQL_DIALECT,
     ROCKETGRAPH_DIALECT,
     SPANNER_DIALECT,
 )
@@ -30,7 +33,10 @@ from graphxr_database_proxy.drivers.graph_support import (
     LADYBUG_CAPABILITIES,
     LATTICEDB_CAPABILITIES,
     MEMGRAPH_CAPABILITIES,
+    MSSQL_CAPABILITIES,
+    MYSQL_CAPABILITIES,
     NEO4J_CAPABILITIES,
+    POSTGRESQL_CAPABILITIES,
     ROCKETGRAPH_CAPABILITIES,
     SPANNER_CAPABILITIES,
     GraphIntentSupport,
@@ -39,7 +45,10 @@ from graphxr_database_proxy.drivers.kuzu import KuzuDriver
 from graphxr_database_proxy.drivers.ladybug import LadybugDriver
 from graphxr_database_proxy.drivers.latticedb import LatticeDbDriver
 from graphxr_database_proxy.drivers.memgraph import MemgraphDriver
+from graphxr_database_proxy.drivers.mssql import MssqlDriver
+from graphxr_database_proxy.drivers.mysql import MysqlDriver
 from graphxr_database_proxy.drivers.neo4j import Neo4jDriver
+from graphxr_database_proxy.drivers.postgresql import PostgresqlDriver
 from graphxr_database_proxy.drivers.rocketgraph import RocketGraphDriver
 from graphxr_database_proxy.drivers.spanner import SpannerDriver
 
@@ -52,6 +61,9 @@ ALL_DRIVERS = (
     KuzuDriver,
     LadybugDriver,
     LatticeDbDriver,
+    MssqlDriver,
+    PostgresqlDriver,
+    MysqlDriver,
 )
 
 
@@ -66,6 +78,9 @@ ALL_DRIVERS = (
         KUZU_CAPABILITIES,
         LADYBUG_CAPABILITIES,
         LATTICEDB_CAPABILITIES,
+        MSSQL_CAPABILITIES,
+        POSTGRESQL_CAPABILITIES,
+        MYSQL_CAPABILITIES,
     ],
 )
 def test_every_shipped_capability_record_is_consistent(capabilities):

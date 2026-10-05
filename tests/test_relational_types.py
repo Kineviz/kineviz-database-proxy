@@ -9,6 +9,10 @@ is checked as a wire contract rather than as a label.
 import pytest
 
 from graphxr_database_proxy.drivers.factory import DriverFactory
+from graphxr_database_proxy.drivers.mssql import MssqlDriver
+from graphxr_database_proxy.drivers.mysql import MysqlDriver
+from graphxr_database_proxy.drivers.postgresql import PostgresqlDriver
+from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
 from graphxr_database_proxy.models.project import (
     AuthType,
     DatabaseConfig,
@@ -70,20 +74,30 @@ async def test_mssql_project_persists_and_reloads(tmp_path):
     assert (tmp_path / "projects.json").exists()
 
 
-def test_mssql_driver_is_not_registered_yet():
+@pytest.mark.parametrize(
+    "database_type,driver_class",
+    [
+        (DatabaseType.MSSQL, MssqlDriver),
+        (DatabaseType.POSTGRESQL, PostgresqlDriver),
+        (DatabaseType.MYSQL, MysqlDriver),
+    ],
+)
+def test_the_three_sql_types_reach_the_relational_driver(database_type, driver_class):
     """
-    Tripwire: lane-D2 registers the relational driver for the three SQL types.
+    A registered type answers with a driver, because an enum value alone is not a connection.
 
-    When that lands, this expectation flips to "create_driver returns a driver".
+    The types exist from the packaging stage and the drivers from this one; nothing else on
+    the factory proves the two met, and a project that saves but cannot be opened is the
+    failure a person meets first.
     """
     project = Project(
-        id="mssql-tripwire",
-        name="mssql-tripwire",
-        database_type=DatabaseType.MSSQL,
-        database_config=_make_config(),
+        id="relational-{}".format(database_type.value),
+        name="relational-{}".format(database_type.value),
+        database_type=database_type,
+        database_config=_make_config(type=database_type),
     )
 
-    with pytest.raises(ValueError, match="Unsupported database type"):
-        DriverFactory.create_driver(project)
+    made = DriverFactory.create_driver(project)
 
-    assert DatabaseType.MSSQL not in DriverFactory.get_supported_types()
+    assert isinstance(made, driver_class)
+    assert isinstance(made, RelationalDriver)
