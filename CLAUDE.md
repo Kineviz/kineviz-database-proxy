@@ -46,6 +46,23 @@ otherwise changing — match the surrounding style instead.
   (`GraphIntentMixin`), `graph_support.py` (per-driver capability + dialect
   wiring), and — for the bolt family — `bolt_mapping.py` (records -> `QueryData`)
   and `bolt_schema.py` (the Neo4j and Memgraph schema probes).
+- `drivers/relational/` — the table-backed engines (mssql, postgresql, mysql) behind **one**
+  driver. `driver.py` is the contract surface plus the connection, and its bodies are mixins:
+  `driver_mapping` resolves a project's tables into an `EffectiveMapping`, `driver_query` runs
+  one prepared statement, `driver_schema` answers the reads a client makes before it has a
+  query. **Cypher is the internal protocol**: `drivers/dialect.py` emits a Cypher string for
+  every backend including these, and `translate.py` → `plan.py` → `compile.py` re-read it into
+  SQLAlchemy Core — so per-engine divergence lives only in `engines/*.py` behind
+  `EngineSpelling`, and no shared module may branch on an engine's *name* (cast names go through
+  `cast_sqlalchemy_type`; the document and shredded-column types through the abstract
+  `json_document_type` / `shredded_column_type`). `mapping*.py` is the mapping document and its
+  loader, `catalog.py` the paged reflection, `pool.py` the pool that outlives a request,
+  `expression.py` the SQL-side expression compiler. Routes are `api/relational.py` under
+  `/api/relational`, mounted in `main.py` **before** the generic
+  `/api/{database_type}/{project_name}` router — that router has a path parameter exactly where
+  `relational` sits, so a later mount answers `/api/relational/x/tables` with a driver lookup for
+  a type that does not exist. Authority for what a mapping *is*: `doc/RELATIONAL_MAPPING.md`
+  (+ its `.zh.md` twin); for the eight admin routes: `doc/RELATIONAL_API.md`.
 - `drivers/embedded/` — everything the embedded engines need that a server-backed
   driver does not. A store is a file, so `store_probe.py` reads its header to find
   the engine family and storage format, `version_map.py` turns that format into a
@@ -114,6 +131,13 @@ already decides. `web/react_views/configure/graphdb/databases/<name>/` in
 **graphxr-dev** is normative for a backend's capability record and dialect
 tokens; port it rather than inventing a second answer.
 
+A fourth **table-backed** engine does not follow steps 2–4: it is `engines/<name>.py`
+answering every abstract `EngineSpelling` method, one `DatabaseType` value, and a
+subclass of the relational driver that sets `database_type` and `engine_name`. The
+abstract methods are the guard — an engine cannot be registered without answering
+them, and `tests/test_relational_engine_types.py` enumerates each engine's own
+answers, so a type this proxy cannot read fails there rather than in production.
+
 Node ids have to round-trip: whatever `execute_query` puts in `Node.id` must be
 what the dialect's own predicate can match again. Spanner uses `ELEMENT_ID()`,
 BigQuery reads the identity out of `TO_JSON(...)`, the bolt family uses `ID()`
@@ -123,6 +147,15 @@ Ladybug use `<Label>:<key>` too, for a different reason: `ID(n)` exists but ther
 is no literal for one — `n._id` is rejected as "reserved for system usage" — so
 identity cannot be matched even though it can be read. Their node tables always
 have a primary key, and `table_info` says which column it is.
+
+A relational project uses `<Label>:<key>` for a third reason: there is no stored
+identity to read, so the id is built from the primary key — a key that is addressed by
+**name, quoted**, because real schemas spell columns `first name` and tables
+`Order Items`. That is where the two kinds of name come from: graph-side (`label`,
+`type`) stays `SAFE_IDENT`, because it compiles into statement text and into that id,
+while database-side (`table`, `column`, key column) is kept exactly as the engine spells
+it. `doc/RELATIONAL_MAPPING.md` is the authority for the rule — do not restate or widen
+it from another file.
 
 Because those ids are built from the key rather than read off the edge, a
 relationship's endpoints must be in the same result for it to be placed, which is
