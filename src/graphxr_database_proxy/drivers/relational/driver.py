@@ -66,8 +66,11 @@ class RelationalDriver(
     The whole ``BaseDatabaseDriver`` surface for a relational project.
 
     A subclass sets two words — ``database_type`` and ``engine_name`` — and mixes in one
-    engine's capability record and dialect. Everything else is here, including the mapping,
-    which is what makes a table a label at all.
+    engine's capability record and dialect. Everything else is in the mixins this class
+    assembles: ``driver_mapping`` resolves a project's tables into an ``EffectiveMapping``,
+    which is what makes a table a label at all, ``driver_query`` runs one prepared statement
+    and shapes what the fan-out returns, and ``driver_schema`` answers the reads a client
+    makes before it has a query. This file keeps the connection and its tuning.
     """
 
     #: The URL segment, and the engine registry key when a driver names no engine.
