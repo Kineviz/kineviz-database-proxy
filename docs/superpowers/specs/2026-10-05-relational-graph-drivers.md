@@ -391,6 +391,7 @@ multi-category or multi-direction expand runs several.
 | `PUT  /{project}/mapping` | save an override from JSON **or** `{"yaml": text}` (`null` resets to auto); invalidates `GRAPH_SCHEMA_CACHE` |
 | `POST /{project}/discover` | catalog → proposed mapping with the reasoning per guess and the caps hit, not stored |
 | `GET  /{project}/tables` | paged (`?page=&page_size=`) table list with column counts and row estimates; `?include=columns&table=` for one table's columns, which is what the pickers read |
+| `POST /{project}/tables` | the same paged read against an **unsaved** connection sent in the body, so the picker works before a project exists; the secret travels in the body and never the query |
 | `POST /{project}/preview` | ≤100 real rows for one edge pair, **both directions in one call**, answered as settled / backwards / you-decide / neither |
 | `POST /{project}/validate` | parse (text **or** model) and check without saving; every problem carries its path |
 

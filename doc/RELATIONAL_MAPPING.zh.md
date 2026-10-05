@@ -37,7 +37,7 @@ key 的那一列"，节点那一侧由它自己的 `key` 决定。所以连接�
 
 | 它发现的 | 它提出的 |
 |---|---|
-| 正好两个外键、都是单列，而且没有任何外键指回这张表 | 一条边，`type = upper(table)`，每个外键给一对端点 |
+| 正好两个外键、都是单列，而且没有任何外键指回这张表 | 一条边，`type = upper(table)`，由这两个外键合成**一对**端点——它们是这条链接的两端，不是两条链接 |
 | 记录表上的一个外键 | 一条边，**src 就是引用方那张表**——这个方向是 schema 里的事实，不是猜的 |
 | 指回自己那张表的外键 | 一条两端同标签的边 |
 | 其他任何表 | 一个节点标签，key 取单列主键，否则取最宽的单列 `NOT NULL` 唯一列 |
@@ -242,8 +242,12 @@ edges[0].endpoints[0].dst.label: label 'Ogranization' is not declared under node
 is an edge type that silently never matches. Declared labels: Person
 ```
 
-同样会被拒绝的：不是"字母、数字、下划线"的名字（代理会在 SQL 边界替保留字加引号，但一个带
-空格的标签在生成的语句里根本没有位置）；重复的标签或类型；一张表被映射成两个标签——那样 id
+**图这边的名字是严格的，数据库那边的不是。** `label` 和 `type` 必须是字母、数字、下划线，而且
+不能以数字开头：它们既被编译进生成的语句，也会进 `<Label>:<key>` 这样的 id，一个带空格的标签
+在这两处都没有位置。而 `table`、`column` 和 key 列就按你数据库自己的写法用——`Order Items`、
+`first name` 都可以，因为 SQL 边界的引号是替你加的——只有在为空、或含控制字符时才拒绝。
+
+同样会被拒绝的：重复的标签或类型；一张表被映射成两个标签——那样 id
 无法往返；没有任何端点对的边，因为那是一条永远画不出来的关系；以及同一个名字既当节点又当
 边，因为 `<Employment>:<key>` 就会同时意味着两样东西。
 
@@ -275,8 +279,9 @@ Links 页上每个端点对都有一个 **Check direction**，把这条边*正�
 **Records** 页可以展开每条记录的列：哪些是属性、哪些没进图（会计数并列出来，理由和白名单
 那一段相同）、这个条目是带白名单还是取全部列，以及代理报告的那张表的 key 候选。
 
-每一行都带一个来源标记——`auto`、`renamed`、`flipped`、`added`、`excluded`——因为这一页
-把机器的提案和你的决定混在一起显示，你必须能分辨自己正在覆盖的到底是哪一个。
+一行是否带来源标记——`auto`、`renamed`、`flipped`、`added`、`excluded`——取决于页面有没有
+它的来源可显示，没有就什么都不显示；因为这一页把机器的提案和你的决定混在一起显示，你必须能
+分辨自己正在覆盖的到底是哪一个。
 
 ## 图看起来不对的时候
 
@@ -304,11 +309,11 @@ Links 页上每个端点对都有一个 **Check direction**，把这条边*正�
 |---|---|
 | 文档的字段 | `models/graph_mapping.py` |
 | 解析、1 MiB 上限、导出 | `drivers/relational/mapping_io.py` |
-| 什么算合法，以及为什么不合法 | `drivers/relational/mapping.py` |
+| 什么算合法，以及为什么不合法 | `drivers/relational/mapping.py`，以及 loader 拆出去的那四个 `mapping_props.py`／`mapping_index.py`／`mapping_pairs.py`／`mapping_scope.py` |
 | 自动发现读什么、拒什么、上限 | `drivers/relational/catalog.py`、`reflect.py` |
 | 下游一切代码所依据的中间表示 | `drivers/relational/schemas.py` |
 | 自带的样例文件 | `drivers/relational/data/mapping.example.yml` |
 | 编辑器 | `frontend/src/pages/GraphMapping.tsx`、`frontend/src/components/mapping/` |
 
-这里不写任何路由或请求/响应格式：mapping 相关的接口定下来之后归
-[`doc/API_Reference.md`](API_Reference.md)，本页描述的是管理后台的界面行为。
+这里不写任何路由或请求/响应格式：mapping 相关的接口归
+[`doc/RELATIONAL_API.md`](RELATIONAL_API.md)，本页描述的是管理后台的界面行为。

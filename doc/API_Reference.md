@@ -8,6 +8,7 @@
 - [3. Graph Schema](#3-graph-schema-required)
 - [4. Table Schema](#4-table-schema-optional)
 - [Data Type Definitions](#data-type-definitions)
+- [Relational admin API](RELATIONAL_API.md)
 
 ---
 

@@ -42,7 +42,7 @@ engine's own statistics, so they are estimates and the page prints them as `~1,2
 
 | What it finds | What it proposes |
 |---|---|
-| Exactly two foreign keys, both single-column, and nothing points back at the table | an edge, `type = upper(table)`, one endpoint pair per foreign key |
+| Exactly two foreign keys, both single-column, and nothing points back at the table | an edge, `type = upper(table)`, with **one** endpoint pair built from the two foreign keys — they are the link's two ends, not two links |
 | A foreign key on a record table | an edge whose **src is the referencing table** — that direction is a fact about the schema, not a guess |
 | A foreign key pointing back at its own table | an edge with one label on both ends |
 | Any other table | a node label, keyed by its single-column primary key, else its widest single-column `NOT NULL` unique |
@@ -259,11 +259,17 @@ edges[0].endpoints[0].dst.label: label 'Ogranization' is not declared under node
 is an edge type that silently never matches. Declared labels: Person
 ```
 
-Also refused: a name that is not letters, digits and underscore (the proxy quotes reserved
-words for you at the SQL boundary, but a label with a space has no place in a generated
-statement); a duplicate label or type; one table mapped as two labels, which cannot round-trip
-an id; an edge with no endpoint pair, which is a relationship that can never be drawn; and one
-name used for both a node and an edge, because `<Employment>:<key>` would then mean two things.
+**Graph-side names are strict; database-side names are not.** A `label` and a `type` must be
+letters, digits and underscore, not starting with a digit: each is compiled into statement
+text and into an id of the form `<Label>:<key>`, and a label with a space has no place in
+either. A `table`, a `column` or a key column is used exactly as your database spells it —
+`Order Items` and `first name` are both fine, because the quoting at the SQL boundary is done
+for you — and is refused only for being empty or for holding a control character.
+
+Also refused: a duplicate label or type; one table mapped as two labels, which cannot
+round-trip an id; an edge with no endpoint pair, which is a relationship that can never be
+drawn; and one name used for both a node and an edge, because `<Employment>:<key>` would then
+mean two things.
 
 **Mismatch with the live database is a warning, never a blocker.** A table that is not in this
 schema, a column that no longer exists, a name in `include` that matches nothing — each is
@@ -297,9 +303,10 @@ the graph (counted and listed, for the same reason as the whitelist above), whet
 carries a whitelist or takes all columns, and the key candidates the proxy reported for that
 table.
 
-Every row carries a provenance tag — `auto`, `renamed`, `flipped`, `added`, `excluded` —
-because the page mixes a machine's proposal and your decisions, and you have to be able to
-tell which one you are overriding.
+A row carries a provenance tag — `auto`, `renamed`, `flipped`, `added`, `excluded` — when
+the page has a provenance to show for it, and shows nothing when it does not, because the
+page mixes a machine's proposal and your decisions and you have to be able to tell which one
+you are overriding.
 
 ## When the graph looks wrong
 
@@ -328,12 +335,11 @@ been asked for goes in the connection's `options`, which are passed straight to 
 |---|---|
 | The document's fields | `models/graph_mapping.py` |
 | Parsing, the 1 MiB cap, the export | `drivers/relational/mapping_io.py` |
-| What is valid, and why not | `drivers/relational/mapping.py` |
+| What is valid, and why not | `drivers/relational/mapping.py`, and the four `mapping_props.py` / `mapping_index.py` / `mapping_pairs.py` / `mapping_scope.py` the loader was split into |
 | What discovery reads and refuses, the caps | `drivers/relational/catalog.py`, `reflect.py` |
 | The IR everything downstream is written against | `drivers/relational/schemas.py` |
 | The shipped example | `drivers/relational/data/mapping.example.yml` |
 | The editor | `frontend/src/pages/GraphMapping.tsx`, `frontend/src/components/mapping/` |
 
-No route or payload is documented here: [`doc/API_Reference.md`](API_Reference.md) is where
-the mapping endpoints belong once they are settled, and the admin UI is what this page
-describes.
+No route or payload is documented here: [`doc/RELATIONAL_API.md`](RELATIONAL_API.md) is the
+authority for the mapping endpoints, and the admin UI is what this page describes.
