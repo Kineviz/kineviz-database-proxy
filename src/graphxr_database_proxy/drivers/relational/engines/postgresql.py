@@ -447,6 +447,11 @@ class PostgreSQLEngine(EngineSpelling):
     def bulk_id_form(self, info: ServerInfo) -> str:
         return "any"
 
+    def json_document_type(self) -> str:
+        # Never read here — ``= ANY`` carries the list itself — and ``json``, not
+        # ``jsonb``, which would have the server re-encode a document it only parses.
+        return "json"
+
     def fanout_chunk_size(self, info: ServerInfo) -> int:
         # Never used: ``= ANY`` carries a selection of any size in one parameter.
         return 0

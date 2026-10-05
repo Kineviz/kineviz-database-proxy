@@ -34,10 +34,10 @@ from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 import sqlalchemy as sa
 from sqlalchemy import and_, bindparam, cast, false, literal_column, or_, select, text, true
 from sqlalchemy.sql.elements import BindParameter, ColumnElement
-from sqlalchemy.types import NVARCHAR, TypeEngine
+from sqlalchemy.types import TypeEngine
 
 from . import ids
-from .engine import EngineSpelling, ServerInfo, cast_sqlalchemy_type, parse_declared_type
+from .engine import EngineSpelling, ServerInfo, cast_sqlalchemy_type
 from .predicate import (
     And,
     BoolProp,
@@ -66,6 +66,11 @@ _BULK_WHOLE_TYPE = "bigint"
 _BULK_TEXT_TYPE = "nvarchar(450)"
 _MYSQL_BULK_WHOLE_TYPE = "BIGINT"
 _MYSQL_BULK_TEXT_TYPE = "VARCHAR(450)"
+#: ...and the column each table function then exposes, which travels with the source
+#: that declares it: ``OPENJSON``'s ``WITH`` names a bare column, ``JSON_TABLE`` needs
+#: the alias its ``AS`` gives the row source in front of its name.
+_BULK_PROJECTION_OPENJSON = "[value]"
+_BULK_PROJECTION_JSON_TABLE = "gx_jt.gx_value"
 
 class ExpressionError(Exception):
     """A predicate this compiler cannot turn into SQL. Names what it found."""
@@ -449,9 +454,15 @@ def _bulk_membership(column: ColumnElement, values: Sequence[object], declared_t
         param = bindparam(name, value=coerced, type_=ARRAY(element))
         return column == sa.any_(param)
     if form == "openjson":
-        return _shred(column, values, declared_type, scope, _openjson_source, "gx_json")
+        return _shred(
+            column, values, declared_type, scope, _openjson_source,
+            _BULK_PROJECTION_OPENJSON, "gx_json",
+        )
     if form == "json_table":
-        return _shred(column, values, declared_type, scope, _json_table_source, "gx_json")
+        return _shred(
+            column, values, declared_type, scope, _json_table_source,
+            _BULK_PROJECTION_JSON_TABLE, "gx_json",
+        )
     # ``placeholders`` is what an engine says when its bulk form is a plain IN; the
     # size that reached here is the engine's own call, so honour it.
     binds = [scope.bind(value, declared_type or None) for value in values]
@@ -497,6 +508,7 @@ def _shred(
     declared_type: str,
     scope: PredicateScope,
     source: object,
+    projection: str,
     prefix: str,
 ) -> ColumnElement:
     """
@@ -505,23 +517,18 @@ def _shred(
     The parameter inside the ``text()`` is the same named bind the collector made, so
     one value crosses the wire once and with a type attached: an untyped document would
     arrive as whatever the DBAPI guessed, which is the conversion the ``WITH`` /
-    ``COLUMNS`` clause exists to prevent.
+    ``COLUMNS`` clause exists to prevent. What that type is called is the engine's
+    answer (``json_document_type``), never a name read off it here.
     """
     name = scope.new_name(prefix)
     document = json.dumps([_jsonable(value) for value in values], separators=(",", ":"))
-    document_type = "json" if scope.spelling.name == "mysql" else "nvarchar(max)"
+    document_type = scope.spelling.json_document_type()
     scope.put(name, document)
     param = bindparam(name, value=document, type_=scope.spelling.column_type(document_type))
-    inner = select(literal_column(_shred_projection(scope.spelling.name))).select_from(
+    inner = select(literal_column(projection)).select_from(
         text(str(source(name, declared_type))).bindparams(param)
     )
     return column.in_(inner)
-
-
-def _shred_projection(engine_name: str) -> str:
-    if engine_name == "mssql":
-        return "[value]"
-    return "gx_jt.gx_value"
 
 
 # ----- fan-out ---------------------------------------------------------------
@@ -622,19 +629,12 @@ def cast_from_name(name: Optional[str]) -> Optional[TypeEngine]:
     """
     A SQL type name the engine asked for, as a SQLAlchemy type.
 
-    ``engine.cast_sqlalchemy_type`` owns the exact numerics, which is where the casts
-    that change an answer live. The character narrowing is added here because grouping
-    and matching need it and the engine answers in words, not in types: an unbounded
-    ``LOB`` cannot be a ``GROUP BY`` key at all, so the size the index can hold is the
-    size the cast gets.
+    The grammar — the exact numerics *and* the character narrowing, since an unbounded
+    LOB cannot be a ``GROUP BY`` key at all and the size the index can hold is the size
+    the cast gets — is one function's, :func:`engine.cast_sqlalchemy_type`, because the
+    names it reads are that same seam's answer. This is the compiler's import and owns
+    nothing: a second table of type names is what drifts when the next engine is added.
     """
     if not name:
         return None
-    stated = str(name).strip()
-    from_engine = cast_sqlalchemy_type(stated)
-    if from_engine is not None:
-        return from_engine
-    declared = parse_declared_type(stated)
-    if declared.base in ("nvarchar", "nchar", "varchar", "char"):
-        return NVARCHAR(declared.precision)
-    return None
+    return cast_sqlalchemy_type(str(name).strip())

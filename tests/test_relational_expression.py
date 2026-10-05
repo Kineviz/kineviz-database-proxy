@@ -14,6 +14,7 @@ from typing import Dict, List
 import pytest
 import sqlalchemy as sa
 from sqlalchemy.dialects import mssql, mysql, postgresql
+from sqlalchemy.sql import visitors
 
 from graphxr_database_proxy.drivers.relational import expression, predicate
 from graphxr_database_proxy.drivers.relational.engine import ServerInfo
@@ -88,6 +89,21 @@ def _bound(scope, condition, dialect=postgresql.dialect()) -> Dict[str, object]:
     if condition is None:
         return {}
     return dict(_statement(scope, condition).compile(dialect=dialect).params)
+
+
+def _shred_parameter_types(scope, condition) -> Dict[str, str]:
+    """
+    What the one shredded document is bound as, by class name.
+
+    A test on the rendered text cannot see this: the type rides on the bind, and the
+    whole reason the document has one is that an untyped one arrives as whatever the
+    DBAPI guessed.
+    """
+    found: Dict[str, str] = {}
+    for element in visitors.iterate(_statement(scope, condition)):
+        if isinstance(element, sa.BindParameter) and element.key.startswith("gx_json"):
+            found[element.key] = type(element.type).__name__
+    return found
 
 
 # -- binds, not text --
@@ -344,14 +360,35 @@ def test_a_big_selection_goes_over_as_one_array_parameter_on_postgres():
 
 
 def test_a_big_selection_on_sql_server_is_shredded_from_one_json_document():
+    spelling = MSSQLEngine()
     server = ServerInfo(engine="mssql", major=15, minor=0, compat_level=150)
-    scope = _scope(spelling=MSSQLEngine(), server=server)
+    scope = _scope(spelling=spelling, server=server)
     values = ", ".join(str(index) for index in range(2001))
     condition = compile_predicate(_where("n.person_id IN [%s]" % values), scope)
     rendered = _sql(scope, condition, mssql.dialect())
     assert "OPENJSON" in rendered
     assert "WITH ([value] bigint" in rendered
     assert len([name for name in scope.parameters if name.startswith("gx_json")]) == 1
+    # SQL Server has no JSON type, so the document is bound as the Unicode text it
+    # crosses the wire as — and that name is the engine's own answer, not a string
+    # this module picked for it.
+    assert spelling.json_document_type() == "nvarchar(max)"
+    assert _shred_parameter_types(scope, condition) == {"gx_json1": "NVARCHAR"}
+
+
+def test_a_big_selection_on_mysql_is_shredded_from_one_json_value():
+    spelling = MySQLEngine()
+    server = ServerInfo(engine="mysql", major=8, minor=0, build=35)
+    scope = _scope(spelling=spelling, server=server)
+    values = ", ".join(str(index) for index in range(2001))
+    condition = compile_predicate(_where("n.person_id IN [%s]" % values), scope)
+    rendered = _sql(scope, condition, mysql.dialect())
+    # MySQL's paramstyle is positional, so the one document bind arrives as ``%s`` and
+    # the shred clause is all the text carries.
+    assert "JSON_TABLE(%s, '$[*]' COLUMNS (gx_value BIGINT PATH '$')) AS gx_jt" in rendered
+    assert "SELECT gx_jt.gx_value" in rendered
+    assert spelling.json_document_type() == "json"
+    assert _shred_parameter_types(scope, condition) == {"gx_json1": "JSON"}
 
 
 def test_a_server_too_old_for_the_bulk_form_is_told_so_and_cut_into_chunks():

@@ -451,6 +451,11 @@ class MSSQLEngine(EngineSpelling):
     def bulk_id_form(self, info: ServerInfo) -> str:
         return "openjson" if info.supports_openjson else "placeholders"
 
+    def json_document_type(self) -> str:
+        # SQL Server has no JSON type: the document crosses as Unicode text, and a
+        # selection of tens of thousands of ids is longer than any bounded column.
+        return "nvarchar(max)"
+
     def fanout_chunk_size(self, info: ServerInfo) -> int:
         return MSSQL_FANOUT_CHUNK
 

@@ -32,8 +32,8 @@ import re
 from dataclasses import dataclass
 from typing import Dict, Iterable, Mapping, Optional, Protocol, Sequence, Tuple
 
-from sqlalchemy import URL, text
-from sqlalchemy.types import TypeEngine
+from sqlalchemy import URL, DECIMAL, text
+from sqlalchemy.types import NVARCHAR, TypeEngine
 
 # ---------------------------------------------------------------------------
 # vocabularies — closed sets, so a caller can branch on them without guessing
@@ -394,24 +394,39 @@ def _first_int(explicit: Optional[int], args: Sequence[str], index: int) -> Opti
     return None
 
 
+#: The numeric cast grammar: ``DECIMAL(p)`` / ``DECIMAL(p,s)``, always with a precision.
+_CAST_DECIMAL = re.compile(r"^\s*dec(?:i)?mal\s*\(\s*(\d+)\s*(?:,\s*(\d+)\s*)?\)", re.I)
+#: The character bases a cast name may ask for, and the one type they all narrow to:
+#: SQL Server's own answer, which is the only engine that answers in characters at all.
+_CAST_CHARACTER_BASES = frozenset({"nvarchar", "nchar", "varchar", "char"})
+
+
 def cast_sqlalchemy_type(cast: str) -> Optional[TypeEngine]:
-    """``"DECIMAL(38, 10)"`` -> ``DECIMAL(38, 10)``, so both spellings of a cast agree.
+    """What a cast-name string means as a SQLAlchemy type, for both spellings to agree.
 
     The compiler lane builds statements through SQLAlchemy and the policy in this
-    module speaks SQL type names; one parse, shared by both, is what keeps them from
-    drifting apart. ``test_cast_names_round_trip_through_sqlalchemy`` asserts the two
-    render identically, which is why this returns ``DECIMAL`` and not its ``Numeric``
-    parent: on the mssql dialect ``Numeric`` renders ``NUMERIC``, a synonym to the
-    server and a difference to anyone comparing the emitted SQL against a test.
-    """
-    match = re.match(r"^\s*dec(?:i)?mal\s*\(\s*(\d+)\s*(?:,\s*(\d+)\s*)?\)", str(cast), re.I)
-    if not match:
-        return None
-    precision = int(match.group(1))
-    scale = int(match.group(2) or 0)
-    from sqlalchemy import DECIMAL
+    module speaks SQL type names, so the names one parse of *this* function has to
+    cover are exactly what an engine's ``agg_cast``, ``group_key_cast`` and
+    ``like_cast`` may answer — today ``DECIMAL(38, 10)`` and ``DECIMAL(38, 0)`` from
+    SQL Server's averages and sums, and ``NVARCHAR(450)`` and ``NVARCHAR(4000)`` from
+    its grouping and matching. A name outside the grammar is ``None``, which every
+    caller reads as "cast nothing", and the grammar is not widened on a guess: an
+    engine that starts answering a new spelling adds it here, beside the module that
+    answers it. ``test_relational_engine_types`` enumerates the engines' own answers
+    and fails on one this parser cannot read.
 
-    return DECIMAL(precision, scale, asdecimal=True)
+    ``DECIMAL`` and not its ``Numeric`` parent because on the mssql dialect ``Numeric``
+    renders ``NUMERIC`` — a synonym to the server and a difference to anyone comparing
+    the emitted SQL against a test.
+    """
+    stated = str(cast or "")
+    match = _CAST_DECIMAL.match(stated)
+    if match:
+        return DECIMAL(int(match.group(1)), int(match.group(2) or 0), asdecimal=True)
+    declared = parse_declared_type(stated)
+    if declared.base in _CAST_CHARACTER_BASES:
+        return NVARCHAR(declared.precision)
+    return None
 
 
 class EngineSpelling(abc.ABC):
@@ -655,6 +670,16 @@ class EngineSpelling(abc.ABC):
     @abc.abstractmethod
     def bulk_id_form(self, info: ServerInfo) -> str:
         """How a bulk list is spelled, for the compiler."""
+
+    @abc.abstractmethod
+    def json_document_type(self) -> str:
+        """The declared type name a shredded id list is bound as.
+
+        Only the engines whose bulk form is a table function over one JSON document
+        are read here, and the answer has to be a name :meth:`column_type` knows: the
+        document crosses the wire once, as one parameter, and its type is what decides
+        whether the server is handed a document or the DBAPI's guess at one.
+        """
 
     @abc.abstractmethod
     def fanout_chunk_size(self, info: ServerInfo) -> int:

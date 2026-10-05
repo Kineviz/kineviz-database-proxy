@@ -3,8 +3,15 @@
 The engine modules are policy, not I/O, so every one of these runs against a
 ``DatabaseConfig`` stand-in and a connection double that records statements. What
 they pin down are the answers the compiler and the pool lanes build on: where a
-secret goes, which cast is load-bearing, when an id list stops fitting, and what a
-server that cannot be served has to say about itself.
+secret goes, when an id list stops fitting, and what a server that cannot be served
+has to say about itself.
+
+The seam is three subjects and the file followed: this one is the registry and the
+connection (URL, connect args, session statements, isolation, and the guards that
+none of it imports a DBAPI), ``test_relational_engine_types.py`` is the type
+vocabulary and every cast an engine may answer with, and
+``test_relational_engine_probe.py`` is the server probe, the row-count reads, the id
+lists and the name rules. The stand-ins live here and the other two import them.
 """
 
 from __future__ import annotations
@@ -19,26 +26,19 @@ from pathlib import Path
 from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 
 import pytest
-import sqlalchemy as sa
 from sqlalchemy import URL
 
-from graphxr_database_proxy.drivers.dialect import is_numeric_key_type
 from graphxr_database_proxy.drivers.relational import engine as engine_module
 from graphxr_database_proxy.drivers.relational.engine import (
     ID_LIST_STRATEGIES,
-    NUMERIC_PROPERTY_TYPES,
-    PROPERTY_TYPES,
     EngineSpelling,
     ServerInfo,
     UnknownEngine,
-    cast_sqlalchemy_type,
     configured_schema,
     engines_for,
-    parse_declared_type,
     registered_engines,
 )
 from graphxr_database_proxy.drivers.relational.engines import mssql as mssql_module
-from graphxr_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
 from graphxr_database_proxy.drivers.relational.engines import mysql as mysql_module
 from graphxr_database_proxy.drivers.relational.engines import (
     postgresql as postgresql_module,
@@ -103,7 +103,7 @@ def test_each_engine_surface_is_complete_and_sane() -> None:
     # checked here is that the answers are in range.
     surface = ("url", "connect_args", "session_statements", "isolation", "normalise_type",
                "single_column_key_ok", "agg_cast", "probe_server", "approx_row_counts",
-               "id_list_strategy", "identifier_ok", "data_api_name")
+               "id_list_strategy", "json_document_type", "identifier_ok", "data_api_name")
     for name in ALL_ENGINES:
         spelling = engine(name)
         assert spelling.default_port in (1433, 5432, 3306)
@@ -242,259 +242,6 @@ def test_schema_name_field_beats_the_option_beats_the_engine_default() -> None:
     # On MySQL the database *is* the namespace, so there is no default to invent.
     assert engine("mysql").default_schema is None
 
-@pytest.mark.parametrize(
-    "name,declared,expected",
-    [
-        # SQL Server
-        ("mssql", "nvarchar(200)", "STRING"),
-        ("mssql", "varchar(50)", "STRING"),
-        ("mssql", "datetime2", "TIMESTAMP"),
-        ("mssql", "datetimeoffset", "TIMESTAMP"),
-        ("mssql", "date", "DATE"),
-        ("mssql", "uniqueidentifier", "STRING"),
-        ("mssql", "bigint", "INT64"),
-        ("mssql", "int", "INT32"),
-        ("mssql", "bit", "BOOL"),
-        ("mssql", "float", "DOUBLE"),
-        ("mssql", "decimal(19,4)", "DECIMAL"),
-        ("mssql", "money", "DECIMAL"),
-        ("mssql", "varbinary(max)", "BYTES"),
-        # SQL Server's ``timestamp`` is the row version, not a date.
-        ("mssql", "timestamp", "BYTES"),
-        ("mssql", "hierarchyid", "STRING"),
-        # PostgreSQL
-        ("postgresql", "int8", "INT64"),
-        ("postgresql", "int4", "INT32"),
-        ("postgresql", "smallint", "INT32"),
-        ("postgresql", "bytea", "BYTES"),
-        ("postgresql", "timestamptz", "TIMESTAMP"),
-        ("postgresql", "timestamp with time zone", "TIMESTAMP"),
-        ("postgresql", "character varying(255)", "STRING"),
-        ("postgresql", "double precision", "DOUBLE"),
-        ("postgresql", "numeric(10,2)", "DECIMAL"),
-        ("postgresql", "boolean", "BOOL"),
-        ("postgresql", "uuid", "STRING"),
-        ("postgresql", "jsonb", "JSON"),
-        # A ``name`` column is a system-identifier string, not a number.
-        ("postgresql", "name", "STRING"),
-        # MySQL
-        ("mysql", "mediumint", "INT32"),
-        ("mysql", "bigint unsigned", "INT64"),
-        ("mysql", "enum('a','b')", "STRING"),
-        ("mysql", "set('a','b')", "STRING"),
-        ("mysql", "longtext", "STRING"),
-        ("mysql", "double", "DOUBLE"),
-        ("mysql", "decimal(10,0)", "DECIMAL"),
-        ("mysql", "datetime", "TIMESTAMP"),
-        ("mysql", "year", "INT32"),
-        ("mysql", "json", "JSON"),
-        ("mysql", "longblob", "BYTES"),
-        # An unknown type is a string, and it is still recorded as a column.
-        ("mssql", "citext_extension_thing", "STRING"),
-        ("postgresql", "city_id[]", "STRING"),
-        ("mysql", "geometry", "BYTES"),
-        ("mysql", "nonsense_type(3)", "STRING"),
-    ],
-)
-def test_declared_types_normalise(name: str, declared: str, expected: str) -> None:
-    spelling = engine(name)
-    assert spelling.normalise_type(declared) == expected
-    assert expected in PROPERTY_TYPES
-
-def test_unknown_types_are_reported_rather_than_quietly_stringified() -> None:
-    for name in ALL_ENGINES:
-        spelling = engine(name)
-        assert spelling.normalise_type("widget") == "STRING"
-        assert not spelling.is_known_type("widget")
-        assert spelling.is_known_type("varchar(200)")
-        # An array is a real column of a type the vocabulary cannot describe.
-        assert not spelling.is_known_type("text[]")
-
-def test_explicit_precision_and_scale_win_over_the_spelling() -> None:
-    assert engine("mysql").normalise_type("tinyint", precision=1) == "BOOL"
-    assert engine("mysql").normalise_type("tinyint", precision=4) == "INT32"
-    assert engine("mysql").normalise_type("tinyint(1)", precision=4) == "INT32"
-    assert engine("mssql").normalise_type("varchar", precision=200) == "STRING"
-
-def test_every_numeric_vocabulary_name_still_reads_as_a_numeric_key() -> None:
-    # ``render_key_literal`` quotes a key unless ``is_numeric_key_type`` recognises
-    # the type, and that set is compared lowercased: a numeric key that fails here
-    # turns ``IN [1001]`` into ``IN ["1001"]`` and silently loses the index.
-    assert NUMERIC_PROPERTY_TYPES == ("INT64", "INT32", "DOUBLE", "DECIMAL")
-    for kind in NUMERIC_PROPERTY_TYPES:
-        assert is_numeric_key_type(kind), kind
-    for kind in ("STRING", "BOOL", "DATE", "TIMESTAMP", "BYTES", "JSON"):
-        assert not is_numeric_key_type(kind), kind
-
-def test_parsed_type_keeps_the_parts_a_cast_decision_needs() -> None:
-    assert parse_declared_type("numeric(19,4)").scale == 4
-    assert parse_declared_type("bigint unsigned").base == "bigint"
-    assert parse_declared_type("bigint unsigned").unsigned is True
-    assert parse_declared_type("text[]").array == 1
-    assert parse_declared_type("varchar(50)").precision == 50
-    # An argument that is not a number is not a precision.
-    assert parse_declared_type("enum('a','b')").precision is None
-
-@pytest.mark.parametrize("name", ALL_ENGINES)
-def test_column_type_keeps_the_distinctions_that_cost_an_index(name: str) -> None:
-    spelling = engine(name)
-    assert isinstance(spelling.column_type("varchar(50)"), sa.types.String)
-    assert isinstance(spelling.column_type(None), sa.types.String)
-    assert isinstance(spelling.column_type("bigint"), sa.types.Integer)
-    # SQL Server compares nvarchar against varchar differently, so they must not bind
-    # the same way; the other two engines have one text type and get one answer.
-    mssql = engine("mssql")
-    assert repr(mssql.column_type("varchar(50)")) != repr(mssql.column_type("nvarchar(50)"))
-
-@pytest.mark.parametrize(
-    "name,declared,ok",
-    [
-        ("mssql", "bigint", True),
-        ("mssql", "nvarchar(64)", True),
-        # A ``text`` column cannot hold a unique index, so it cannot be an identity.
-        ("mssql", "text", False),
-        ("mssql", "ntext", False),
-        ("mssql", "image", False),
-        ("mssql", "xml", False),
-        # A row version changes on every write: the node would rename itself.
-        ("mssql", "rowversion", False),
-        ("postgresql", "int8", True),
-        ("postgresql", "uuid", True),
-        ("postgresql", "bytea", False),
-        ("postgresql", "jsonb", False),
-        # A MySQL TEXT column can only be indexed by prefix, and a prefix UNIQUE key
-        # lets two rows past char 40 share an id.
-        ("mysql", "text", False),
-        ("mysql", "longtext", False),
-        ("mysql", "varchar(64)", True),
-        ("mysql", "bigint", True),
-        ("mysql", "json", False),
-    ],
-)
-def test_single_column_key_decisions(name: str, declared: str, ok: bool) -> None:
-    assert engine(name).single_column_key_ok(declared) is ok
-
-def test_a_nullable_key_is_no_key_on_any_engine() -> None:
-    for name in ALL_ENGINES:
-        assert engine(name).single_column_key_ok("bigint", nullable=False) is True
-        assert engine(name).single_column_key_ok("bigint", nullable=True) is False
-
-@pytest.mark.parametrize(
-    "function,column_type,expected",
-    [
-        # AVG over an integer column is integer division: the cast is the answer.
-        ("avg", "int", "DECIMAL(38, 10)"),
-        ("avg", "bigint", "DECIMAL(38, 10)"),
-        ("avg", "smallint", "DECIMAL(38, 10)"),
-        # A scale-0 decimal truncates the same way, so it gets the same cast.
-        ("avg", "decimal(10,0)", "DECIMAL(38, 10)"),
-        ("avg", "numeric", "DECIMAL(38, 10)"),
-        # Already floating, already scaled: a cast would only cost the index.
-        ("avg", "float", None),
-        ("avg", "decimal(10,2)", None),
-        ("avg", "nvarchar(200)", None),
-        # SUM over an integer widens to bigint and then overflows.
-        ("sum", "int", "DECIMAL(38, 0)"),
-        ("sum", "bigint", "DECIMAL(38, 0)"),
-        ("sum", "float", None),
-        ("sum", "decimal(10,2)", None),
-        # min/max preserve the type and count counts rows, not numbers.
-        ("min", "int", None),
-        ("max", "int", None),
-        ("count", "int", None),
-        ("count", "*", None),
-    ],
-)
-def test_mssql_agg_casts_only_where_the_wrong_answer_is_real(
-    function: str, column_type: Optional[str], expected: Optional[str]
-) -> None:
-    assert engine("mssql").agg_cast(function, column_type) == expected
-
-@pytest.mark.parametrize("name", ("postgresql", "mysql"))
-@pytest.mark.parametrize("function", ("avg", "sum", "count", "min", "max"))
-@pytest.mark.parametrize("column_type", ("int", "bigint", "integer", "numeric", "float", None))
-def test_the_other_two_engines_cast_nothing(name: str, function: str, column_type: str) -> None:
-    # PostgreSQL's avg is already numeric and sum(int) is already bigint; MySQL's avg
-    # is DOUBLE and its SUM over BIGINT widens to DECIMAL. A cast copied from SQL
-    # Server would be decoration at best and would break the count shapes at worst.
-    assert engine(name).agg_cast(function, column_type) is None
-
-def test_cast_names_round_trip_through_sqlalchemy() -> None:
-    # The policy speaks SQL type names and the compiler speaks SQLAlchemy types; one
-    # parse, and both renderings have to agree or they will drift.
-    numeric = cast_sqlalchemy_type("DECIMAL(38, 10)")
-    assert isinstance(numeric, sa.Numeric)
-    column = sa.column("n", sa.Integer)
-    rendered = str(
-        sa.select(sa.cast(column, numeric)).compile(dialect=sa.dialects.mssql.dialect())
-    )
-    assert "CAST(n AS DECIMAL(38, 10))" in rendered, rendered
-    # The policy name is not a dialect curiosity: the same parse renders on the other
-    # two engines too, so a cast read off one engine's table cannot be nonsense there.
-    for dialect in (sa.dialects.postgresql.dialect(), sa.dialects.mysql.dialect()):
-        assert "DECIMAL(38, 10)" in str(sa.select(sa.cast(column, numeric)).compile(dialect=dialect))
-    # An uncast avg is exactly what SQLAlchemy 2.1.3 emits, which is the hole the
-    # policy fills.
-    bare = str(sa.select(sa.func.avg(column)).compile(dialect=sa.dialects.mssql.dialect()))
-    assert "avg(n)" in bare and "CAST" not in bare
-    assert cast_sqlalchemy_type("NVARCHAR(450)") is None
-
-def test_group_and_like_casts_follow_the_bridges_reasoning() -> None:
-    mssql = engine("mssql")
-    # GROUP BY is illegal on the LOB types, and 450 is the index-key size, not a guess.
-    assert mssql.group_key_cast("ntext") == "NVARCHAR(450)"
-    assert mssql.group_key_cast("nvarchar(max)") == "NVARCHAR(450)"
-    assert mssql.group_key_cast("nvarchar(200)") is None
-    assert mssql.group_key_cast("int") is None
-    # Only cast a column that is not already character data: a CAST around an indexed
-    # varchar is the same index-killing move as binding the wrong parameter type.
-    assert mssql.like_cast("int") == "NVARCHAR(4000)"
-    assert mssql.like_cast("nvarchar(200)") is None
-    assert mssql.like_cast("varchar") is None
-    assert mssql.like_cast(None) is None
-    for name in ("postgresql", "mysql"):
-        assert engine(name).group_key_cast("text") is None
-        assert engine(name).like_cast("int") is None
-
-def test_mssql_id_list_ladder_is_engine_and_compatibility_level_together() -> None:
-    mssql = engine("mssql")
-    server_2017 = ServerInfo(engine="mssql", major=14, minor=0, compat_level=140)
-    server_2016_at_120 = ServerInfo(engine="mssql", major=13, minor=0, compat_level=120)
-    server_2012 = ServerInfo(engine="mssql", major=11, minor=0, compat_level=100)
-
-    assert mssql.id_list_strategy(server_2017, 2000) == "inline"
-    assert mssql.id_list_strategy(server_2017, 2001) == "bulk"
-    assert mssql.bulk_id_form(server_2017) == "openjson"
-    # A modern engine with a database restored at an old compatibility level cannot
-    # resolve OPENJSON, and 2 100 parameters is a hard ceiling, so the list chunks.
-    assert mssql.id_list_strategy(server_2016_at_120, 5000) == "fanout"
-    assert mssql.id_list_strategy(server_2012, 5000) == "fanout"
-    assert mssql.bulk_id_form(server_2012) == "placeholders"
-    assert mssql.fanout_chunk_size(server_2012) < 2100
-
-def test_mysql_id_list_ladder_is_a_version_number() -> None:
-    mysql = engine("mysql")
-    old = ServerInfo(engine="mysql", major=8, minor=0, build=3)
-    new = ServerInfo(engine="mysql", major=8, minor=0, build=35)
-    assert mysql.id_list_strategy(old, 5000) == "fanout"
-    assert mysql.id_list_strategy(new, 5000) == "bulk"
-    assert mysql.bulk_id_form(new) == "json_table"
-    assert mysql.id_list_strategy(new, 2000) == "inline"
-    # MariaDB spells its versions differently and is not claimed.
-    mariadb = ServerInfo(engine="mysql", major=11, minor=4, build=2, mariadb=True)
-    assert mariadb.supports_json_table is False
-    assert mariadb.supported is False
-    assert "MariaDB" in mariadb.incompatibility
-
-def test_postgres_has_no_parameter_ceiling() -> None:
-    postgres = engine("postgresql")
-    info = ServerInfo(engine="postgresql", major=16, minor=4)
-    assert postgres.id_list_strategy(info, 100) == "inline"
-    assert postgres.id_list_strategy(info, 50_000) == "bulk"
-    assert postgres.bulk_id_form(info) == "any"
-    # One array parameter carries any selection, so there is nothing to fan out.
-    assert postgres.fanout_chunk_size(info) == 0
-
 def test_mssql_session_statements_include_arithabort() -> None:
     statements = engine("mssql").session_statements()
     assert "SET ARITHABORT ON" in statements
@@ -545,176 +292,6 @@ def test_postgres_refuses_read_uncommitted_instead_of_answering_a_lie() -> None:
     assert "READ COMMITTED" in str(refused.value)
     # MySQL genuinely has it, so the same request is not an error there.
     assert engine("mysql").isolation(Config(options={"isolation_level": "READ_UNCOMMITTED"}))
-
-def test_mssql_probe_is_one_statement_and_reads_both_version_numbers() -> None:
-    connection = FakeConnection([(14, 0, 3421, "14.0.3421", "Developer Edition", 140, 0)])
-    info = engine("mssql").probe_server(connection)
-    assert len(connection.statements) == 1
-    assert "SERVERPROPERTY" in connection.sql and "compatibility_level" in connection.sql
-    assert (info.major, info.build, info.compat_level) == (14, 3421, 140)
-    assert info.release_name == "2017"
-    assert info.supports_openjson and info.supported and info.engine == "mssql"
-
-def test_mssql_probe_names_an_azure_server_and_a_read_only_database() -> None:
-    connection = FakeConnection([(16, 1, 0, "16.0", "Azure Database", 150, 1)])
-    info = engine("mssql").probe_server(connection)
-    assert info.release_name == "Azure SQL"
-    assert info.read_only_server is True
-
-def test_old_mssql_server_is_refused_with_its_own_reason() -> None:
-    info = ServerInfo(engine="mssql", major=10, minor=50, release_name="2008 / 2008 R2")
-    assert info.supported is False
-    assert info.supports_offset_fetch is False
-    assert "2012" in info.incompatibility
-
-def test_postgres_probe_reads_the_version_number_and_the_recovery_flag() -> None:
-    connection = FakeConnection([("16.4", 160400, "PostgreSQL 16.4 on x86_64", False, True)])
-    info = engine("postgresql").probe_server(connection)
-    assert (info.major, info.minor) == (16, 4)
-    assert info.release_name == "16.4"
-    assert info.read_only_server is True
-    assert info.supported
-    assert "current_setting" in connection.sql and "pg_is_in_recovery()" in connection.sql
-
-def test_mysql_probe_tells_mariadb_apart() -> None:
-    mysql = engine("mysql")
-    connection = FakeConnection([("8.0.35-0ubuntu0.22.04.1", "(MySQL Community)", 0, 0)])
-    info = mysql.probe_server(connection)
-    assert (info.major, info.minor, info.build) == (8, 0, 35)
-    assert info.release_name == "8.0.35"
-    assert info.supports_json_table and info.supported
-
-    connection = FakeConnection([("11.4.2-MariaDB-1:11.4.2", "mariadb.org binary", 1, 0)])
-    info = mysql.probe_server(connection)
-    assert info.mariadb is True
-    assert info.names_case_insensitive is True
-    assert info.supports_json_table is False
-
-def test_probe_without_a_row_says_so() -> None:
-    with pytest.raises(ValueError):
-        engine("mssql").probe_server(FakeConnection([]))
-
-def test_a_probed_server_resolves_back_to_the_engine_that_probed_it() -> None:
-    from graphxr_database_proxy.models.project import DatabaseType
-
-    # The compiler reaches the spelling through ``engines_for(info.engine)``, so a probe
-    # that answered "sql server" or "PostgreSQL" instead of the registry key would raise
-    # there, far from the row that caused it. The registry key is also the enum value,
-    # which is what lets ``/api/{database_type}/`` reach an engine without a mapping.
-    enum_values = {member.value for member in DatabaseType}
-    rows = {
-        "mssql": [(15, 0, 4043, "15.0.4043", "Standard Edition", 150, 0)],
-        "postgresql": [("16.4", 160400, "PostgreSQL 16.4 on x86_64", False, False)],
-        "mysql": [("8.0.35", "(MySQL Community)", 0, 0)],
-    }
-    for name, row in rows.items():
-        info = engine(name).probe_server(FakeConnection(row))
-        assert engines_for(info.engine) is engine(name)
-        assert name in enum_values
-
-def test_approx_counts_use_statistics_and_never_count_rows() -> None:
-    cases = {
-        "mssql": ("sys.partitions",),
-        "postgresql": ("pg_class", "reltuples"),
-        "mysql": ("information_schema.TABLES", "TABLE_ROWS"),
-    }
-    for name, markers in cases.items():
-        connection = FakeConnection([("Person", 1234)])
-        counts = engine(name).approx_row_counts(connection, "dbo", ["Person", "Account"])
-        assert counts == {"Person": 1234}
-        for marker in markers:
-            assert marker in connection.sql, (name, marker)
-        assert "COUNT(*)" not in connection.sql.upper()
-        assert "SELECT *" not in connection.sql
-
-def test_approx_counts_are_paged_one_statement_per_page() -> None:
-    # A throwaway instance: the registered spellings are process-wide singletons and
-    # mutating one would leak into every later test.
-    spelling = MSSQLEngine()
-    spelling.names_page_size = 2
-    connection = FakeConnection([("a", 1), ("b", 2), ("c", 3)])
-    counts = spelling.approx_row_counts(connection, "dbo", ["a", "b", "c", "d", "e", "f"])
-    assert len(connection.statements) == 3
-    assert len(counts) == 3
-    # One page of names never becomes a statement per name.
-    assert engine("mssql").names_page_size == 500
-    assert spelling.approx_row_counts(connection, "dbo", []) == {}
-    assert len(connection.statements) == 3
-
-def test_a_count_the_engine_does_not_know_is_absent_not_zero() -> None:
-    # reltuples = -1 means "never counted", TABLE_ROWS NULL means "no estimate".
-    assert engine("postgresql").approx_row_counts(
-        FakeConnection([("t", -1), ("u", 9)]), "public", ["t", "u"]
-    ) == {"u": 9}
-    assert engine("mysql").approx_row_counts(
-        FakeConnection([("t", None), ("u", 9)]), "shop", ["t", "u"]
-    ) == {"u": 9}
-    assert engine("mssql").approx_row_counts(FakeConnection(), "dbo", []) == {}
-
-def test_postgres_counts_bind_one_array_and_mssql_binds_one_name_each() -> None:
-    connection = FakeConnection([])
-    engine("postgresql").approx_row_counts(connection, "public", ["a", "b", "c"])
-    _sql, params = connection.statements[0]
-    assert params["names"] == ["a", "b", "c"] and params["schema"] == "public"
-
-    connection = FakeConnection([])
-    engine("mssql").approx_row_counts(connection, None, ["a", "b", "c"])
-    _sql, params = connection.statements[0]
-    assert [params[key] for key in ("n0", "n1", "n2")] == ["a", "b", "c"]
-    assert "schema" not in params
-    # With no schema stated, MySQL scopes the read to the connected database.
-    connection = FakeConnection([])
-    engine("mysql").approx_row_counts(connection, None, ["a"])
-    assert "DATABASE()" in connection.sql
-
-@pytest.mark.parametrize("name", ALL_ENGINES)
-def test_legal_and_illegal_names(name: str) -> None:
-    spelling = engine(name)
-    # A reserved word is not a problem, because every identifier is quoted.
-    assert spelling.identifier_ok("Order") is True
-    assert spelling.identifier_ok("order") is True
-    assert spelling.identifier_ok("select") is True
-    assert spelling.identifier_ok("person_id") is True
-    # A sigil or a backtick in the middle is refused: the engines all allow one, but
-    # a name that needs quoting is a name that will be read wrongly by whatever else
-    # touches the mapping — and a backtick is MySQL's own delimiter.
-    assert spelling.identifier_ok("amount$") is False
-    assert spelling.identifier_ok("order`id") is False
-    assert spelling.identifier_ok("sales.orders") is False
-    assert spelling.identifier_ok("1sttable") is False
-    assert spelling.identifier_ok("") is False
-    assert spelling.identifier_ok("name with space") is False
-    assert spelling.identifier_ok("café") is False
-
-def test_length_caps_are_the_engines_own() -> None:
-    assert engine("mssql").max_identifier_length == 128
-    assert engine("postgresql").max_identifier_length == 63
-    assert engine("mysql").max_identifier_length == 64
-    for name, cap in (("mssql", 128), ("postgresql", 63), ("mysql", 64)):
-        spelling = engine(name)
-        assert spelling.identifier_ok("n" * cap) is True
-        assert spelling.identifier_ok("n" * (cap + 1)) is False
-        too_long = spelling.identifier_error("n" * (cap + 1))
-        assert str(cap) in too_long, (name, too_long)
-    # PostgreSQL truncates a long name on create instead of refusing it, so the
-    # message has to name what the table will actually be called.
-    truncated = engine("postgresql").identifier_error("n" * 70)
-    assert "truncat" in truncated and "n" * 63 in truncated
-    assert engine("mysql").identifier_error("1abc") == (
-        "the name starts with a digit, which is legal only inside quotes"
-    )
-
-def test_mssql_names_that_mean_something_else_are_named_as_such() -> None:
-    mssql = engine("mssql")
-    assert mssql.identifier_ok("#work") is False
-    assert "temp table" in mssql.identifier_error("#work")
-    assert "temp table" in mssql.identifier_error("##work")
-    assert "variable" in mssql.identifier_error("@cached")
-
-def test_case_rules_are_stated_per_engine() -> None:
-    assert engine("postgresql").name_case_rule == "fold-lower"
-    assert engine("mssql").name_case_rule == "insensitive"
-    assert engine("mysql").name_case_rule == "sensitive"
 
 def test_the_optional_dbapis_are_really_absent_here() -> None:
     # The rest of this file's guarantees are only interesting if the extras are not

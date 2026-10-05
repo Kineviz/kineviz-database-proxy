@@ -464,6 +464,11 @@ class MySQLEngine(EngineSpelling):
     def bulk_id_form(self, info: ServerInfo) -> str:
         return "json_table" if info.supports_json_table else "placeholders"
 
+    def json_document_type(self) -> str:
+        # ``JSON_TABLE`` takes a JSON value, and naming the type is what stops PyMySQL
+        # sending the document as a string the server then has to resolve on its own.
+        return "json"
+
     def fanout_chunk_size(self, info: ServerInfo) -> int:
         return MYSQL_FANOUT_CHUNK
 
