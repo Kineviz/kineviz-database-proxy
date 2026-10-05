@@ -120,9 +120,9 @@ under the 800-line trigger by keeping the mapping models in their own module.
 ### IR and pipeline (contracts, so lanes can work in parallel)
 
 ```python
-@dataclass(frozen=True) class NodeSchema:  label: str; table: str; schema: str | None
-    key: str; key_type: str; props: dict[str, str]              # prop -> normalised type
-    show_as: str | None = None; notes: str = ""
+@dataclass(frozen=True) class NodeSchema:  label: str; table: str; key: str; key_type: str
+    props: dict[str, str]; schema: str | None = None            # prop -> normalised type
+    show_as: str | None = None; notes: str = ""                 # keyword-constructed, always
 @dataclass(frozen=True) class Endpoint:    label: str; column: str; column_type: str
 @dataclass(frozen=True) class RelSchema:   type: str; table: str; schema: str | None
     key: str | None; key_type: str | None; endpoints: list[Pair]; props: dict[str, str]
@@ -162,9 +162,9 @@ bridge's convention because it is what makes `convert.py` position-independent. 
 (`get_multi_*`), and never asks the DB for a full scan: row estimates come from the engine's
 own statistics (`sys.partitions` / `pg_class.reltuples` / `information_schema.TABLES`).
 
-- **link table** = exactly two FKs, not referenced by any FK, and ≥1 non-endpoint column or a
-  composite/single key → `RelSchema` with `type = upper(table)`; leftover columns become edge
-  properties; endpoint columns do not.
+- **link table** = exactly two FKs, **both single-column**, and not referenced by any FK →
+  `RelSchema` with `type = upper(table)`. A composite FK stays a record table, because the key
+  predicate cannot match it; leftover columns become edge properties, endpoint columns do not.
 - **record table** = everything else → one `NodeSchema` per table.
 - A **direct FK** on a record table also becomes an edge, `src` = referencing table,
   `dst` = referenced table, `type` = sanitised `upper(constraint_name)` when present else
@@ -172,8 +172,8 @@ own statistics (`sys.partitions` / `pg_class.reltuples` / `information_schema.TA
 - Self-referencing FK → an edge whose `src.label == dst.label`.
 - Caps (`max_labels` 200, `max_edges` 400, `max_props` 200) with a `truncated` warning per
   kind; a 3 000-table ERP schema is not a 3 000-label graph, and the fix is `exclude`/`include`.
-- Excluded by default: views, engine-internal schemas, temp/system tables, tables whose
-  single-column key is nullable.
+- Excluded by default: views, engine-internal schemas, temp/system tables, and any table with
+  nothing to build `<Label>:<key>` from — no single-column PK and no single-column NOT NULL unique.
 
 ### Override document (`models/graph_mapping.py`)
 
