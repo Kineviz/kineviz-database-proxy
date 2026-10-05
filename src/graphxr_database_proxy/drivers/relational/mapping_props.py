@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Dict, Set, Union
 
 from ...models.graph_mapping import MappingEdge, MappingNode
+from .mapping_index import names_a_type
 
 if TYPE_CHECKING:
     from .mapping import EffectiveMapping
@@ -31,6 +32,11 @@ def _props(
     an unmapped column invisible, which is why the editor counts them. Empty means
     take discovery's columns. Either way a known table corrects a type, because
     binding a parameter as the wrong type costs a full scan and raises no error.
+
+    A correction needs something to correct *with*. Where the catalog has no name for the
+    column's type at all — :data:`mapping_index.NO_TYPE` — the declaration is the only type
+    information there is, so it survives: that is the one place the document is the escape
+    hatch a refused bind tells a person to use.
     """
     excluded = {str(name) for name in record.exclude_properties}
     source = dict(record.properties)
@@ -38,14 +44,21 @@ def _props(
         source = dict(index.columns.get(table, {}))
     else:
         for name in list(source):
+            stated = source[name]
             actual = index.column_type(table, name)
-            if actual is not None:
-                source[name] = actual
-            elif index.live and index.columns.get(table) and name not in drop and name not in excluded:
+            if actual is None:
+                if index.live and index.columns.get(table) and name not in drop and name not in excluded:
+                    out.warnings.append(
+                        "{}.properties: column {!r} is not a column of {!r} in this "
+                        "schema".format(path, name, table)
+                    )
+            elif not names_a_type(actual) and names_a_type(stated):
                 out.warnings.append(
-                    "{}.properties: column {!r} is not a column of {!r} in this "
-                    "schema".format(path, name, table)
+                    "{}.properties: this schema names no type for column {!r}, so the "
+                    "declared {!r} is what a filter on it binds as".format(path, name, stated)
                 )
+            else:
+                source[name] = actual
     return {
         name: type_name
         for name, type_name in source.items()

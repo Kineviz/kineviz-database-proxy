@@ -19,6 +19,20 @@ if TYPE_CHECKING:
     from .mapping import EffectiveMapping
     from .mapping_scope import _Scope
 
+#: What a reader writes down when it has **no** type, as distinct from a type this proxy
+#: has no binding for. ``""`` and :data:`UNKNOWN_TYPE` are this project's own placeholder;
+#: ``NULL`` is what ``reflect.type_name`` renders for the ``sqltypes.NULLTYPE`` all three
+#: dialects put in the row after warning "Did not recognize type" — PostgreSQL's
+#: ``_reflect_type``, SQL Server's ``_parse_column_info``, MySQL's ``_parse_column``. None
+#: of them is a name a column could be declared with on any engine, so none of them is an
+#: answer to correct a person's declaration with either.
+NO_TYPE = frozenset({"", UNKNOWN_TYPE, "NULL"})
+
+
+def names_a_type(value: Optional[str]) -> bool:
+    """Whether this is a type name rather than a reader admitting it has none."""
+    return value is not None and str(value).strip().upper() not in NO_TYPE
+
 
 class _CatalogIndex:
     """The discovered draft, indexed once so no rule below has to re-scan it."""
