@@ -11,6 +11,10 @@ tables, run through a dialect shaped like the relational one the spec declares.
 
 Refusals are asserted as part of the contract: a statement this cannot read raises with
 the construct named, because an empty canvas otherwise reads as "nothing matched".
+
+The three grammar layers this front-end reads through have their own files:
+``test_relational_translate_text.py``, ``test_relational_translate_pattern.py`` and
+``test_relational_translate_return.py``.
 """
 
 from __future__ import annotations
@@ -32,18 +36,12 @@ from graphxr_database_proxy.drivers.relational.predicate import (
     Cmp,
     EntityFn,
     InList,
-    Lit,
     Not,
     Prop,
-    StrOp,
 )
 from graphxr_database_proxy.drivers.relational.translate import (
-    AggItem,
-    PropItem,
     TranslateError,
-    clause_heads,
     parse_return,
-    strip_comments,
     translate as plan_of,
 )
 
@@ -73,7 +71,6 @@ SEEDS = [
 
 def expand(**kwargs) -> List[str]:
     return build_expand(RELATIONAL, SEEDS, key_types={"Person": "int"}, **kwargs)
-
 
 # ----- the four shapes the intent builders emit -----
 
@@ -214,80 +211,7 @@ def test_an_identifier_needing_two_words_or_a_backtick_survives_the_round_trip()
     (spaced,) = build_pull_relationship(RELATIONAL, "Order Lines", limit=10, skip=5)
     assert plan_of(spaced).edges[0].types == ["Order Lines"]
 
-
-# ----- pattern shapes -----
-
-
-@pytest.mark.parametrize(
-    "connector,direction",
-    [("-[r]->", "out"), ("<-[r]-", "in"), ("-[r]-", "both"), ("<-[r]->", "both")],
-)
-def test_the_three_arrow_shapes_map_to_the_three_directions(connector, direction):
-    plan = plan_of("MATCH (n:Person)%s(m) RETURN n, r, m" % connector)
-    assert plan.edges[0].direction == direction
-    assert (plan.edges[0].src_var, plan.edges[0].dst_var) == ("n", "m")
-
-
-def test_an_unnamed_edge_and_node_get_generated_names():
-    plan = plan_of("MATCH ()-[]->() RETURN *")
-    assert [v.var for v in plan.vertices] == ["__n0", "__n1"]
-    assert plan.edges[0].var == "__e0" and plan.edges[0].types is None
-
-
-def test_a_bare_variable_pattern_carries_no_label():
-    assert plan_of("MATCH (n) RETURN n").vertices[0].label is None
-
-
-def test_three_hops_chain_the_right_nodes_together():
-    plan = plan_of("MATCH (a)-[r]->(b)-[r2]->(c)-[r3]->(d) RETURN a, r, b, r2, c, r3, d")
-    assert [v.var for v in plan.vertices] == ["a", "b", "c", "d"]
-    assert [(e.var, e.src_var, e.dst_var) for e in plan.edges] == [
-        ("r", "a", "b"), ("r2", "b", "c"), ("r3", "c", "d")
-    ]
-
-
-def test_a_repeated_type_in_an_alternation_is_listed_once():
-    assert plan_of("MATCH (n)-[r:A|A|B]->(m) RETURN n, r, m").edges[0].types == ["A", "B"]
-
-
-# ----- RETURN, ORDER BY and pagination -----
-
-
-def test_return_kinds():
-    assert parse_return(["*"]).kind == "graph"
-    assert parse_return(["n", "r", "m"]).kind == "graph"
-    assert parse_return(None).kind == "graph"
-    assert parse_return(["n.name", "m.title"]).kind == "scalar"
-    assert parse_return(["n.name", "count(m)"]).kind == "aggregate"
-    assert parse_return(["count(*)"]).kind == "aggregate"
-
-
-def test_return_projections_carry_their_alias_or_their_default():
-    spec = parse_return(["n.`full name`", "m.title AS t"])
-    assert spec.columns == [
-        PropItem(var="n", prop="full name", alias="n.full name"),
-        PropItem(var="m", prop="title", alias="t"),
-    ]
-
-
-def test_aggregates_carry_their_argument_in_the_shape_the_compiler_wants():
-    spec = parse_return(["count(*)", "count(n)", "sum(n.`order total`) AS total", "min(m.x)", "avg(n.y)"])
-    assert [a.func for a in spec.aggregates] == ["count", "count", "sum", "min", "avg"]
-    assert (spec.aggregates[0].star, spec.aggregates[0].var) == (True, None)
-    assert (spec.aggregates[1].var, spec.aggregates[1].prop) == ("n", None)
-    assert (spec.aggregates[2].var, spec.aggregates[2].prop, spec.aggregates[2].alias) == (
-        "n", "order total", "total"
-    )
-    assert spec.aggregates[0].alias == "count_all"
-    assert spec.aggregates[1].alias == "count_n"
-    assert spec.kind == "aggregate"
-
-
-def test_distinct_after_return_is_kept_and_recorded():
-    plan = plan_of("MATCH (n) RETURN DISTINCT n.name SKIP 0 LIMIT 10")
-    assert plan.distinct is True
-    assert plan.return_items == ["n.name"]
-    assert parse_return(plan.return_items, plan.distinct).distinct is True
+# ----- ORDER BY and pagination -----
 
 
 def test_order_by_keeps_its_terms_as_text_and_its_direction():
@@ -305,57 +229,10 @@ def test_pagination_spellings(tail, limit, skip):
     assert (plan.limit, plan.skip) == (limit, skip)
 
 
-def test_a_trailing_semicolon_and_a_line_comment_are_not_part_of_the_statement():
-    plan = plan_of("MATCH (n:Person) RETURN n; // a note about the query\n")
-    assert plan.vertices[0].label == "Person"
-    assert plan.return_items == ["n"]
-    assert strip_comments("MATCH (n) /* block */ RETURN n").split() == ["MATCH", "(n)", "RETURN", "n"]
-    assert plan_of("MATCH (n) /* a note */ RETURN n LIMIT 3").limit == 3
-
-
-def test_a_doubled_dash_is_not_a_comment_because_an_arrow_is():
-    # ``-->`` is an unbracketed relationship, so treating ``--`` as a comment marker
-    # would silently rewrite a pattern. Cypher's own line comment is ``//``.
-    plan = plan_of("MATCH (n)-->(m) RETURN n, m")
-    assert plan.edges[0].direction == "out" and plan.edges[0].types is None
-
-
 def test_a_statement_that_is_all_comment_is_empty_rather_than_unparsable():
     with pytest.raises(TranslateError) as caught:
         plan_of("// nothing here")
     assert "empty" in str(caught.value)
-
-
-# ----- the scanner guards that the reference's regexes did not have -----
-
-
-def test_a_property_named_like_a_clause_is_not_a_clause():
-    plan = plan_of("MATCH (n) WHERE n.limit > 3 AND n.offset < 2 RETURN n.count AS c LIMIT 5")
-    assert plan.limit == 5
-    assert plan.where == And([Cmp(Prop("n", "limit"), ">", Lit(3)), Cmp(Prop("n", "offset"), "<", Lit(2))])
-    assert parse_return(plan.return_items).columns[0].alias == "c"
-
-
-def test_a_keyword_inside_a_literal_is_not_a_clause():
-    plan = plan_of("MATCH (n) WHERE n.note = 'RETURN me' AND n.x = 1 RETURN n LIMIT 2")
-    assert plan.where.parts[0] == Cmp(Prop("n", "note"), "=", Lit("RETURN me"))
-    assert plan.limit == 2
-
-
-def test_starts_with_is_the_operator_and_not_a_with_clause():
-    plan = plan_of("MATCH (n) WHERE n.name STARTS WITH 'Avery' RETURN n")
-    assert plan.where == StrOp(Prop("n", "name"), "startswith", "Avery")
-
-
-def test_a_word_that_is_part_of_a_longer_word_is_not_a_clause():
-    assert clause_heads("MATCH (n:Reorder) RETURN n.order_id, n.dataset") == ["MATCH", "RETURN"]
-
-
-def test_an_unterminated_literal_is_named_as_such():
-    with pytest.raises(TranslateError) as caught:
-        plan_of("MATCH (n) WHERE n.a = 'oops RETURN n")
-    assert "unterminated" in str(caught.value)
-
 
 # ----- refusals, each naming its construct -----
 
