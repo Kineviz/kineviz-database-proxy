@@ -204,13 +204,19 @@ def test_a_legacy_two_hop_chains_in_one_row_because_the_pattern_shares_its_middl
         assert len(set(re.findall(r"\bAS (v\d+)\b", text))) == 3, text
         assert len(set(re.findall(r"\bAS (e\d+)\b", text))) == 2, text
     assert data["relationships"] and unplaceable(data) == []
-    # Every hop variable is projected, or its edge has no end to be placed at (the fake answers
-    # the same key for every vertex, so placement is what the projection has to keep whole).
+    # Every hop variable is projected, or its edge has no end to be placed at.
     for text in server.queries():
         for alias in ("v0", "v1", "v2"):
             assert "__gx_{}_k0".format(alias) in text, text
     ids = ids_of(data["nodes"])
-    assert len(ids) == len(set(ids)), "the merge let one node arrive twice"
+    assert len(ids) == len(set(ids)), "one node arrived twice"
+    # The claim uniqueness alone could never make: a merged vertex shares an id, and identical ids
+    # collapse into one node, so a chain that placed every hop on the seed was still "unique". The
+    # stand-in now answers each vertex with its own key, so a chain has to show more than one
+    # vertex and no link whose two ends are the same record.
+    assert len(set(ids)) > 1, data["nodes"]
+    for relationship in data["relationships"]:
+        assert relationship["startNodeId"] != relationship["endNodeId"], relationship
 
 
 # ---------------------------------------------------------------------------
