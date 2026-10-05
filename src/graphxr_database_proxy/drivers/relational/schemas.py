@@ -50,25 +50,14 @@ class Pair:
 
     src: Endpoint
     dst: Endpoint
-    #: Rows the catalog counted for this link's table, or ``None`` when nobody counted
-    #: it. Unknown is not zero: a 4-million-row log with no statistics is not evidence
-    #: of an empty one, and every ranking here has to keep those two apart.
-    row_estimate: Optional[int] = None
+    #: Rows counted for this link's table. An int, because everything that consumes a
+    #: ``Pair`` compares or prints it; ``SchemaTable.row_estimate`` in the catalog is
+    #: where "nobody counted this" and "this is empty" are still told apart.
+    row_estimate: int = 0
 
     def swapped(self) -> "Pair":
         """The same link read the other way round; the count goes with it."""
         return Pair(src=self.dst, dst=self.src, row_estimate=self.row_estimate)
-
-
-def rank_rows(value: Optional[int]) -> float:
-    """
-    What to believe about a table's size, for anything that has to order by it.
-
-    ``None`` ranks just above a count of zero and below any real count, which is the
-    most that can honestly be said about an uncounted table: it is not proven small,
-    and it is not proven big either. Half a row cannot collide with a real count.
-    """
-    return 0.5 if value is None else float(value)
 
 
 #: What an edge with no pairs at all reports as its representative. Not a usable

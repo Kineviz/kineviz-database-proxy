@@ -143,7 +143,10 @@ class SchemaTable:
     uniques: Tuple[str, ...] = ()
     foreign_keys: Tuple[ForeignKey, ...] = ()
     referenced: bool = False
-    row_estimate: int = 0
+    #: Rows the injected statistics named for this table, or ``None`` when they did not
+    #: name it. Unknown is not a zero: it is what the caps rank on, so a log whose
+    #: statistics were never gathered cannot sort below a table that is really empty.
+    row_estimate: Optional[int] = None
 
     def key_candidate(self) -> Optional[str]:
         """
@@ -319,7 +322,16 @@ def _read_pages(
             uniques[table] = tuple(list(uniques.get(table, ())) + _unique_index_columns(rows))
         out["unique"].update(uniques)
         if row_counts is not None:
-            out["rows"].update({str(k): int(v or 0) for k, v in dict(row_counts(page)).items()})
+            # Answering nothing for a page is a normal answer, not a failure: this page of
+            # names has already been paid for, so the walk finishes and the tables it read
+            # stay uncounted rather than becoming an empty schema.
+            counted = row_counts(page)
+            if hasattr(counted, "items"):
+                for key, value in counted.items():
+                    try:
+                        out["rows"][_bare(key)] = max(0, int(value))
+                    except (TypeError, ValueError):
+                        continue
     return out
 
 
@@ -442,7 +454,7 @@ def _build_tables(catalog: Catalog, names: Sequence[str], pages: Dict[str, Dict[
                 uniques=tuple(pages["unique"].get(name) or ()),
                 foreign_keys=tuple(foreign[name]),
                 referenced=name in referenced,
-                row_estimate=int(pages["rows"].get(name) or 0),
+                row_estimate=pages["rows"].get(name),
             )
         )
 
@@ -566,7 +578,7 @@ class _Proposal:
                         MappingPair(
                             src=self._end(table, first),
                             dst=self._end(table, second),
-                            row_estimate=table.row_estimate,
+                            row_estimate=table.row_estimate or 0,
                         )
                     ],
                     notes=_link_reason(table),
@@ -629,7 +641,7 @@ class _Proposal:
                                     column=column,
                                     column_type=table.columns.get(column, UNKNOWN_TYPE),
                                 ),
-                                row_estimate=table.row_estimate,
+                                row_estimate=table.row_estimate or 0,
                             )
                         ],
                         notes=_fk_reason(table, fk),
@@ -661,16 +673,45 @@ class _Proposal:
             )
 
     def _cap(self, kind: str, limit: int, entries: List[Any]) -> None:
+        """
+        Keep the biggest records, and say both which cap dropped the rest and how it ranked.
+
+        Ranking is the count the catalog read, with an uncounted table placed *ahead* of a
+        table counted at zero: nobody proved the first one small. Where no statistics were
+        gathered at all every record ties, and the only thing left to order by is the order
+        the catalog returned - which is worth saying out loud, because it is what decides
+        whether a person's 4-million-row table survives ``max_labels``.
+        """
         kept = [entry for entry in entries if entry.include]
         if len(kept) <= limit:
             return
-        for entry in kept[limit:]:
+        ranked = sorted(kept, key=self._rank, reverse=True)
+        for entry in ranked[limit:]:
             entry.include = False
             entry.notes = "not mapped: the {} cap is {}".format(kind, limit)
-        self.warn(
-            "truncated: the {} cap is {} and this schema offers {}; {} are left out — "
-            "choose them with include/exclude".format(kind, limit, len(kept), len(kept) - limit)
+        uncounted = sum(1 for entry in kept if self._rows(entry) is None)
+        tiebreak = (
+            "{} of them carry no row count, so they keep their catalog order among "
+            "themselves".format(uncounted)
+            if uncounted
+            else "ordered by rows counted, uncounted ahead of any counted empty"
         )
+        self.warn(
+            "truncated: the {} cap is {} and this schema offers {}; {} are left out — {}; "
+            "choose them with include/exclude".format(
+                kind, limit, len(kept), len(kept) - limit, tiebreak
+            )
+        )
+
+    def _rows(self, entry: Any) -> Optional[int]:
+        """What the catalog counted for the table this record was read from."""
+        found = self.catalog.by_name.get(entry.table)
+        return found.row_estimate if found is not None else None
+
+    def _rank(self, entry: Any) -> float:
+        """Unknown just above zero, below any real count: the most a gap can be worth."""
+        rows = self._rows(entry)
+        return 0.5 if rows is None else float(rows)
 
     def warn(self, message: str) -> None:
         self.catalog.warnings.append(message)

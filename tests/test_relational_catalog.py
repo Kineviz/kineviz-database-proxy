@@ -508,9 +508,30 @@ def test_row_estimates_arrive_per_page_and_carry_onto_the_pair() -> None:
     assert out.edges["FK_ORDER_CUSTOMER"].representative.row_estimate == 400
 
 
-def test_a_table_with_no_statistics_is_zero_and_not_invented() -> None:
-    doc = draft(read())
-    assert edge_of(doc, "EMPLOYMENT").endpoints[0].row_estimate == 0
+def test_a_table_nobody_counted_stays_unknown_where_it_matters_and_zero_where_it_does_not() -> None:
+    # ``Pair.row_estimate`` is an int every consumer compares, so the draft says 0; what
+    # must not be lost is the catalog knowing it never counted, since that is what the
+    # caps rank on. Collapsing both at the boundary would make an unmeasured table the
+    # first candidate for being dropped.
+    found = read()
+    assert found.by_name["Employment"].row_estimate is None
+    assert edge_of(draft(found), "EMPLOYMENT").endpoints[0].row_estimate == 0
+
+
+def test_a_statistics_answer_of_nothing_is_a_gap_and_not_a_crash() -> None:
+    # An engine with no statistics answers None for a page. The catalog still has to
+    # finish with the tables it already read, or a missing catalog view would cost the
+    # whole schema its labels.
+    found = discover(FakeInspector(SPEC), row_counts=lambda page: None)
+    assert len(found.tables) == len(SPEC)
+    assert all(table.row_estimate is None for table in found.tables)
+    assert len(draft(found).nodes) > 0
+
+
+def test_a_statistics_answer_that_is_not_a_mapping_is_a_gap_too() -> None:
+    found = discover(FakeInspector(SPEC), row_counts=lambda page: "no statistics here")
+    assert len(found.tables) == len(SPEC)
+    assert all(table.row_estimate is None for table in found.tables)
 
 
 # --------------------------------------------------------------------------- caps
@@ -527,6 +548,17 @@ def test_the_label_cap_is_named_and_leaves_the_tail_of_the_page_out() -> None:
     assert doc.nodes[0].include is True
 
 
+def test_the_cap_keeps_an_uncounted_table_ahead_of_one_counted_empty() -> None:
+    # One table over the label cap, and only T0 was ever counted: at zero rows. Every
+    # other table is unknown, so T0 is the only record anyone can honestly call small.
+    spec = {"T{}".format(i): plain("T{}".format(i)) for i in range(MAX_LABELS + 1)}
+    found = discover(FakeInspector(spec), row_counts=lambda page: {"T0": 0})
+    doc = draft(found)
+    assert [node.label for node in doc.nodes if not node.include] == ["T0"]
+    warning = [text for text in found.warnings if "labels cap" in text][0]
+    assert "200 of them carry no row count" in warning  # 201 offered, one was counted
+
+
 def test_the_edge_cap_and_the_props_cap_are_reported_the_same_way() -> None:
     columns: List[Tuple[str, str, bool]] = [("id", "int", False)]
     columns += [("c{}".format(i), "int", True) for i in range(MAX_PROPS + 5)]
@@ -540,6 +572,7 @@ def test_the_edge_cap_and_the_props_cap_are_reported_the_same_way() -> None:
     doc = draft(found)
     assert any("edges cap is 400" in text for text in found.warnings)
     assert any("props cap is 200" in text for text in found.warnings)
+    assert any("carry no row count" in text for text in found.warnings)
     assert len([edge for edge in doc.edges if edge.include]) == MAX_EDGES
     assert len(node_of(doc, "Child").properties) == MAX_PROPS
 
