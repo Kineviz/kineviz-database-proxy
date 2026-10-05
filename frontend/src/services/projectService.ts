@@ -1,6 +1,6 @@
 import axios, { InternalAxiosRequestConfig } from 'axios';
 import { message } from 'antd';
-import { Project, ProjectCreate, ProjectUpdate, APIInfo, QueryRequest, QueryResponse, SchemaResponse, GraphSchemaResponse, SampleDataResponse, EmbeddedInspectResponse, EngineStatus, StoreListResponse, GraphMappingDocument, MappingEnvelope, MappingProblemLike, MappingTextResponse, TablePage, PreviewRequest, PreviewResponse } from '../types/project';
+import { Project, ProjectCreate, ProjectUpdate, APIInfo, QueryRequest, QueryResponse, SchemaResponse, GraphSchemaResponse, SampleDataResponse, EmbeddedInspectResponse, EngineStatus, StoreListResponse, DatabaseConfig, GraphMappingDocument, MappingEnvelope, MappingProblemLike, MappingTextResponse, TablePage, PreviewRequest, PreviewResponse } from '../types/project';
 
 const API_BASE_URL = process.env.NODE_ENV === 'production' ? '' : 'http://localhost:9080';
 
@@ -121,6 +121,44 @@ const problemText = (problem: MappingProblemLike): string => {
   if (typeof problem === 'string') return problem;
   if (Array.isArray(problem)) return [problem[0], problem[1]].filter(Boolean).join(': ');
   return problem.message ?? '';
+};
+
+/**
+ * What the four mapping routes answer. The wire names the document `model`
+ * (`_mapping_answer` in `api/relational.py`) and the editor holds it as `mapping`, so the two
+ * spellings sit on one type and the join happens once. `source: "draft"` from `/discover` is a
+ * proposal, not a failure, and travels as itself.
+ */
+export interface RelationalAnswer extends MappingEnvelope {
+  model?: GraphMappingDocument | null;
+  source?: 'override' | 'none' | 'draft';
+  valid?: boolean;
+  text?: string | null;
+  project?: string;
+  id?: string;
+  backend?: string;
+  saved?: boolean;
+  removed?: boolean;
+  nodes?: number;
+  edges?: number;
+}
+
+/** The one place `model` becomes `mapping`; a route that answers neither leaves it null. */
+const asEnvelope = (answer: RelationalAnswer): RelationalAnswer => ({
+  ...answer,
+  mapping: answer.mapping ?? answer.model ?? null,
+});
+
+/**
+ * Whether a 404 is `?format=yaml`'s documented "no saved mapping" rather than a missing
+ * project: the first is empty text to the panes, the second has to stay an error.
+ */
+const isMissingOverride = (caught: unknown): boolean => {
+  const response = (caught as { response?: { status?: number; data?: { detail?: unknown } } })
+    ?.response;
+  if (response?.status !== 404) return false;
+  const detail = response.data?.detail;
+  return typeof detail === 'string' && detail.includes('has no saved mapping');
 };
 
 export class ProjectService {
@@ -384,55 +422,87 @@ export class ProjectService {
   }
 
   /**
-   * What this project's graph is, as one document plus what the proxy thinks of it.
-   *
-   * Returns the **effective** mapping — auto-discovery composed with the override — so the
-   * editor's records and links come from this rather than from a re-read of the catalog.
+   * What this project has saved — the override, not the effective mapping: `source` answers
+   * `"override"` or `"none"`, and nothing here reaches the customer's database.
    */
-  async getMapping(project: string): Promise<MappingEnvelope> {
-    const response = await api.get(`/api/relational/${encodeURIComponent(project)}/mapping`);
-    return response.data;
+  async getMapping(project: string): Promise<RelationalAnswer> {
+    const response = await api.get<RelationalAnswer>(
+      `/api/relational/${encodeURIComponent(project)}/mapping`,
+    );
+    return asEnvelope(response.data);
   }
 
-  /** The same document as text, which is what Download writes and the YAML pane shows. */
+  /**
+   * The stored override as text, which is what Download writes and the YAML pane shows.
+   * `?format=yaml` answers the file itself (`text/yaml`), not the `{name, text}` the example
+   * route answers, so it is wrapped here; its documented 404 for "never saved" is empty text.
+   */
   async getMappingText(project: string): Promise<MappingTextResponse> {
-    const response = await api.get(`/api/relational/${encodeURIComponent(project)}/mapping`, {
-      params: { format: 'yaml' },
-    });
-    return response.data;
+    try {
+      const response = await api.get<string>(
+        `/api/relational/${encodeURIComponent(project)}/mapping`,
+        { params: { format: 'yaml' }, responseType: 'text' },
+      );
+      return { text: response.data ?? '', format: 'yaml' };
+    } catch (caught: unknown) {
+      if (!isMissingOverride(caught)) throw caught;
+      return { text: null, format: 'yaml' };
+    }
   }
 
   /**
    * Ask whether a draft would load, without loading it.
    *
-   * Answers the parsed document plus every problem named by path, which is how a mistake
-   * ends up under the control that caused it instead of in a banner.
+   * Answers every problem named by path, so a mistake sits under the control that caused it.
+   * The route reads `model` or `yaml` and refuses a body with neither, so the editor's older
+   * `{ mapping: … }` spelling is renamed here: as it stood every form-path check came back
+   * refused. `/validate` answers text and counts but no document, so `mapping` stays null.
    */
   async validateMapping(
     project: string,
-    body: { mapping: GraphMappingDocument } | { yaml: string },
-  ): Promise<MappingEnvelope> {
-    const response = await api.post(`/api/relational/${encodeURIComponent(project)}/validate`, body);
-    return response.data;
+    body: { mapping: GraphMappingDocument } | { model: GraphMappingDocument } | { yaml: string },
+  ): Promise<RelationalAnswer> {
+    const wire =
+      'yaml' in body
+        ? { yaml: body.yaml }
+        : { model: 'mapping' in body ? body.mapping : body.model };
+    const response = await api.post<RelationalAnswer>(
+      `/api/relational/${encodeURIComponent(project)}/validate`,
+      wire,
+    );
+    return asEnvelope(response.data);
   }
 
-  /** Save an override. `{ model: null }` drops it and leaves the project on auto-discovery. */
+  /**
+   * Save an override, or take it away.
+   *
+   * Removing is a **null body**: the route tests `if body is None` and answers `removed: true`.
+   * `{ model: null }` is a body with neither half and is refused like an empty save, so the
+   * alias the toolbar sends is read as the removal it means.
+   */
   async saveMapping(
     project: string,
-    body: { model: GraphMappingDocument } | { yaml: string } | { model: null },
-  ): Promise<MappingEnvelope> {
-    const response = await api.put(`/api/relational/${encodeURIComponent(project)}/mapping`, body);
-    return response.data;
+    body: { model: GraphMappingDocument } | { yaml: string } | { model: null } | null,
+  ): Promise<RelationalAnswer> {
+    const removing = body === null || ('model' in body && body.model === null);
+    const response = await api.put<RelationalAnswer>(
+      `/api/relational/${encodeURIComponent(project)}/mapping`,
+      removing ? null : body,
+    );
+    return asEnvelope(response.data);
   }
 
   /**
    * What discovery would propose, with the reasoning behind each guess.
    *
-   * Nothing is stored: this is the proposal a person is meant to disagree with.
+   * Nothing is stored: the route says so with `source: "draft"`, a state of the proposal and
+   * not a failure. An optional `{ schema, connection }` body reads another schema or a draft.
    */
-  async discoverMapping(project: string): Promise<MappingEnvelope> {
-    const response = await api.post(`/api/relational/${encodeURIComponent(project)}/discover`);
-    return response.data;
+  async discoverMapping(project: string): Promise<RelationalAnswer> {
+    const response = await api.post<RelationalAnswer>(
+      `/api/relational/${encodeURIComponent(project)}/discover`,
+    );
+    return asEnvelope(response.data);
   }
 
   /**
@@ -443,14 +513,47 @@ export class ProjectService {
    */
   async listRelationalTables(
     project: string,
-    params: { page?: number; pageSize?: number; search?: string } = {},
+    params: { page?: number; pageSize?: number; search?: string; schema?: string } = {},
   ): Promise<TablePage> {
     const response = await api.get(`/api/relational/${encodeURIComponent(project)}/tables`, {
       params: {
         page: params.page ?? 1,
         page_size: params.pageSize ?? 50,
         search: params.search || undefined,
+        schema: params.schema || undefined,
       },
+    });
+    return response.data;
+  }
+
+  /**
+   * The same page of names against a connection that has **not** been saved.
+   *
+   * `POST /{project}/tables` is the identical walk, so a draft cannot drift from the project it
+   * may become and picking a graph does not force a save. Credentials ride in the body and
+   * never the query string — a URL ends up in an access log. Nothing has to exist yet.
+   */
+  async listDraftTables(
+    project: string,
+    connection: DatabaseConfig,
+    params: {
+      page?: number;
+      pageSize?: number;
+      search?: string;
+      schema?: string;
+      includeColumns?: boolean;
+      table?: string;
+    } = {},
+  ): Promise<TablePage> {
+    const response = await api.post(`/api/relational/${encodeURIComponent(project)}/tables`, {
+      project,
+      connection,
+      schema: params.schema || undefined,
+      page: params.page ?? 1,
+      page_size: params.pageSize ?? 50,
+      search: params.search || undefined,
+      include: params.includeColumns ? 'columns' : undefined,
+      table: params.table || undefined,
     });
     return response.data;
   }
