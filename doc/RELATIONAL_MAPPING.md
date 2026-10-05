@@ -333,6 +333,11 @@ leaves the schema empty on purpose, because there the schema *is* the database. 
 login is enough**: the proxy only ever reads. Anything an engine takes that the form has not
 been asked for goes in the connection's `options`, which are passed straight to the driver.
 
+**Browse tables** reads the connection exactly as typed, before the project exists: the picker
+opens against a snapshot taken on press, so nothing is read until it opens, and a missing host or
+database is refused in words instead of answered with an empty list. Such a draft is labelled
+`draft:<name>` and never shares a connection pool with a saved project of that name.
+
 ## Where the rules live
 
 | Question | File |
