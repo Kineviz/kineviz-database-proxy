@@ -281,6 +281,13 @@ def _build_tables(catalog: Catalog, names: Sequence[str], pages: Dict[str, Dict[
             columns[column] = type_name(row.get("type"))
             if not row.get("nullable", True):
                 not_null.add(column)
+        if not columns:
+            # The assumption this rests on: a real table in mssql, postgresql or mysql
+            # always has at least one column, so "nothing came back" can only mean "no
+            # such table". It matters because a caller may name the tables it wants, and
+            # a name it invented would otherwise be built into an empty entry and answered
+            # as a table the engine never had.
+            continue
         pk = pages["pk"].get(name) or {}
         pk_columns = tuple(str(one) for one in (pk.get("constrained_columns") or ()))
         catalog.tables.append(

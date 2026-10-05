@@ -16,8 +16,11 @@ from graphxr_database_proxy.drivers.dialect import (
     LADYBUG_DIALECT,
     LATTICEDB_DIALECT,
     MEMGRAPH_DIALECT,
+    MSSQL_DIALECT,
+    MYSQL_DIALECT,
     NEO4J_DIALECT,
     NodeRef,
+    POSTGRESQL_DIALECT,
     ROCKETGRAPH_DIALECT,
     SPANNER_DIALECT,
     backtick,
@@ -562,3 +565,17 @@ def test_latticedb_shares_no_tokens_with_the_kuzu_family():
     assert lattice != kuzu
     assert "label(" not in lattice  # Kuzu's spelling of type()
     assert "properties(" not in kuzu
+
+
+def test_relational_backends_address_a_seed_by_a_quoted_key_column():
+    """
+    A relational key predicate quotes its column, because this proxy parses it again.
+
+    ``drivers/relational`` reads the Cypher ``dialect.py`` writes, so a bare ``n.first
+    name`` or ``n.order`` is a statement the proxy refuses on its own way to SQL. The
+    quoted default every other backend already uses is what survives that round trip.
+    """
+    for dialect in (MSSQL_DIALECT, POSTGRESQL_DIALECT, MYSQL_DIALECT):
+        assert dialect.key_access("n", "first name") == "n.`first name`"
+        assert dialect.key_access("n", "order") == "n.`order`"
+        assert dialect.key_access("n", "person_id") == "n.`person_id`"

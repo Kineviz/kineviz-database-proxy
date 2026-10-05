@@ -808,11 +808,15 @@ def _relational_dialect(name: str) -> StatementDialect:
 
       - ``predicate="primary-key"``. A relational row is addressed by its key column;
         there is no node identity to re-select a seed by, so node ids are
-        ``<Label>:<key>`` and a seed comes back as ``n.<key> IN [...]``.
-      - ``key_access = var.prop``, *unquoted*. The default escapes the property with
-        backticks, which is what a Cypher parser over a store it owns wants; here the
-        property is a column name the translator hands to the compiler, and one more
-        layer of quoting is one more thing to unquote.
+        ``<Label>:<key>`` and a seed comes back as ``n.`<key>` IN [...]``.
+      - ``key_access`` is the default, quoted. The bare form was justified as saving the
+        translator one thing to unquote, but a statement this dialect emits is Cypher
+        *this proxy parses again itself* — ``/expand`` builds one and hands it to
+        ``query.prepare``, and in legacy mode the client builds its own — and its parser
+        reads ``n.first name`` as one property plus trailing garbage and refuses it. So a
+        key column holding a space, or any other token-breaker, could not be expanded at
+        all. Quoting is what a column name like that costs, and it is what the client's
+        own profile for these backends already emits, so both ends of the wire agree.
       - ``rel_type_expr=type(r)`` with ``relationship_filter="pattern"``: selected and
         hidden types can go in the pattern *and* be filtered in a predicate, because a
         type is a column of the link table rather than a thing the SQL has to know.
@@ -833,7 +837,6 @@ def _relational_dialect(name: str) -> StatementDialect:
         relationship_filter="pattern",
         return_vars=("n", "r", "m"),
         return_separator=", ",
-        key_access=lambda var, prop: f"{var}.{prop}",
         supports_multi_hop=True,
         supports_only_between_selected=False,
     )

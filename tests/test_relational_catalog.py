@@ -9,7 +9,7 @@ passes the walk and still mis-ranks a link.
 
 from __future__ import annotations
 
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from graphxr_database_proxy.drivers.relational import catalog, mapping
 from graphxr_database_proxy.drivers.relational.catalog import (
@@ -44,6 +44,32 @@ def test_a_view_is_never_offered_as_a_node() -> None:
     assert "vwPerson" in catalog.skipped
     assert "vwPerson" not in catalog.by_name
     assert "vwPerson" not in {node.label for node in draft(catalog).nodes}
+
+
+def test_a_name_the_engine_never_answered_for_is_not_a_table() -> None:
+    """
+    ``has_table`` only says yes to a table the reflection actually answered for.
+
+    A build can be handed the names to read — that is how ``/tables?table=`` costs one
+    table rather than the schema — so an invented one arrives as a listed name with
+    nothing reflected behind it, which must not arrive as an entry that answers as though
+    the schema had it. The assumption the guard rests on: a real table in mssql,
+    postgresql or mysql always has at least one column, so "no columns" can only mean "no
+    such table". A view is still not a table either, and stays in ``skipped``.
+    """
+
+    class _Asked(FakeInspector):
+        """An inspector listing exactly the names it was asked about, as ``_NamePage`` does."""
+
+        def get_table_names(self, schema: Optional[str] = None) -> List[str]:
+            return ["Person", "NotATable"]
+
+    found = discover(_Asked(SPEC))
+
+    assert found.has_table("Person")
+    assert not found.has_table("NotATable")
+    assert "NotATable" not in found.by_name
+    assert [one.name for one in found.tables] == ["Person"]
 
 
 def test_an_engine_internal_schema_says_no_rather_than_returning_nothing() -> None:

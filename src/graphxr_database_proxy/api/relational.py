@@ -45,10 +45,6 @@ router = APIRouter(prefix="/api/relational", tags=["relational"])
 #: because a mapping written against a Neo4j database is not a thing that can be edited here.
 _RELATIONAL = ("mssql", "postgresql", "mysql")
 
-#: What ``source`` in a mapping response can say. ``override`` is a person's file, ``draft``
-#: is the machine's proposal nobody has accepted yet, ``none`` is a project never mapped.
-MAPPING_SOURCES = ("override", "draft", "none")
-
 
 def get_project_service() -> ProjectService:
     """Injectable the same way the project and database routers make it."""
@@ -512,7 +508,7 @@ async def preview_link(
     """
     One link's join, run in both directions against real data.
 
-    The answer is the closed set ``settled | backwards | you_decide | neither``, and an empty
+    The answer is the closed set ``settled | backwards | you-decide | neither``, and an empty
     result is ``neither`` — never ``settled``. A link whose ends are swapped answers nothing
     rather than an error, which is precisely why this route exists: the rows are the only
     thing that can say which way round the key columns point.
@@ -609,10 +605,9 @@ async def _tables_answer(
     if table:
         found = await driver.access.catalog(names=[table], page_size=1, schema=schema)
         entry = found.by_name.get(table)
-        # A name nothing was reflected for is not a table: the walk is handed the name the
-        # caller asked for, so an absent one comes back as an empty entry rather than as no
-        # entry, and "no columns" is the only answer that means *this schema has no such table*.
-        if entry is None or not entry.columns:
+        # The catalog only holds names the engine answered for, so a caller that invented
+        # one gets no entry: ``by_name`` says whether this schema has that table.
+        if entry is None:
             raise HTTPException(
                 status_code=404,
                 detail="{} is not a table in {} — a view is not, and neither is anything the "

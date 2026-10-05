@@ -411,7 +411,7 @@ async def test_a_swapped_pair_is_backwards_and_nothing_joins_is_neither() -> Non
     assert (await empty.driver.preview("Employment", pair))["verdict"] == "neither"
 
     both = driver_for(target, script=[one, one])
-    assert (await both.driver.preview("Employment", pair))["verdict"] == "you_decide"
+    assert (await both.driver.preview("Employment", pair))["verdict"] == "you-decide"
 
 
 async def test_a_preview_that_names_nothing_says_which_half() -> None:

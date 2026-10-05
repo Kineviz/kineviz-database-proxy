@@ -43,9 +43,11 @@ DIRECTION_FLIPPED = "flipped"
 
 #: The closed set a direction check can land in. ``settled`` is the happy answer, and
 #: ``backwards`` is the one this page exists to catch; ``neither`` says the table has rows
-#: and nothing joins, which is never reported as a success. ``you_decide`` is the two
+#: and nothing joins, which is never reported as a success. ``you-decide`` is the two
 #: directions both joining rows, which the database cannot settle and a person can.
-VERDICTS = ("settled", "backwards", "you_decide", "neither")
+#: The hyphen is safe on the wire: the page maps '_' and '-' to a space and matches
+#: case-insensitively, so it reads either spelling, and the spec spells it with a hyphen.
+VERDICTS = ("settled", "backwards", "you-decide", "neither")
 
 
 class RelationalProblem(ValueError):
@@ -277,7 +279,7 @@ def verdict_of(directions: Sequence[Mapping[str, Any]]) -> str:
     declared = states.get(DIRECTION_DECLARED, False)
     flipped = states.get(DIRECTION_FLIPPED, False)
     if declared and flipped:
-        return "you_decide"
+        return "you-decide"
     if declared:
         return "settled"
     if flipped:

@@ -22,6 +22,7 @@ from graphxr_database_proxy.api import relational as relational_module
 from graphxr_database_proxy.api.auth import verify_admin_token
 from graphxr_database_proxy.api.relational import get_project_service
 from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
+from graphxr_database_proxy.drivers.relational.reads import VERDICTS
 from graphxr_database_proxy.main import app
 from graphxr_database_proxy.models.project import (
     AuthType,
@@ -365,8 +366,8 @@ def test_the_verdict_arrives_as_the_words_the_page_reads(client, projects, serve
     """
     One call, both directions, and the four words the editor has labels for.
 
-    ``you_decide`` is the database declining to settle it — both readings join rows — and it
-    is spelled as the editor's own normaliser expects rather than as a synonym.
+    ``you-decide`` is the database declining to settle it — both readings join rows — and the
+    word arrives as the spec spells it, not as one of its own synonyms.
     """
     server.engine.script = [[{"from": 1, "to": 2}], [{"from": 1, "to": 2}]]
 
@@ -375,7 +376,8 @@ def test_the_verdict_arrives_as_the_words_the_page_reads(client, projects, serve
         json={"edge": "FK_ORDER_CUSTOMER", "table": "Order", "pair": 0, **ORDERED},
     ).json()
 
-    assert answer["verdict"] == "you_decide"
+    assert answer["verdict"] == "you-decide"
+    assert answer["verdict"] in VERDICTS
     assert answer["pair"] == 0 and answer["table"] == "Order"
     assert answer["forwards"]["count"] == 1 and answer["backwards"]["count"] == 1
 
