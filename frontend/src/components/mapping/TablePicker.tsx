@@ -273,7 +273,9 @@ interface ColumnPickerProps {
    * Which columns qualify is the discovery rule — a composite key is refused outright, not
    * quietly shortened — so the list is read from `key_candidates` rather than derived here.
    * When the reply carries no candidates the picker says so and offers the table's columns:
-   * an unusable one is still refused by the save, so the authority never moves.
+   * a key the loader will not take is stored and then named as a problem, and that record
+   * stays out of the graph — the save does not refuse the file, so the authority over which
+   * columns qualify never moves here.
    */
   keyOnly?: boolean;
   disabled?: boolean;

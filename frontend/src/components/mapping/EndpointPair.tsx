@@ -127,7 +127,7 @@ const EndpointPairRow: React.FC<Props> = ({ project, draft, dispatch, edge, pair
             </Tooltip>
           )}
         </Text>
-        <Tooltip title="Remove this pair. A type left with no pair can never be drawn, and is refused when the mapping is saved.">
+        <Tooltip title="Remove this pair. A type left with no pair is stored and then named as a problem, and it stays out of the graph until one is declared.">
           <Button
             size="small"
             type="text"
