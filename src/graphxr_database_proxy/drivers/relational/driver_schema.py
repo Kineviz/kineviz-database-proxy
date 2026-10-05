@@ -58,6 +58,11 @@ class RelationalSchemaReadSurface:
         closed set those two counts add up to. One direction per field, because a reply that
         carried them as a list would make the reader remember which end of the array it drew
         its picture from.
+
+        No ``mapping.valid`` gate here, on purpose: this is the check a person runs *while* the
+        document is broken, and ``reads._resolve_end`` already refuses the pair it cannot read
+        by that pair's own path. A document-level refusal would name some other node's field
+        and send them fixing the wrong one.
         """
         wanted = max(1, min(int(limit or 20), PREVIEW_ROWS_MAX))
         mapping = await self.effective_mapping()
@@ -109,11 +114,23 @@ class RelationalSchemaReadSurface:
         reflection rather than a walk of the customer's whole library. The types here are the
         engine's own spelling (``nvarchar(100)``): ``/schema`` is the relational view, and
         the shared vocabulary is what ``/graphSchema`` normalises into.
+
+        A mapping this proxy refused to load is refused here too, in the same words: the three
+        reads a GraphXR project makes before it has a query have to agree about whether this
+        project is servable, and a schema panel naming tables the samples refuse to read is a
+        second, quieter answer to the first question. The editor reads its tables through
+        ``/api/relational/<project>/tables``, which is about the database and not about this
+        document, so nothing a person needs in order to fix a mapping is lost by the gate.
         """
         try:
             mapping = await self.effective_mapping()
         except Exception as exc:
             return SchemaResponse(success=False, error=_failure(exc))
+        if not mapping.valid:
+            return SchemaResponse(
+                success=False,
+                error=_problems_or(mapping.problems, "this project has no valid mapping"),
+            )
         wanted = sorted(
             {node.table for node in mapping.nodes.values()}
             | {edge.table for edge in mapping.edges.values()}
