@@ -144,6 +144,12 @@ class _Loader:
         #: Records this document asked for and this refused to load. Links pointing at
         #: one are dropped with a warning, because the refusal is already on the screen.
         self.broken: Set[str] = set()
+        #: Graph-side names this refused to build, labels and types together — the same
+        #: namespace ``declared`` uses. Neither discovered pass may answer for one: the
+        #: draft's copy loads under the name the person's file was refused for, with the
+        #: draft's table and key, and a bad name discovered in the *second* pass is a second
+        #: problem for the one field, at an ``auto.`` path no control can highlight.
+        self.refused: Set[str] = set()
         #: Tables a record already took, so discovery cannot map one twice.
         self.claimed: Set[str] = set()
         #: Name -> the path of the entry that made it, so a clash has an address. The
@@ -180,6 +186,11 @@ class _Loader:
     def warn(self, path: str, message: str) -> None:
         """A catalog mismatch: said once, named by path, and never blocks a save."""
         self.out.warnings.append("{}: {}".format(path, message))
+
+    def refuse(self, name: str) -> None:
+        """Mark a record the person declared and this would not build, by its graph-side name."""
+        if name:
+            self.refused.add(name)
 
     def ident(self, value: object, path: str, what: str) -> str:
         """Check a graph-side name, and hand back "" when it is not a legal one."""
@@ -226,6 +237,11 @@ class _Loader:
         Refused rather than narrowed to the first column: a composite key quietly
         matched on one of its columns returns plausible-looking wrong rows, which is
         the worst thing a graph can do to an investigation.
+
+        ``None`` covers a refused *name* too. ``db_name`` marks that with ``""``, and a ``""``
+        handed back as a key builds a record whose id would be ``Person:`` and whose preview
+        asks the engine for a column called ``""``: the reason on the screen and the row in the
+        graph disagree, which is the one thing this method exists to prevent.
         """
         parts = [part.strip() for part in str(key or "").split(",") if part.strip()]
         if len(parts) > 1:
@@ -237,7 +253,7 @@ class _Loader:
             return None
         if not parts:
             return None
-        return self.db_name(parts[0], path, "{} key".format(what))
+        return self.db_name(parts[0], path, "{} key".format(what)) or None
 
     def check_table(self, path: str, table: str) -> None:
         if self.index.live and table not in self.index.tables:
@@ -265,6 +281,15 @@ class _Loader:
             table = self.db_name(node.table or node.label, path + ".table", "table name")
             if not label or not table:
                 self.broken.add(str(node.label))
+                self.refuse(label or str(node.label))
+                if table:
+                    # The table goes with the record, and discovery's label for it is named
+                    # as broken too, so the links that need it cascade on the warning an
+                    # endpoint already gives instead of spelling out the one misspelling twice.
+                    self.claimed.add(table)
+                    found = self.index.node_for_table(table)
+                    if found is not None:
+                        self.broken.add(found.label)
                 continue
             if not node.include or self.scope.out([node.label, table]):
                 # A record the person took out stays out: discovery has the same table,
@@ -289,6 +314,7 @@ class _Loader:
             key = self.node_key(node, found, table, path)
             if key is None:
                 self.broken.add(label)
+                self.refuse(label)
                 continue
             props = _props(node, table, self.index, {key}, path, self.out)
             key_type = self.index.column_type(table, key) or node.properties.get(key) or UNKNOWN_TYPE
@@ -314,11 +340,15 @@ class _Loader:
             return key
         discovered = found.key if found is not None else self.index.key_for_table(table)
         if discovered:
-            self.warn(
-                path + ".key",
-                "no key declared, using {!r} as discovery found it".format(discovered),
-            )
-            return self.single_key(discovered, path + ".key", "node")
+            key = self.single_key(discovered, path + ".key", "node")
+            if key is not None:
+                # Only a key that got used is worth announcing: a refused one already
+                # said why, and "using X" beside that is a second message about one field.
+                self.warn(
+                    path + ".key",
+                    "no key declared, using {!r} as discovery found it".format(discovered),
+                )
+            return key
         self.problem(
             path + ".key",
             "a node needs a single-column key and none is declared: {}".format(
@@ -357,7 +387,9 @@ class _Loader:
         """Records discovery found that the document never mentioned, in as they stand."""
         for node in self.index.nodes():
             table = node.table or node.label
-            if node.label in self.declared or table in self.claimed:
+            if node.label in self.declared or node.label in self.refused:
+                continue
+            if table in self.claimed:
                 continue
             if self.out.provenance.get(node.label) == PROVENANCE_EXCLUDED:
                 continue
@@ -394,7 +426,7 @@ class _Loader:
 
     def discovered_edges(self) -> None:
         for edge in self.index.edges():
-            if edge.type in self.declared:
+            if edge.type in self.declared or edge.type in self.refused:
                 continue
             if self.out.provenance.get(edge.type) == PROVENANCE_EXCLUDED:
                 # Either the person took it out, or a record it needs was taken out and
@@ -415,6 +447,7 @@ class _Loader:
         etype = self.ident(edge.type, path + ".type", "relationship type")
         table = self.db_name(edge.table or edge.type, path + ".table", "table name")
         if not etype or not table:
+            self.refuse(etype or edge.type)
             return
         if not edge.include or self.scope.out([edge.type, table]):
             self.out.provenance[etype] = PROVENANCE_EXCLUDED
@@ -428,18 +461,21 @@ class _Loader:
                 "an edge with no endpoint pair is a relationship that can never be "
                 "drawn; declare at least one src/dst",
             )
+            self.refuse(etype)
             return
         if from_document:
             self.check_table(path + ".table", table)
         found = self.index.edge_for(edge) if from_document else edge
         pairs, state = self.pairs(edge, path)
         if state == _ERROR:
+            self.refuse(etype)
             return
         if state == _CASCADE:
             self.out.provenance[etype] = PROVENANCE_EXCLUDED
             return
-        key, key_type = self.edge_key(edge, found, table, path, from_document)
-        if key is None and edge.key:
+        key, key_type, refused = self.edge_key(edge, found, table, path, from_document)
+        if refused:
+            self.refuse(etype)
             return
         props = _props(
             edge,
@@ -477,7 +513,7 @@ class _Loader:
         table: str,
         path: str,
         from_document: bool,
-    ) -> Tuple[Optional[str], Optional[str]]:
+    ) -> Tuple[Optional[str], Optional[str], bool]:
         """
         An edge prefers its own key, so parallel links stay distinct.
 
@@ -486,14 +522,18 @@ class _Loader:
         duplicates — a warning when a schema was there to establish the table has no
         key, and a refusal in a hand-written file, where silence would be a graph with
         links missing from it.
+
+        The third answer is what a keyless edge and a refused one do *not* share: no key
+        is a shape the document may write, while a key that was named and refused has a
+        reason on the screen and must not be served as the keyless case beside it.
         """
         stated = edge.key or (found.key if found is not None else None)
         if stated:
             key = self.single_key(stated, path + ".key", "edge")
             if key is None:
-                return None, None
+                return None, None, True
             self.check_column(path + ".key", table, key)
-            return key, self.index.column_type(table, key) or UNKNOWN_TYPE
+            return key, self.index.column_type(table, key) or UNKNOWN_TYPE, False
         if from_document and not self.index.live:
             self.problem(
                 path + ".key",
@@ -501,14 +541,14 @@ class _Loader:
                 "declared; with no catalog to find {!r}'s primary key, name the "
                 "column".format(table),
             )
-            return None, None
+            return None, None, True
         self.warn(
             path + ".key",
             "{!r} has no key of its own, so its id is minted from the two endpoint keys "
             "sorted: direction-stable, but duplicate links between the same two records "
             "collapse onto one id".format(table),
         )
-        return None, None
+        return None, None, False
 
     def pairs(self, edge: MappingEdge, path: str) -> Tuple[List[Pair], str]:
         """

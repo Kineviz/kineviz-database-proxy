@@ -7,6 +7,11 @@ file that is really a database dump, a JSON body, a top level that is a list.
 
 And the promise the YAML tab depends on: two saves of one document are the same
 bytes, so the text beside the checkboxes cannot flicker while a person is reading it.
+
+Then the round trip an upload depends on: a file parsed, rendered back and parsed again
+is that same document — every field a person can write, in the format's own order, a
+count of zero beside a count nobody took, and an edge with no key of its own still with
+no key. A writer that quietly drops one of those ships an editor whose tabs lose rows.
 """
 
 from __future__ import annotations
@@ -16,6 +21,8 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 import pytest
+import yaml
+from pydantic import BaseModel
 
 from graphxr_database_proxy.drivers.relational import mapping, mapping_io
 from graphxr_database_proxy.drivers.relational.mapping_io import (
@@ -26,7 +33,13 @@ from graphxr_database_proxy.drivers.relational.mapping_io import (
     parse,
     to_yaml,
 )
-from graphxr_database_proxy.models.graph_mapping import GraphMapping
+from graphxr_database_proxy.models.graph_mapping import (
+    GraphMapping,
+    MappingEdge,
+    MappingEndpoint,
+    MappingNode,
+    MappingPair,
+)
 
 SIMPLE = """
 version: 1
@@ -273,6 +286,284 @@ def test_an_uncounted_pair_and_a_counted_empty_one_are_two_different_files() -> 
     again = parse(to_yaml(counted))
     assert again == counted
     assert again.edges[1].endpoints[0].row_estimate is None
+
+
+# ------------------------------------------------------------------ the round trip
+
+#: Every field a person can write, each set to something that is *not* its default, so a
+#: serializer that drops one is caught by that field's own name rather than by a diff a
+#: reader has to interpret.
+WRITABLE = """
+version: 1
+schema: dbo
+include: []
+exclude: [sysdiagrams]
+tuning:
+  auto_limit: 500
+  case_insensitive_like: auto
+nodes:
+  - label: Person
+    table: Order Items
+    schema: hr
+    key: first name
+    properties: {first name: varchar(60), age: int}
+    exclude_properties: [internal_blob]
+    include: true
+    show_as: first name
+    notes: one row per living person
+  - label: Organization
+    table: Organization
+    key: org_id
+    properties: [org_id, legal_name]
+    show_as: legal_name
+    notes: one row per company
+  - label: AuditLog
+    table: AuditLog
+    key: audit_id
+    include: false
+    notes: "not a node: kept as the record of a decision"
+edges:
+  - type: WORKS_FOR
+    table: Employment
+    schema: hr
+    key: employment_id
+    flip: true
+    properties: {started_on: date}
+    exclude_properties: [tenant_id]
+    include: true
+    show_as: role
+    notes: one line per person per organization
+    endpoints:
+      - src: {label: Person, column: person_id, column_type: varchar(60)}
+        dst: {label: Organization, column: organization_id, column_type: bigint}
+        row_estimate: 0
+      - src: {label: Person, column: person_key}
+        dst: {label: Organization, column: organization_key}
+        row_estimate: null
+  - type: KNOWS
+    table: Knows
+    properties: [since]
+    endpoints:
+      - src: {label: Person, column: a}
+        dst: {label: Person, column: b}
+"""
+
+#: Names a person meets in a real schema, and the spellings YAML would otherwise read as
+#: something else: a boolean, a number, a null, a date, an indicator, a plain scalar whose
+#: trailing space is not part of it.
+AWKWARD = [
+    "Order Items",
+    "first name",
+    "2020 Q1",
+    "no",
+    "y",
+    "007",
+    "~",
+    "null",
+    "id: 1",
+    " lead",
+    "trail ",
+    "line\nbreak",
+    "@at",
+    "*star",
+    "订单明细",
+    "",
+]
+
+
+def written_names(model: type[BaseModel]) -> List[str]:
+    """The key each field of ``model`` is written under — the alias where it has one."""
+    return [str(info.alias) if info.alias else name for name, info in model.model_fields.items()]
+
+
+def draft() -> GraphMapping:
+    """Discovery's words for this same schema: it calls the record ``Order_Items``."""
+    return GraphMapping(
+        nodes=[
+            MappingNode(
+                label="Order_Items",
+                table="Order Items",
+                key="first name",
+                properties={"first name": "varchar(60)", "age": "int"},
+            ),
+            MappingNode(
+                label="Organization",
+                table="Organization",
+                key="org_id",
+                properties={"org_id": "bigint", "legal_name": "varchar(80)"},
+            ),
+            MappingNode(
+                label="AuditLog",
+                table="AuditLog",
+                key="audit_id",
+                include=False,
+                notes="not a node: its key is two columns",
+            ),
+        ],
+        edges=[
+            MappingEdge(
+                type="WORKS_FOR",
+                table="Employment",
+                key="employment_id",
+                properties={"started_on": "date"},
+                endpoints=[
+                    MappingPair(
+                        src=MappingEndpoint(label="Order_Items", column="person_id"),
+                        dst=MappingEndpoint(label="Organization", column="organization_id"),
+                        row_estimate=0,
+                    )
+                ],
+            ),
+            MappingEdge(
+                type="KNOWS",
+                table="Knows",
+                key="knows_id",
+                endpoints=[
+                    MappingPair(
+                        src=MappingEndpoint(label="Order_Items", column="a"),
+                        dst=MappingEndpoint(label="Order_Items", column="b"),
+                    )
+                ],
+            ),
+        ],
+    )
+
+
+def test_every_field_a_person_can_write_survives_its_own_file() -> None:
+    """
+    The upload path in one line: text, document, text, document — and the same document.
+
+    Equality of the two models is the whole claim, so a field that comes back renamed, dropped
+    or defaulted would fail here by name. ``schema`` is checked under its alias, because that is
+    the spelling the file carries and the one the editor re-reads.
+    """
+    doc = parse(WRITABLE)
+    again = parse(to_yaml(doc))
+    assert again == doc
+    assert again.schema_name == "dbo"
+    assert again.nodes[0].table == "Order Items" and again.nodes[0].key == "first name"
+    assert again.nodes[0].schema_name == "hr"
+    assert again.nodes[2].include is False and again.nodes[2].notes
+    assert again.edges[0].flip is True and again.edges[0].show_as == "role"
+    assert again.edges[0].properties == {"started_on": "date"}
+    assert again.edges[0].exclude_properties == ["tenant_id"]
+    assert again.edges[1].properties == {"since": "STRING"}
+    assert again.tuning == {"auto_limit": 500, "case_insensitive_like": "auto"}
+
+
+def test_the_export_writes_every_declared_field_in_the_formats_own_order() -> None:
+    """
+    A field the export forgets is a row the editor loses, so the check is against the model.
+
+    ``exclude_none`` is what lets a null stay out of the file, and every field of ``WRITABLE``
+    is set, so what comes out has to be exactly the declared set — under each field's own
+    spelling (``schema``, not ``schema_name``) and in declaration order, because two saves of
+    one document are the same bytes and a person reads that text as a diff.
+    """
+    written = yaml.safe_load(to_yaml(parse(WRITABLE)))
+    assert list(written) == written_names(GraphMapping)
+    assert list(written["nodes"][0]) == written_names(MappingNode)
+    assert list(written["edges"][0]) == written_names(MappingEdge)
+    pair = written["edges"][0]["endpoints"][0]
+    assert list(pair) == written_names(MappingPair)
+    assert list(pair["src"]) == written_names(MappingEndpoint)
+
+
+@pytest.mark.parametrize("name", AWKWARD)
+def test_a_name_the_engine_or_yaml_would_read_differently_comes_back_byte_for_byte(
+    name: str,
+) -> None:
+    """
+    The same name in every place a name goes: a table, a key column, an endpoint column, a
+    property, a type, a note, the schema — and it is still that name after one round trip.
+
+    ``no``, ``007`` and ``~`` are the ones a plain YAML scalar would have turned into a
+    boolean, a number or a gap; `` lead`` and ``trail `` are the ones it would shorten, and
+    they are checked here on the *names* — a property's declared type is stripped to
+    ``STRING`` by the document model itself, before any file is written, so that one is the
+    model's normalisation and not the exporter's loss.
+    """
+    doc = GraphMapping(
+        schema_name=name,
+        exclude=[name],
+        nodes=[
+            MappingNode(
+                label="P",
+                table=name,
+                key=name,
+                properties={name: name},
+                exclude_properties=[name],
+                show_as=name,
+                notes=name,
+            )
+        ],
+        edges=[
+            MappingEdge(
+                type="E",
+                table=name,
+                key=name,
+                endpoints=[
+                    MappingPair(
+                        src=MappingEndpoint(label="P", column=name, column_type=name),
+                        dst=MappingEndpoint(label="P", column="b"),
+                        row_estimate=0,
+                    )
+                ],
+            )
+        ],
+    )
+    again = parse(to_yaml(doc))
+    assert again == doc
+    assert again.schema_name == name and again.exclude == [name]
+    assert again.nodes[0].table == name and again.nodes[0].key == name
+    assert again.nodes[0].show_as == name and again.nodes[0].notes == name
+    assert again.nodes[0].exclude_properties == [name]
+    assert again.edges[0].endpoints[0].src.column == name
+    assert again.nodes[0].properties == doc.nodes[0].properties
+
+
+def test_a_keyless_edge_and_an_unmeasured_pair_keep_their_silence() -> None:
+    """
+    Two kinds of *nothing*, each preserved: an edge that named no key, and a count no engine
+    ever gave.
+
+    A writer that filled either in — ``key: ''`` for the first, ``0`` for the second — would
+    turn a gap into a claim: the first says the table has a key column called nothing, the
+    second that someone counted an empty table, and the pair then outranks or loses to a
+    measured one on a number nobody took.
+    """
+    doc = parse(WRITABLE)
+    text = to_yaml(doc)
+    again = parse(text)
+    assert again.edges[1].key is None
+    assert "key: ''" not in text and "key: \"\"" not in text
+    assert again.edges[0].endpoints[0].row_estimate == 0
+    assert again.edges[0].endpoints[1].row_estimate is None
+    assert again.nodes[1].exclude_properties == []
+    assert "row_estimate: null" not in text and "row_estimate: ''" not in text
+
+
+def test_the_loader_answers_the_reexported_file_exactly_as_the_original() -> None:
+    """
+    The claim that matters for an upload: not that the text matches, but that the *answer* does.
+
+    Every judgement in the file has to survive — the rename that rewrites the draft's label, the
+    flip that swaps its pairs, the record taken out and the link that went with it, the edge
+    whose key discovery supplies because the person left it silent, and the count beside the gap
+    that decided which pair a polymorphic type reports.
+    """
+    doc = parse(WRITABLE)
+    before = mapping.from_document(doc, draft())
+    again = mapping.from_document(parse(to_yaml(doc)), draft())
+    assert before.valid, before.problems
+    assert again == before
+    assert before.provenance["Person"] == mapping.PROVENANCE_RENAMED
+    assert before.provenance["WORKS_FOR"] == mapping.PROVENANCE_FLIPPED
+    assert before.provenance["AuditLog"] == mapping.PROVENANCE_EXCLUDED
+    assert "AuditLog" not in before.nodes
+    assert before.edges["KNOWS"].key == "knows_id"
+    assert before.nodes["Person"].key == "first name"
+    assert [pair.row_estimate for pair in before.edges["WORKS_FOR"].endpoints] == [0, None]
 
 
 # ------------------------------------------------------------------- the example

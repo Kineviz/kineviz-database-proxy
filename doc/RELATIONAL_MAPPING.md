@@ -27,6 +27,10 @@ columns is worse than refusing: it would return plausible-looking wrong rows. Se
 [`drivers/relational/mapping.py`](../src/graphxr_database_proxy/drivers/relational/mapping.py).
 Everything below that mentions "single column" is this rule.
 
+The comma that splits the two has no escape: a column genuinely named `unit, cost` is read as
+two, refused with both parts named, and the record is not built. Map such a table by a
+single-column surrogate key.
+
 **A link's endpoint column is a column on the link table.** Each end names a label and the
 column *on the edge's own table* that holds that end's key; the node's side comes from its
 `key`. So the join is `<edge>.<column> = <node>.<key>`: `Employment.person_id` joins

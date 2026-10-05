@@ -24,6 +24,9 @@ id 是**用主键拼出来的**，不是从行的内部指针读出来的。正�
 [`drivers/relational/mapping.py`](../src/graphxr_database_proxy/drivers/relational/mapping.py)。
 下文所有"单列"讲的都是这条规则。
 
+切开这两列的逗号**没有转义写法**：真叫 `unit, cost` 的那一列会被读成两列，拒绝时把两部分都
+点出来，这条记录也就不进图里；这样的表请改用单列的代理键（surrogate）来映射。
+
 **一条边的 endpoint 列，是边表自己的列。** 每一端写的是"某个标签 + **边表上**保存这一端
 key 的那一列"，节点那一侧由它自己的 `key` 决定。所以连接条件是 `<edge>.<column> =
 <node>.<key>`：`Employment.person_id` 连到 `Person.person_id`；`OrderLine.region_code`
