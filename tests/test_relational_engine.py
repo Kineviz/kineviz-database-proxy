@@ -28,7 +28,6 @@ from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 import pytest
 from sqlalchemy import URL
 
-from graphxr_database_proxy.drivers.relational import engine as engine_module
 from graphxr_database_proxy.drivers.relational.engine import (
     ID_LIST_STRATEGIES,
     EngineSpelling,
@@ -38,16 +37,18 @@ from graphxr_database_proxy.drivers.relational.engine import (
     engines_for,
     registered_engines,
 )
-from graphxr_database_proxy.drivers.relational.engines import mssql as mssql_module
-from graphxr_database_proxy.drivers.relational.engines import mysql as mysql_module
-from graphxr_database_proxy.drivers.relational.engines import (
-    postgresql as postgresql_module,
-)
 
 ALL_ENGINES = ("mssql", "postgresql", "mysql")
 ROOT = Path(__file__).resolve().parent.parent
 SRC_ROOT = ROOT / "src"
-SEAM_MODULES = (engine_module, mssql_module, postgresql_module, mysql_module)
+SEAM_PACKAGE = SRC_ROOT / "graphxr_database_proxy" / "drivers" / "relational"
+# Walked as source paths, not module objects: `engine.py` re-exports every name and
+# defines nothing since its split, so an AST sweep of it alone reads an empty body. The
+# list comes from the directory, so splitting the seam again cannot quietly drop a module
+# out of the two guards below.
+SEAM_FILES = sorted(SEAM_PACKAGE.glob("engine*.py")) + sorted(
+    (SEAM_PACKAGE / "engines").glob("*.py")
+)
 DBAPI_NAMES = frozenset(
     {"pymssql", "psycopg", "psycopg2", "pymysql", "MySQLdb", "mysql.connector", "pyodbc"}
 )
@@ -184,8 +185,8 @@ def test_password_never_appears_in_a_rendering_of_the_url() -> None:
         assert "password" not in spelling.connect_args(Config(password=secret))
 
 def test_our_own_source_never_asks_for_the_unmasked_url() -> None:
-    for module in (engine_module, mssql_module, postgresql_module, mysql_module):
-        assert "hide_password=False" not in open(module.__file__, encoding="utf-8").read()
+    for path in SEAM_FILES:
+        assert "hide_password=False" not in path.read_text(encoding="utf-8"), path.name
 
 def test_options_are_the_escape_hatch_for_both_url_and_connect_args() -> None:
     config = Config(
@@ -303,22 +304,22 @@ def test_the_optional_dbapis_are_really_absent_here() -> None:
 
 def test_no_module_here_creates_an_engine_or_imports_a_dbapi() -> None:
     """Checked on the syntax tree, so the prose in a docstring cannot break it."""
-    for module in SEAM_MODULES:
-        tree = ast.parse(Path(module.__file__).read_text(encoding="utf-8"))
+    for path in SEAM_FILES:
+        tree = ast.parse(path.read_text(encoding="utf-8"))
         called = {
             node.func.attr if isinstance(node.func, ast.Attribute) else node.func.id
             for node in ast.walk(tree)
             if isinstance(node, ast.Call)
             and isinstance(node.func, (ast.Attribute, ast.Name))
         }
-        assert "create_engine" not in called, module.__name__
+        assert "create_engine" not in called, path.name
         imported = {
             alias.name
             for node in ast.walk(tree)
             if isinstance(node, ast.Import)
             for alias in node.names
         }
-        assert not (imported & DBAPI_NAMES), (module.__name__, imported)
+        assert not (imported & DBAPI_NAMES), (path.name, imported)
 
 def test_importing_the_seam_needs_no_dbapi() -> None:
     script = textwrap.dedent(
