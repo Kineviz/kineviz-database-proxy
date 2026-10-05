@@ -323,11 +323,19 @@ const applyAction = (state: DraftState, action: MappingAction): DraftState => {
   const nodes = document.nodes ?? [];
   const edges = document.edges ?? [];
   const edited = (next: GraphMappingDocument): DraftState => ({ ...state, document: next, dirty: true });
-  /** A whole document that did not arrive as a proposal has no reasoning to diff against. */
+  /**
+   * A whole document that did not arrive as a proposal has no reasoning to diff against —
+   * and no diagnostics to keep. A problem path only indexes the document it was computed
+   * against, and every caller that dispatches `replace` applies it only after
+   * `POST …/validate` answered zero problems for exactly that text, so an empty list at
+   * install is the truth rather than a loss.
+   */
   const installed = (next: GraphMappingDocument, provenance?: unknown): DraftState => ({
     ...edited(next),
     provenance: provenance ? indexProvenance(provenance) : state.provenance,
     proposal: null,
+    problems: [],
+    warnings: [],
   });
 
   switch (action.kind) {
@@ -363,8 +371,15 @@ const applyAction = (state: DraftState, action: MappingAction): DraftState => {
       const next = normalizeDocument(action.document);
       return {
         ...edited(next),
-        provenance: action.provenance ? indexProvenance(action.provenance) : state.provenance,
+        // A fresh proposal has no history of this person's edits, so the old document's tags
+        // must not survive onto same-named rows of it; `/discover` answers no provenance, and
+        // an action that carries one is the only source of tags for a proposed row.
+        provenance: action.provenance ? indexProvenance(action.provenance) : {},
         proposal: { notes: proposalNotes(next), leftOut: action.leftOut ?? [] },
+        // The proposal's own warnings travel in `leftOut`; a list describing the document
+        // that just left the screen is not a diagnostic of this one.
+        problems: [],
+        warnings: [],
       };
     }
 

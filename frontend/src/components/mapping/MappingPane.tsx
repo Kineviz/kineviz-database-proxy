@@ -106,19 +106,15 @@ const MappingPane: React.FC<Props> = ({ project, databaseType }) => {
       });
       // `saved` and `valid` are two facts and the route answers both: a mapping that will not
       // load is *still stored*, because a record with no key is a legal thing to keep while
-      // discovery fills it in. Calling that write "Not saved" sends a person off to repeat a
-      // PUT that already landed, and their reload then finds the edit they were told to redo.
-      const stored = answer.saved !== false;
-      if (stored) setSource('override');
+      // discovery fills it in. A PUT that reached this line stored — a write that fails
+      // raises and is answered in the catch below — so the only save-time news is the
+      // warning about a document that will not load.
+      setSource('override');
       if (problems.length) {
         const count = `${problems.length} ${problems.length === 1 ? 'problem' : 'problems'}`;
-        if (stored) {
-          message.warning(
-            `Saved — but this mapping will not load (${count}). Fix them and save again; GraphXR refuses the schema until it does.`,
-          );
-        } else {
-          message.error(`Not saved — ${count}`);
-        }
+        message.warning(
+          `Saved — but this mapping will not load (${count}). Fix them and save again; GraphXR refuses the schema until it does.`,
+        );
         setTab('records');
         return false;
       }
