@@ -1,79 +1,85 @@
-# Development Environment Guide
+# Development guide
 
-> **Language**: [English](https://github.com/Kineviz/graphxr-database-proxy/blob/main/doc/DEV_GUIDE.md) | [中文](https://github.com/Kineviz/graphxr-database-proxy/blob/main/doc/DEV_GUIDE.zh.md)
+[English](DEV_GUIDE.md) | [中文](DEV_GUIDE.zh.md)
 
+## Setup and run
 
-## Prerequisites
-
-- **Node.js** >= 22.x — [Download](https://nodejs.org/en/download/)
-- **Python** >= 3.9.x — [Download](https://www.python.org/downloads/)
-- **uv** >= 0.9.x — [Installation Guide](https://docs.astral.sh/uv/)
-
-
-## 🚀 Quick Start
-
-### One-Click Development Environment
+Requires Python >= 3.9, Node.js >= 22 and [uv](https://docs.astral.sh/uv/).
+From the repository root:
 
 ```bash
-git clone https://github.com/Kineviz/graphxr-database-proxy.git
-cd graphxr-database-proxy
-uv venv
-uv pip install -r requirements.txt
-npm run dev            # Start both frontend and backend (recommended)
-``` 
-
-This command will start:
-- **Backend Server** (Python FastAPI): http://localhost:9080
-- **Frontend Development Server** (React): http://localhost:3002
-
-### Start Services Separately
-```bash
-npm run dev:backend    # Start backend only
-npm run dev:frontend   # Start frontend only
+uv sync --extra dev
+npm install
+npm run install:frontend
+npm run dev
 ```
 
+Repeat dependency installation after changing dependency files. Relational
+connections also need the relevant extra, e.g. `uv sync --extra dev --extra postgresql`;
+use `--extra relational` to install all three SQL drivers.
 
-## 🔧 Development Environment Features
+The backend runs at http://localhost:9080 (API docs at `/docs`). The frontend
+uses `PORT` if set, otherwise webpack selects an available port; use the URL
+printed in its output. API requests are proxied to port 9080.
 
-### Hot Reload
-- **Python Code Changes**: Backend server automatically restarts
-- **React Component Changes**: Browser automatically refreshes, maintains state
-- **Configuration File Changes**: Automatically detects and restarts appropriate services
+`npm run dev:backend` and `npm run dev:frontend` start either service separately.
+Both support hot reload; enter `rs` in the nodemon console to restart the backend.
+For a production-style local run, use `npm run build` followed by `npm start`.
 
-### Monitored File Types
-- **Backend**: `.py`, `.json`, `.toml`, `.txt` files
-- **Frontend**: `.js`, `.jsx`, `.ts`, `.tsx`, `.css`, `.scss` files
+If Windows PowerShell blocks `npm.ps1`, use `npm.cmd` in place of `npm`
+without changing the machine's execution policy.
 
-### Port Configuration
-- **Backend API**: 9080
-- **Frontend Development Server**: 3002 (automatically proxies API to 9080)
-- **API Documentation**: http://localhost:9080/docs
+## AI coding tools
 
-## 🐛 Development Debugging
+[AGENTS.md](../AGENTS.md) is the single source for project instructions.
+Tool-specific files only load or point to it:
 
-### View Logs
-Development environment displays detailed log information:
-- **Backend Logs**: uvicorn + FastAPI request logs
-- **Frontend Logs**: webpack build and hot reload logs
+| Tool | Project entry |
+| --- | --- |
+| Codex | `AGENTS.md`, discovered automatically |
+| Claude Code | `CLAUDE.md` imports `@AGENTS.md` |
+| Cursor | `AGENTS.md`, discovered automatically |
+| GitHub Copilot | `.github/copilot-instructions.md` directs it to read `AGENTS.md` |
+| Gemini CLI | `GEMINI.md` imports `@./AGENTS.md` |
+| Other assistants | Ask the tool to read `AGENTS.md` before making changes |
 
-### Restart Services
-In the nodemon console, type `rs` to manually restart the backend service.
+Start Codex or Claude Code from the repository root. Keep personal credentials,
+model choices and permission overrides in the tool's own local configuration.
+Shared Claude permissions and its commit-message hook remain in
+`.claude/settings.json`; they apply to Claude only. Instruction files are guidance,
+not a security boundary.
 
-### Common Issues
-1. **Port Conflict**: Ensure ports 9080 and 3002 are not occupied by other programs
-2. **Virtual Environment**: Ensure `.venv` directory exists and contains correct Python environment
-3. **Dependency Installation**: Run `npm install` to ensure all dependencies are installed
+Official loading behavior: [Codex](https://developers.openai.com/codex/guides/agents-md/),
+[Claude Code](https://code.claude.com/docs/en/memory),
+[Cursor](https://cursor.com/docs/rules),
+[Copilot](https://docs.github.com/en/copilot/reference/custom-instructions-support),
+[Gemini CLI](https://geminicli.com/docs/cli/gemini-md/).
 
-## 📁 Project Structure
-```
-├── src/                    # Python backend source code
-├── frontend/               # React frontend source code
-├── config/                 # Configuration files
-├── nodemon.json           # nodemon configuration
-└── package.json           # npm scripts and dependencies
-```
+## Verify changes
 
-## Release 
- 
- - [Docker Publishing Guide](DOCKER_PUBLISHING.md)
- - [PyPI Publishing Guide](PYPI_PUBLISHING.md)
+| Scope | Command |
+| --- | --- |
+| Backend | `npm test -- -q` |
+| Focused backend test | `npm test -- tests/test_dialect.py -k expand -q` |
+| Frontend types | `npm run typecheck` |
+| Frontend bundle | `npm run build` |
+| All local checks | `npm run verify` |
+
+`npm test` runs pytest in the installed `.venv` without syncing dependencies.
+The default suite is offline. Engine integration tests require an explicit
+`GRAPHXR_PROXY_ENGINE_TESTS=1` and may download runtimes. Webpack does not perform
+TypeScript checking, so frontend changes need both frontend checks. There is no
+installed frontend unit-test runner.
+
+Claude's `/verify` selects checks by the changed files and reports results.
+For documentation changes, check local links and existing English/Chinese pairs.
+
+## Further reading
+
+- [Architecture and driver extension](ARCHITECTURE.md)
+- [Usage](USAGE.md) · [API reference](API_Reference.md)
+- [Relational mapping](RELATIONAL_MAPPING.md) · [Embedded stores](EMBEDDED_STORES.md)
+- [Docker publishing](DOCKER_PUBLISHING.md) · [PyPI publishing](PYPI_PUBLISHING.md)
+
+`docs/superpowers/` contains historical designs and session notes. Read them when
+relevant; they do not prescribe current tasks, agent counts or workflow.

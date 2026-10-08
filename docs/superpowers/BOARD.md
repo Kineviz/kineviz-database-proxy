@@ -1,8 +1,9 @@
-# Progress board
+# Historical progress board
 
-Rolling state only: who is where (collision) and how to pick a lane up
-(recoverability). Durable rules and rulings live in `.claude/RULES.md`; what
-became true of the product lives in the docs and in `git log`.
+This is a snapshot of earlier sessions, not a current task queue or an instruction
+to resume lanes. Entries and rule numbers below are retained for reference.
+Current development conventions live in [AGENTS.md](../../AGENTS.md); verify
+product behavior against the current code, docs and tests.
 
 ## In flight
 

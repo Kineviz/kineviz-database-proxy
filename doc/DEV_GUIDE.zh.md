@@ -1,82 +1,81 @@
-# 开发环境指南
+# 开发指南
 
-> **语言**: [English](https://github.com/Kineviz/graphxr-database-proxy/blob/main/doc/DEV_GUIDE.md) | [中文](https://github.com/Kineviz/graphxr-database-proxy/blob/main/doc/DEV_GUIDE.zh.md)
+[English](DEV_GUIDE.md) | [中文](DEV_GUIDE.zh.md)
 
-## 前提条件
+## 安装与运行
 
-- **Node.js** >= 22.x — [点击这里下载](https://nodejs.org/en/download/)
-- **Python** >= 3.9.x — [点击这里下载](https://www.python.org/downloads/)
-- **uv** >= 0.9.x — [安装指南](https://docs.astral.sh/uv/)
-
-
-## 🚀 快速开始
-
-### 一键启动开发环境
+需要 Python >= 3.9、Node.js >= 22 和 [uv](https://docs.astral.sh/uv/)。
+在项目根目录执行：
 
 ```bash
-git clone https://github.com/Kineviz/graphxr-database-proxy.git
-cd graphxr-database-proxy
-uv venv
-uv pip install -r requirements.txt
-npm run dev            # 同时启动前后端 (推荐)
+uv sync --extra dev
+npm install
+npm run install:frontend
+npm run dev
 ```
 
-这个命令会同时启动：
+依赖文件变更后，重新安装依赖。连接关系型数据库还需对应扩展，例如
+`uv sync --extra dev --extra postgresql`；使用 `--extra relational` 安装全部三个 SQL 驱动。
 
-- **后端服务器** (Python FastAPI): http://localhost:9080
-- **前端开发服务器** (React): http://localhost:3002
+后端地址为 http://localhost:9080（API 文档位于 `/docs`）。
+前端使用 `PORT` 指定的端口，未设置时由 webpack 自动选择，请以终端输出地址为准。
+前端 API 请求会代理到 9080 端口。
 
-### 分别启动服务
+`npm run dev:backend` 和 `npm run dev:frontend` 可分别启动后端和前端。
+两者都支持热重载；在 nodemon 控制台输入 `rs` 可重启后端。
+本地验证生产运行方式时，先执行 `npm run build`，再执行 `npm start`。
 
-```bash
-npm run dev:backend    # 只启动后端
-npm run dev:frontend   # 只启动前端
-```
+如果 Windows PowerShell 禁止运行 `npm.ps1`，将命令中的 `npm` 换成 `npm.cmd`，
+无需修改系统执行策略。
 
+## 使用 AI 开发工具
 
-## 🔧 开发环境特性
+[AGENTS.md](../AGENTS.md) 是项目开发约定的统一来源。
+工具专用文件只负责导入或指向它：
 
-### 热重载 (Hot Reload)
-- **Python 代码修改**: 后端服务器自动重启
-- **React 组件修改**: 浏览器自动刷新，保持状态
-- **配置文件修改**: 自动检测并重启相应服务
+| 工具 | 项目入口 |
+| --- | --- |
+| Codex | 自动发现 `AGENTS.md` |
+| Claude Code | `CLAUDE.md` 通过 `@AGENTS.md` 导入 |
+| Cursor | 自动发现 `AGENTS.md` |
+| GitHub Copilot | `.github/copilot-instructions.md` 指示读取 `AGENTS.md` |
+| Gemini CLI | `GEMINI.md` 通过 `@./AGENTS.md` 导入 |
+| 其他助手 | 在开始修改前，要求工具读取 `AGENTS.md` |
 
-### 监控的文件类型
-- **后端**: `.py`, `.json`, `.toml`, `.txt` 文件
-- **前端**: `.js`, `.jsx`, `.ts`, `.tsx`, `.css`, `.scss` 文件
+从项目根目录启动 Codex 或 Claude Code。个人凭据、模型选择和权限覆盖保留在
+工具自身的本地配置中。Claude 的共享权限与提交信息检查钩子保留在
+`.claude/settings.json`，仅对 Claude 生效。指令文件用于指导行为，不是安全边界。
 
-### 端口配置
-- **后端 API**: 9080
-- **前端开发服务器**: 3002 (自动代理API到9080)
-- **API 文档**: http://localhost:9080/docs
+官方加载说明：[Codex](https://developers.openai.com/codex/guides/agents-md/)、
+[Claude Code](https://code.claude.com/docs/en/memory)、
+[Cursor](https://cursor.com/docs/rules)、
+[Copilot](https://docs.github.com/en/copilot/reference/custom-instructions-support)、
+[Gemini CLI](https://geminicli.com/docs/cli/gemini-md/)。
 
-## 🐛 开发调试
+## 验证修改
 
-### 查看日志
-开发环境会显示详细的日志信息：
-- **后端日志**: uvicorn + FastAPI 请求日志
-- **前端日志**: webpack 构建和热重载日志
+| 范围 | 命令 |
+| --- | --- |
+| 后端 | `npm test -- -q` |
+| 指定后端测试 | `npm test -- tests/test_dialect.py -k expand -q` |
+| 前端类型 | `npm run typecheck` |
+| 前端构建 | `npm run build` |
+| 全部本地检查 | `npm run verify` |
 
-### 重启服务
-在nodemon控制台输入 `rs` 可以手动重启后端服务。
+`npm test` 在已安装依赖的 `.venv` 中运行 pytest，不同步依赖。
+默认测试离线运行。引擎集成测试需显式设置 `GRAPHXR_PROXY_ENGINE_TESTS=1`，
+且可能下载运行时。webpack 不检查 TypeScript 类型，前端变更需同时执行类型检查
+和构建。目前未安装前端单元测试运行器。
 
-### 常见问题
-1. **端口占用**: 确保9080和3002端口没有被其他程序占用
-2. **虚拟环境**: 确保`.venv`目录存在且包含正确的Python环境
-3. **依赖安装**: 运行`npm install`确保所有依赖已安装
+Claude 的 `/verify` 会根据变更文件选择检查并报告结果。
+文档变更应检查本地链接，并同步已有的中英文版本。
 
-## 📁 项目结构
-```
-├── src/                    # Python 后端源码
-├── frontend/               # React 前端源码
-├── config/                 # 配置文件
-├── nodemon.json           # nodemon 配置
-└── package.json           # npm 脚本和依赖
-```
+## 延伸阅读
 
+- [架构与驱动扩展](ARCHITECTURE.zh.md)
+- [使用指南](USAGE.zh.md) · [API 参考](API_Reference.md)
+- [关系型映射](RELATIONAL_MAPPING.zh.md) · [嵌入式数据库](EMBEDDED_STORES.zh.md)
+- [Docker 发布](DOCKER_PUBLISHING.zh.md) · [PyPI 发布](PYPI_PUBLISHING.zh.md)
 
-
-## 软件发布 
- 
- - [Docker 发布指南](DOCKER_PUBLISHING.zh.md)
- - [PyPI 发布指南](PYPI_PUBLISHING.zh.md)
+`docs/superpowers/` 保存历史设计与会话记录，按需查阅；
+其中的任务、代理数量和流程不作为当前开发要求。

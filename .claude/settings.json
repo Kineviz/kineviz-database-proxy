@@ -23,6 +23,9 @@
       "Bash(git stash list *)",
       "Bash(git add *)",
       "Bash(npm run build *)",
+      "Bash(npm test *)",
+      "Bash(npm run typecheck *)",
+      "Bash(npm run verify *)",
       "Bash(npm run install:frontend *)",
       "Bash(node --version)",
       "Bash(npm --version)"

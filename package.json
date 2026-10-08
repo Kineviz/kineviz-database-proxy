@@ -15,7 +15,9 @@
     "update:version": "uv run python scripts/update_version.py",
     "setup": "npm run install:frontend && npm run build:frontend",
     "clean": "rimraf node_modules frontend/node_modules frontend/dist",
-    "test": "echo \"No tests specified\" && exit 0"
+    "test": "uv run --no-sync python -m pytest",
+    "typecheck": "npm --prefix frontend run typecheck",
+    "verify": "npm test && npm run typecheck && npm run build"
   },
   "devDependencies": {
     "concurrently": "^8.2.2",
