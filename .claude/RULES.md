@@ -73,3 +73,23 @@ never reused — a retired rule leaves its number and a one-line destination.
   needs a file another lane owns asks the CTO for that line and does not edit
   it. Sharing a *fixture* is the same hazard as sharing a file: changing one
   while another lane measures against it invalidates its numbers.
+
+## Briefs and survival
+
+- **16.** A fact written into a lane brief is still only something I wrote
+  down. Two were wrong in one round: a brief said six test files import
+  `graph_rows` (three do), and another said no engine binds
+  `INT64`/`BOOL`/`DOUBLE`/`JSON` (PostgreSQL and MySQL bind `BOOL` and `JSON`,
+  MySQL binds `DOUBLE`, PostgreSQL binds `xml` as text — measured on
+  `engine(e).column_type(name)` at `c51ac58`). A lane that measures a brief's
+  premise and says so when it is false is doing the job right; the CTO probes
+  before writing the claim into a brief or a doc sentence.
+- **17.** A new file a lane creates is not safe until it is `git add`-ed.
+  The same round that produced rule 16 also saw two lanes (C1, M5) report
+  done, then a session restart found the new test files absent from the
+  working tree — the work was real and reported, then gone. Edits to tracked
+  files survived; new files did not. The fix: every time a lane creates a
+  file, `git add <newfile>` immediately, so the file is in the index even if
+  the working tree is wiped before the CTO commits. Never rely on
+  `mktemp -d` to keep a new file alive — copy it into the shared tree and
+  add it. This round's M4 and the C1/M5 redo briefs carry the instruction.
