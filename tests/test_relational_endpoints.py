@@ -444,8 +444,22 @@ def test_saving_a_mapping_drops_the_schema_cache_and_the_pool(client, projects, 
     disposed: List[str] = []
     invalidated: List[str] = []
 
-    with patch.object(relational_module.POOL, "dispose_project", disposed.append), patch.object(
-        GRAPH_SCHEMA_CACHE, "invalidate_project", invalidated.append
+    # Spies call through to the real function (T8 caught this — a bare append
+    # replaces the function, so the route's call is recorded but the cache
+    # entry survives and the pool's engine is never actually disposed).
+    original_dispose = relational_module.POOL.dispose_project
+    original_invalidate = GRAPH_SCHEMA_CACHE.invalidate_project
+
+    def dispose_spy(project_id: str) -> None:
+        disposed.append(project_id)
+        original_dispose(project_id)
+
+    def invalidate_spy(project_id: str) -> None:
+        invalidated.append(project_id)
+        original_invalidate(project_id)
+
+    with patch.object(relational_module.POOL, "dispose_project", dispose_spy), patch.object(
+        GRAPH_SCHEMA_CACHE, "invalidate_project", invalidate_spy
     ):
         answer = client.put("/api/relational/mapped/mapping", json={"model": document}).json()
 
