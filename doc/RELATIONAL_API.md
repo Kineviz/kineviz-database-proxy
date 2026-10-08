@@ -168,7 +168,9 @@ stay open.
 
 Checks a draft without saving it and without touching the customer's database. Same body as
 the `PUT`. On success: `valid` (no load problems), `problems` (`[{"path", "message"}]`),
-`warnings`, `nodes` and `edges` (how many entries each list has), `model` — the draft as the
+`warnings`, `provenance` (who decided each entry, keyed as `GET /mapping` keys it — the checked
+draft's own tags, not the stored document's, because the page installs its rows from here),
+`nodes` and `edges` (how many entries each list has), `model` — the draft as the
 document a form holds, the same name `GET /mapping` and the `PUT` use for it — and `text`, the
 proxy's own rendering of the draft you sent. `text` is what the YAML tab shows; `model` is what
 the structured tabs edit, so a page can apply an uploaded or pasted file without a second
@@ -190,8 +192,11 @@ schema the project has not saved, `{"connection": …}` for a project that does 
 ```
 
 **`source: "draft"` means machine-proposed and not yet accepted by a person**, and this
-route **stores nothing** — a proposal nobody has looked at is not a mapping. Saving is the
-separate, explicit `PUT …/mapping`. `warnings` carries the caps and the skips, so "three
+route **stores nothing** — a proposal nobody has looked at is not a mapping. It answers no
+`provenance` either, by decision: every entry here is discovery's own, so a tag per row could
+only ever say one word, and `source: "draft"` already says it about the whole document.
+Saving is the separate, explicit `PUT …/mapping`.
+`warnings` carries the caps and the skips, so "three
 hundred tables became forty labels" has a reason on the screen instead of being a silent
 loss. What the proposal contains, and every rule that shaped it, is
 [What auto-discovery proposes](RELATIONAL_MAPPING.md#what-auto-discovery-proposes).
