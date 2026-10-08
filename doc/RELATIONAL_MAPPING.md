@@ -176,8 +176,10 @@ refused filter is pointing at.
 `<Label>:<key>` and every re-selected seed bind against the key column's own type, so the
 proxy reads that off the schema — once. The read only runs while the key still says nobody
 looked: blank, the `STRING` placeholder, or the `NULL` marker the reader writes when its
-own resolver could not recognize the column's type. The marker it returns is used as the
-key's declared type and is not revisited. So a key that ends up on a name this engine has
+own resolver could not recognize the column's type. The marker is the key's declared type
+as the document sees it; if the live catalog names the column, the bounded catalog read at
+`driver_mapping.py:92-119` corrects it, and if it doesn't, the same refusal fires — reached
+via a read rather than a missing read. So a key that ends up on a name this engine has
 no binding for has the whole record refused, by name, for **every** statement that reaches
 it, not only the ones filtering on it. Two cases reach the same refusal, with different
 messages:
