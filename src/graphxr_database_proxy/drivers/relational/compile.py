@@ -649,16 +649,49 @@ def _require_bindable_key(
     scope is being built, and no statement has to be half-compiled to find out. A label or
     link with no key of its own is not checked: ``convert.py`` mints those from their
     endpoints, not a bind.
+
+    Two cases reach the same refusal, and the message names which: a reader that wrote down
+    no type at all (blank, ``STRING``, ``NULL``) means *the schema did not name one*, which
+    the user can only fix by keying on a column the schema can read; a reader that wrote
+    down a real name the engine has no binding for (``geometry`` and the like) means *the
+    type is real, the engine cannot carry it*, which the user can only fix by keying on a
+    column this engine can name, or by taking the record out of the graph. Declaring a type
+    for a key is not an option: there is no ``keyType`` field on the document, and the key
+    column never becomes a property.
     """
     if not key:
         return
-    if spelling.column_type(key_type or "") is not None:
+    declared = key_type or ""
+    if spelling.column_type(declared) is not None:
         return
+    if _is_no_type_marker(declared):
+        raise UnbindableKey(
+            "%s %r is keyed by column %r, whose type the schema did not name, so this engine "
+            "has nothing to bind as the column's own type; a seed could not be re-selected, so "
+            "the lookup is refused rather than answered with an empty result. Key the label on "
+            "a column whose type the schema can name, or remove the record from the graph "
+            "(exclude it, or clear it from include)." % (what, name, key)
+        )
     raise UnbindableKey(
         "%s %r is keyed by column %r, whose declared type %r this engine cannot bind as the "
         "column's own type; a seed could not be re-selected, so the lookup is refused rather "
-        "than answered with an empty result." % (what, name, key, key_type or "")
+        "than answered with an empty result. Key the label on a column this engine can name, or "
+        "remove the record from the graph (exclude it, or clear it from include)."
+        % (what, name, key, declared)
     )
+
+
+#: What a reader writes down when it has **no** type at all, as distinct from a type the engine
+#: has no binding for. Mirrors :data:`mapping_index.NO_TYPE`: blank, ``STRING`` (this project's
+#: own placeholder ``UNKNOWN_TYPE``), and ``NULL`` (what ``reflect.type_name`` renders for the
+#: ``NullType`` row every dialect hands back after "Did not recognize type"). The two cases
+#: reach the same refusal but cost the user different fixes, so the message names which.
+_NO_TYPE_MARKERS = frozenset({"", "STRING", "NULL"})
+
+
+def _is_no_type_marker(declared: str) -> bool:
+    """Whether the declared type is a reader admitting it has none, not a real name."""
+    return str(declared or "").strip().upper() in _NO_TYPE_MARKERS
 
 
 def edge_columns(schema: RelSchema, pair: Pair) -> Dict[str, str]:
