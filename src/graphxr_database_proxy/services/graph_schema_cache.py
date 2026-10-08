@@ -56,6 +56,16 @@ def _ttl_from_env() -> float:
         return DEFAULT_TTL_SECONDS
 
 
+def _max_entries_from_env() -> int:
+    raw = os.getenv("GRAPH_SCHEMA_CACHE_MAX_ENTRIES")
+    if raw is None or not raw.strip():
+        return MAX_ENTRIES
+    try:
+        return max(1, int(raw))
+    except ValueError:
+        return MAX_ENTRIES
+
+
 def cache_key(project: Project) -> str:
     """
     A project's identity *and* the connection it currently names.
@@ -142,4 +152,4 @@ class GraphSchemaCache:
 
 
 #: The process-wide cache. Drivers are per request, so this cannot live on one.
-GRAPH_SCHEMA_CACHE = GraphSchemaCache(ttl=_ttl_from_env())
+GRAPH_SCHEMA_CACHE = GraphSchemaCache(ttl=_ttl_from_env(), max_entries=_max_entries_from_env())

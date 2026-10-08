@@ -33,7 +33,7 @@ Accept: application/json
 **Response Schema:**
 ```typescript
 {
-  type: DatabaseType,           // Enum: "spanner" | "bigquery" | "rocketgraph" | "neo4j" | "memgraph" | "postgresql" | "mysql" | "mongodb"
+  type: DatabaseType,           // Enum: "spanner" | "bigquery" | "rocketgraph" | "neo4j" | "memgraph" | "kuzu" | "ladybug" | "latticedb" | "postgresql" | "mysql" | "mssql" | "mongodb"
   api_urls: {
     info: string,               // URL to this endpoint
     query: string,              // URL to query endpoint
@@ -392,6 +392,7 @@ type DatabaseType =
   | "latticedb"   // LatticeDB, embedded -- a separate engine, not a Kuzu fork
   | "postgresql"
   | "mysql"
+  | "mssql"
   | "mongodb";
 ```
 
@@ -424,13 +425,15 @@ API-key routes. See `doc/EMBEDDED_STORES.md`.
 | `DELETE /api/embedded/engines/{engine}/{version}` | Removes an installed build. |
 | `GET /api/embedded/known-formats` | The storage formats the proxy can currently place, per engine. Tells an unknown format apart from a missing engine. |
 
-Node ids for these backends are `<Label>:<primary key>`, as for RocketGraph:
+Node ids for Kuzu and Ladybug are `<Label>:<primary key>`, as for RocketGraph:
 `ID(n)` exists on both engines but has no literal a statement could match on.
-`/schema` returns real column types here, unlike the bolt backends.
+LatticeDB's ids are matchable integers (its `internal-id`), not `<Label>:<key>` — see
+"Embedded stores" above for the per-engine identity. `/schema` returns real column types
+on all three, unlike the bolt backends.
 
 ### AuthType Enum
 ```typescript
-type AuthType = "oauth2" | "service_account" | "username_password";
+type AuthType = "oauth2" | "service_account" | "username_password" | "google_ADC" | "bearer_token";
 ```
 
 ### Spanner Data Types
@@ -452,16 +455,12 @@ Common Spanner data types you'll encounter in schemas:
 
 ## Error Handling
 
-All endpoints follow a consistent error response format:
-
-**Error Response Schema:**
-```typescript
-{
-  success: false,
-  data?: null,
-  error: string                            // Error description
-}
-```
+Transport-level errors (4xx and 5xx) are FastAPI's `{"detail": string}`. The
+`success: false, data, error` envelope is the **success-path** response shape
+(`QueryResponse` and `SchemaResponse`); it is what a driver returns when a query
+or read reached the customer's database and came back with a failure that is
+not an exception (e.g. permission denied on a table, timeout). For an
+exception, the route raises `HTTPException` and the body is `{"detail": ...}`.
 
 **Common Error Responses:**
 
@@ -482,7 +481,7 @@ All endpoints follow a consistent error response format:
 **500 Internal Server Error:**
 ```json
 {
-  "detail": "Failed to connect to database: [error details]"
+  "detail": "<the exception's str() — for a connection failure, the driver's own message>"
 }
 ```
 
@@ -546,7 +545,12 @@ curl -X GET "http://localhost:9080/api/spanner/my_project/schema" \
 ## Notes
 
 - Replace `{project_id}` with your actual project name (e.g., `spanner_demo`)
-- All timestamps are in ISO 8601 format with UTC timezone
-- Node and relationship IDs are base64-encoded compound keys
+- Timestamps are whatever the source database returns; the driver passes them
+  through unformatted, so a `Z` suffix is what the source produced, not a proxy
+  guarantee.
+- Node and relationship IDs: Spanner uses `ELEMENT_ID()` (base64-encoded compound
+  keys); Kuzu / Ladybug / the relational drivers use `<Label>:<primary key>`;
+  LatticeDB uses its own matchable `internal-id`; the bolt family uses
+  `elementId()` on Neo4j 5+ and the `ID(n)` integer on Memgraph.
 - The `parameters` field in query requests supports parameterized queries
 - Graph queries return results in Neo4j-compatible format
