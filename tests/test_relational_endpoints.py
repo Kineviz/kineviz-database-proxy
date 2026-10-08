@@ -396,64 +396,13 @@ def test_the_generic_surface_offers_the_intents_so_the_client_stays_in_intent_mo
 
 
 # ---------------------------------------------------------------------------
-# the direction check
+# the direction check (three cases moved to tests/test_relational_preview_route.py)
 # ---------------------------------------------------------------------------
 
 
-def test_the_verdict_arrives_as_the_words_the_page_reads(client, projects, server):
-    """
-    One call, both directions, and the four words the editor has labels for.
-
-    ``you-decide`` is the database declining to settle it — both readings join rows — and the
-    word arrives as the spec spells it, not as one of its own synonyms.
-    """
-    server.engine.script = [[{"from": 1, "to": 2}], [{"from": 1, "to": 2}]]
-
-    answer = client.post(
-        "/api/relational/mapped/preview",
-        json={"edge": "FK_ORDER_CUSTOMER", "table": "Order", "pair": 0, **ORDERED},
-    ).json()
-
-    assert answer["verdict"] == "you-decide"
-    assert answer["verdict"] in VERDICTS
-    assert answer["pair"] == 0 and answer["table"] == "Order"
-    assert answer["forwards"]["count"] == 1 and answer["backwards"]["count"] == 1
-
-
-def test_an_empty_direction_is_neither_and_never_a_success(client, projects, server):
-    """
-    The case this route exists for: nothing joined, in either direction.
-
-    An empty result is a finding, not an absence of one, and reading it as ``settled`` is how
-    a backwards link ends up drawing a canvas of nothing.
-    """
-    server.engine.script = [[], []]
-
-    answer = client.post(
-        "/api/relational/mapped/preview",
-        json={"edge": "WORKS_FOR", "table": "Employment", "pair": 0,
-              "src": {"label": "Person", "column": "person_id"},
-              "dst": {"label": "Organization", "column": "org_id"}},
-    ).json()
-
-    assert answer["verdict"] == "neither"
-    assert answer["forwards"]["rows"] == [] and answer["backwards"]["count"] == 0
-
-
-def test_a_check_that_cannot_run_says_which_field_was_left_empty(client, projects, server):
-    """
-    A pair *index* alone names nothing, and a join cannot run on nothing.
-
-    The editor holds the columns; a caller that sends only the index would otherwise get a
-    refusal about its mapping when the request itself is what was incomplete.
-    """
-    answer = client.post(
-        "/api/relational/mapped/preview",
-        json={"edge": "WORKS_FOR", "table": "Employment", "pair": 1},
-    )
-
-    assert answer.status_code == 422
-    assert answer.json()["detail"][0]["path"] == "pair"
+# moved to tests/test_relational_preview_route.py: test_a_pair_that_joins_in_both_directions_settles_as_you_decide
+# moved to tests/test_relational_preview_route.py: test_an_empty_join_in_either_direction_is_neither_and_never_a_success
+# moved to tests/test_relational_preview_route.py: test_a_request_that_names_no_column_is_refused_on_its_own_field
 
 
 # ---------------------------------------------------------------------------
