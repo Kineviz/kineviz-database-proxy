@@ -37,8 +37,11 @@ Accept: application/json
   api_urls: {
     info: string,               // URL to this endpoint
     query: string,              // URL to query endpoint
+    schema: string,             // URL to table schema endpoint
     graphSchema: string,        // URL to graph schema endpoint
-    schema: string              // URL to table schema endpoint
+    sampleData: string,         // URL to sample-data endpoint
+    tokenStatus: string,        // URL to token-status endpoint (the path is `token-status` with a hyphen)
+    test: string                // URL to test endpoint
   },
   version?: string              // API version (optional)
 }
@@ -51,8 +54,11 @@ Accept: application/json
   "api_urls": {
     "info": "/api/spanner/spanner_demo",
     "query": "/api/spanner/spanner_demo/query",
+    "schema": "/api/spanner/spanner_demo/schema",
     "graphSchema": "/api/spanner/spanner_demo/graphSchema",
-    "schema": "/api/spanner/spanner_demo/schema"
+    "sampleData": "/api/spanner/spanner_demo/sampleData",
+    "tokenStatus": "/api/spanner/spanner_demo/token-status",
+    "test": "/api/spanner/spanner_demo/test"
   },
   "version": "1.0"
 }
