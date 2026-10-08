@@ -197,11 +197,29 @@ curl -X POST \
 
 #### Protected vs Public Endpoints
 
+Two independent auth layers are wired in `src/graphxr_database_proxy/api/auth.py`:
+
+- **Admin session** — `X-Admin-Token` header issued by `POST /api/admin/login`, gated by
+  `ADMIN_PASSWORD`. Required for every `/api/admin`, `/api/project`, `/api/embedded`,
+  `/api/relational`, `/api/settings` and `/api/google` route.
+- **API key** — `X-API-Key` header, from `API_KEY` or the settings file
+  (`src/graphxr_database_proxy/api/auth.py:192`). Required for the generic
+  `/api/{db_type}/{project}/*` data routes; the admin token is also accepted there
+  (`verify_api_key_or_admin`, `src/graphxr_database_proxy/api/auth.py:249`).
+
+When `ADMIN_PASSWORD` / `API_KEY` is unset, both layers are off and the routes answer without
+a credential. The table below mirrors what `verify_admin_token` and `verify_api_key_or_admin`
+actually enforce today.
+
 | Endpoint | Protected | Description |
 |----------|-----------|-------------|
-| `/api/project/*` | Yes | Project management |
-| `/api/{db_type}/{project}/*` | Yes | Database operations |
-| `/api/google/*` | Yes | Google Cloud operations |
+| `/api/project/*` | Yes (admin) | Project management |
+| `/api/admin/*` | Yes (admin, except `/login`) | Admin auth (login is public) |
+| `/api/embedded/*` | Yes (admin) | Embedded store management |
+| `/api/relational/*` | Yes (admin) | Relational mapping admin (see [RELATIONAL_API.md](RELATIONAL_API.md)) |
+| `/api/settings/*` | Yes (admin) | Server settings |
+| `/api/{db_type}/{project}/*` | Yes (API key or admin) | Database operations |
+| `/api/google/*` | Yes (admin) | Google Cloud operations |
 | `/google/spanner/login` | No | OAuth login flow |
 | `/google/spanner/callback` | No | OAuth callback |
 | `/health` | No | Health check |

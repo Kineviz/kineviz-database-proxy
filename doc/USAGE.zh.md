@@ -35,24 +35,33 @@ npm run dev
    - **Project Name**：项目的显示名
    - **Database Type**：项目指向的引擎——图数据库、嵌入式库文件，或者
      `SQL Server` / `PostgreSQL` / `MySQL`
-   - **Database Configuration**：连接参数
+   - **Database Configuration**：连接参数（见下面各引擎的字段说明）
 
-### 数据库配置
-3. 选择认证方式：
-   - **OAuth2**: 适用于开发和测试环境
-   - **Service Account**: 适用于生产环境
+   关系型、嵌入式、Kuzu / Ladybug / LatticeDB 的连接卡只问主机/端口或库文件路径 + 用户名密码；
+   下面的「Google Cloud Spanner」一节才需要选 **OAuth2** 或 **Service Account**，其它类型都没有这一步。
 
-4. OAuth2 配置：
-   ```json
-   {
-     "client_id": "your-client-id.apps.googleusercontent.com",
-     "client_secret": "your-client-secret",
-     "redirect_uri": "http://localhost:9080/google/spanner/callback"
-   }
-   ```
+### Google Cloud Spanner
 
-5. Service Account 配置：
-   - 上传服务账号 JSON 文件路径
+**基本配置**：
+- **Project ID**：Google Cloud 项目 ID
+- **Instance ID**：Spanner 实例名
+- **Database ID**：目标数据库名
+
+**认证方式**（仅 Spanner）：
+- **OAuth2**: 用户级认证，适合开发与测试
+- **Service Account**: 机机认证，适合生产
+
+OAuth2 配置：
+```json
+{
+  "client_id": "your-client-id.apps.googleusercontent.com",
+  "client_secret": "your-client-secret",
+  "redirect_uri": "http://localhost:9080/google/spanner/callback"
+}
+```
+
+Service Account 配置：
+- 上传服务账号 JSON 文件路径
 
 ### Kuzu / Ladybug / LatticeDB（嵌入式）
 这几种是文件而不是服务器，因此没有主机、也没有密码。
@@ -117,6 +126,16 @@ Kuzu 和 Ladybug 在哪都能装。
 文档自己的规则在 [RELATIONAL_MAPPING.zh.md](RELATIONAL_MAPPING.zh.md)，这些按钮背后的路由在
 [RELATIONAL_API.md](RELATIONAL_API.md)。
 
+### 编辑项目
+1. 点击项目名旁边的编辑图标
+2. 修改配置参数
+3. 保存修改——系统会校验连接
+
+### 删除项目
+1. 选中要删除的项目
+2. 点击删除按钮
+3. 确认删除
+
 
 ## 🎯 GraphXR 集成
 
@@ -124,6 +143,19 @@ Kuzu 和 Ladybug 在哪都能装。
 1. 在 GraphXR 中添加新的数据源
 2. 使用生成的 API URL: `http://localhost:9080/api/spanner/{project_id}`
 3. 配置认证头（如果需要）
+
+### 数据模式映射
+代理服务把数据库模式自动转成 GraphXR 能识别的格式：
+
+**Nodes**：表示数据库表
+**Edges**：表示外键关系
+**Properties**：表示表的列
+
+### 样本数据导出
+系统按 GraphXR 兼容的格式提供样本数据：
+- **JSON 格式**：直接导入 GraphXR
+- **关系映射**：根据外键自动创建边
+- **类型转换**：数据库类型映射到 GraphXR 的属性类型
 
 ### 示例查询
 ```sql
@@ -138,6 +170,77 @@ SELECT * FROM users LIMIT 10
 ```
 
 ## 🔐 安全配置
+
+### API 密钥认证（可选）
+
+代理支持可选的 API 密钥认证来保护所有 API 端点。开启后，客户端必须在请求里带上有效的 API 密钥。
+
+#### 启用 API 密钥认证
+
+设置 `API_KEY` 环境变量即可开启：
+
+```bash
+# 通过环境变量设置 API 密钥
+export API_KEY=your-secure-api-key-here
+
+# 启动服务器
+python -m uvicorn src.graphxr_database_proxy.main:app --port 9080
+```
+
+或者写在 `.env` 文件里：
+```
+API_KEY=your-secure-api-key-here
+```
+
+#### 发起带认证的请求
+
+开启 API 密钥认证后，所有 API 请求都要带上 `X-API-Key` 请求头：
+
+```bash
+# 示例：列出项目
+curl -H "X-API-Key: your-secure-api-key-here" \
+  http://localhost:9080/api/project/list
+
+# 示例：执行查询
+curl -X POST \
+  -H "X-API-Key: your-secure-api-key-here" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "SELECT * FROM table"}' \
+  http://localhost:9080/api/spanner/my-project/query
+```
+
+#### 受保护与公开端点
+
+`src/graphxr_database_proxy/api/auth.py` 里挂了两套独立的认证：
+
+- **管理员会话** —— `X-Admin-Token` 请求头，由 `POST /api/admin/login` 颁发，触发条件是
+  `ADMIN_PASSWORD` 已设置。`/api/admin`、`/api/project`、`/api/embedded`、
+  `/api/relational`、`/api/settings` 和 `/api/google` 下的所有路由都要求它。
+- **API 密钥** —— `X-API-Key` 请求头，来源是 `API_KEY` 环境变量或 settings 文件
+  （`src/graphxr_database_proxy/api/auth.py:192`）。通用数据路由
+  `/api/{db_type}/{project}/*` 需要它；那条路由也接受管理员 token
+  （`verify_api_key_or_admin`，见 `src/graphxr_database_proxy/api/auth.py:249`）。
+
+`ADMIN_PASSWORD` / `API_KEY` 没设时，两层都关掉，路由不要凭据就答。下表反映了
+`verify_admin_token` 和 `verify_api_key_or_admin` 实际强制的内容。
+
+| 端点 | 是否受保护 | 说明 |
+|----------|-----------|-------------|
+| `/api/project/*` | 是（管理员） | 项目管理 |
+| `/api/admin/*` | 是（管理员，登录除外） | 管理员认证（`/login` 公开） |
+| `/api/embedded/*` | 是（管理员） | 嵌入式库管理 |
+| `/api/relational/*` | 是（管理员） | 关系型 mapping 管理（见 [RELATIONAL_API.md](RELATIONAL_API.md)） |
+| `/api/settings/*` | 是（管理员） | 服务器设置 |
+| `/api/{db_type}/{project}/*` | 是（API 密钥或管理员） | 数据库操作 |
+| `/api/google/*` | 是（管理员） | Google Cloud 操作 |
+| `/google/spanner/login` | 否 | OAuth 登录流 |
+| `/google/spanner/callback` | 否 | OAuth 回调 |
+| `/health` | 否 | 健康检查 |
+| `/docs`、`/redoc` | 否 | API 文档 |
+
+#### 关闭认证
+
+要把 API 密钥认证关掉，只要把 `API_KEY` 环境变量留空或 unset。所有端点就都能免认证访问。
 
 ### 使用 Google OAuth 凭据文件（推荐）
 
