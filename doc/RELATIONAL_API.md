@@ -347,7 +347,7 @@ An endpoint whose label the mapping does not know is the same shape, pointed at 
 endpoint, and it names the label rather than answering empty:
 
 ```
-Employment.dst: Ogranization is not a record type in this mapping: give the pair a label
+Employment.dst: Organization is not a record type in this mapping: give the pair a label
 the mapping has, or name its table and key
 ```
 
