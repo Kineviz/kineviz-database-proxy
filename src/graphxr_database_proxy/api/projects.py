@@ -7,6 +7,7 @@ These endpoints require admin authentication when ADMIN_PASSWORD is set.
 from typing import List
 from fastapi import APIRouter, HTTPException, Depends
 from ..models.project import Project, ProjectCreate, ProjectUpdate
+from ..services.graph_schema_cache import GRAPH_SCHEMA_CACHE
 from ..services.project_service import ProjectService
 from .auth import verify_admin_token
 
@@ -100,6 +101,11 @@ async def delete_project(
         success = await service.delete_project(project_id)
         if not success:
             raise HTTPException(status_code=404, detail="Project not found")
+        # The cache keys by ``project_id``; an entry for a deleted project survives
+        # until TTL (``graph_schema_cache.DEFAULT_TTL_SECONDS``) otherwise, and a
+        # later re-creation with the same id would silently answer from the stale
+        # schema. Invalidate on the only path that frees the name.
+        GRAPH_SCHEMA_CACHE.invalidate_project(project_id)
         return {"message": "Project deleted successfully"}
     except HTTPException:
         raise

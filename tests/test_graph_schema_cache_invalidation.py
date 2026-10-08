@@ -230,22 +230,15 @@ class _ScriptedProjectsGateway:
         return True
 
 
-@pytest.mark.xfail(
-    reason="defect: DELETE /api/project/delete leaves cache entries behind until TTL",
-    strict=False,
-)
 def test_delete_project_route_calls_invalidate_project(monkeypatch):
     """
-    Pin for the delete trigger -- the bug the lane is reporting to the CTO.
+    Pin for the delete trigger.
 
-    The route lives in ``api/projects.py:delete_project`` (``api/projects.py:92-106``)
-    and reaches ``ProjectService.delete_project``
-    (``services/project_service.py:143-149``). Neither calls the cache; the lane
-    does not own either, so the gap is reported rather than fixed.
-
-    Marked ``xfail`` (strict=False) so the gate stays green today; it becomes
-    ``xpass`` once the CTO closes the gap, which is the moment to remove the
-    marker.
+    The route lives in ``api/projects.py:delete_project`` and reaches
+    ``ProjectService.delete_project``. The cache keys by ``project_id`` and the
+    entries for a deleted project must not survive — a later re-creation with the
+    same id would otherwise answer from a stale schema until TTL. Closed in the
+    CTO commit that added the invalidation call.
     """
     app = FastAPI()
     app.include_router(projects_module.router)
