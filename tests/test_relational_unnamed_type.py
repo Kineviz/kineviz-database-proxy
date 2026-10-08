@@ -99,11 +99,21 @@ def test_the_refusal_reaches_exactly_the_types_the_key_guard_already_refused(eng
     else, which is what keeps a working mapping working: ``1d00038``'s guard tested for a
     fallback that was exactly ``sa.String``, so any spelling outside that set would now
     refuse a query that used to run.
+
+    An array-shaped spelling is the one case the equivalence does not speak to, and it is not
+    a case the equivalence could lose anything over: the key guard never reached
+    ``column_type`` for one, because ``single_column_key_ok`` refuses ``declared.array``
+    before any bind is considered. Both halves are asserted here so the wider None-set is
+    visibly the array decision and not a slipped-out-of-the-audit spelling.
     """
     spelling, table = engine["spelling"], engine["types"]
     for declared in _universe(engine):
-        base = parse_declared_type(declared or "").base
-        answered_before = type(table.get(base, sa.String())) is sa.String
+        parsed = parse_declared_type(declared or "")
+        if parsed.array:
+            assert spelling.column_type(declared) is None, (engine["name"], declared)
+            assert not spelling.single_column_key_ok(declared), (engine["name"], declared)
+            continue
+        answered_before = type(table.get(parsed.base, sa.String())) is sa.String
         assert (spelling.column_type(declared) is None) is answered_before, (engine["name"], declared)
 
 
@@ -114,13 +124,17 @@ def test_every_type_the_engine_names_is_still_handed_over_unchanged(engine: Dict
     swap to an Optional answer cannot have re-derived, re-ordered or narrowed one of them.
     Identity is the assertion: a rebuilt ``BIGINT()`` would compare equal and still be a
     different answer.
+
+    An array declaration is excluded rather than folded in: its element's object is exactly
+    the answer this seam stopped handing over, and ``test_relational_array_types`` pins the
+    refusal as its own decision.
     """
     spelling, table = engine["spelling"], engine["types"]
     for declared in _universe(engine):
-        base = parse_declared_type(declared or "").base
-        if base not in table:
+        parsed = parse_declared_type(declared or "")
+        if parsed.array or parsed.base not in table:
             continue
-        assert spelling.column_type(declared) is table[base], (engine["name"], declared)
+        assert spelling.column_type(declared) is table[parsed.base], (engine["name"], declared)
 
 
 #: Every type each engine's own vocabulary knows that its type table has no binding for,

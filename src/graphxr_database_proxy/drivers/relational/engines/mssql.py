@@ -310,6 +310,11 @@ class MSSQLEngine(EngineSpelling):
         type error.
         """
         declared = parse_declared_type(declared_type or "")
+        if declared.array:
+            # SQL Server has no array column type either; the name that gets here is the
+            # one a hand-written document stated. Refused by name, not read as its element
+            # — see ``array_binding``.
+            return self.array_binding(declared)
         return _COLUMN_TYPES.get(declared.base)
 
     def unkeyable_types(self) -> frozenset:

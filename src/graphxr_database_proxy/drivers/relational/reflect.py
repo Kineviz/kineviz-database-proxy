@@ -14,6 +14,7 @@ bare table name; ``catalog.py`` turns them into ``SchemaTable`` objects and judg
 
 from __future__ import annotations
 
+import inspect
 from typing import Any, Callable, Dict, List, Mapping, Optional, Protocol, Sequence, Tuple
 
 from ...models.graph_mapping import UNKNOWN_TYPE
@@ -27,6 +28,18 @@ Row = Dict[str, Any]
 
 #: Row estimates for one page of tables, implemented per engine elsewhere.
 RowCounts = Callable[[Sequence[str]], Mapping[str, int]]
+
+#: What each optional probe contributes, keyed by the method, so a probe that *threw*
+#: can be reported as the half of the read that went missing rather than as a stack trace.
+PROBE_LOSS: Dict[str, str] = {
+    "get_multi_unique_constraints": "single-column unique candidates",
+    "get_multi_indexes": "unique index columns",
+    "get_view_names": "the list of views, which is what keeps a view out of the tables",
+}
+
+#: ``(method, failure) -> how many times it threw``. A page of names throws once per page,
+#: so the tally is what keeps a 3 000-table schema from answering 30 identical warnings.
+Gaps = Dict[Tuple[str, str], int]
 
 
 class Inspector(Protocol):
@@ -67,12 +80,14 @@ def _read_pages(
     schema: Optional[str],
     page_size: int,
     row_counts: Optional[RowCounts],
+    gaps: Optional[Gaps] = None,
 ) -> Dict[str, Dict[str, Any]]:
     """
     Columns, primary keys, foreign keys, unique candidates and estimates, per page.
 
     The page of *names* is the unit the inspector is asked in, so the cost is per page
-    and nothing is held for the whole library at once.
+    and nothing is held for the whole library at once. A probe that throws adds to
+    ``gaps`` rather than answering nothing in silence — see :func:`_call`.
     """
     size = max(1, int(page_size))
     out: Dict[str, Dict[str, Any]] = {"columns": {}, "pk": {}, "fk": {}, "unique": {}, "rows": {}}
@@ -82,9 +97,11 @@ def _read_pages(
         out["pk"].update(_multi(inspector.get_multi_pk_constraint, page, schema))
         out["fk"].update(_multi(inspector.get_multi_foreign_keys, page, schema))
         uniques: Dict[str, Tuple[str, ...]] = {}
-        for table, rows in _optional_multi(inspector, "get_multi_unique_constraints", page, schema).items():
+        for table, rows in _optional_multi(
+            inspector, "get_multi_unique_constraints", page, schema, gaps
+        ).items():
             uniques[table] = _single_columns(rows, "constrained_columns")
-        for table, rows in _optional_multi(inspector, "get_multi_indexes", page, schema).items():
+        for table, rows in _optional_multi(inspector, "get_multi_indexes", page, schema, gaps).items():
             uniques[table] = tuple(list(uniques.get(table, ())) + _unique_index_columns(rows))
         out["unique"].update(uniques)
         if row_counts is not None:
@@ -109,35 +126,100 @@ def _multi(
 
 
 def _optional_multi(
-    inspector: Inspector, method: str, page: Sequence[str], schema: Optional[str]
+    inspector: Inspector,
+    method: str,
+    page: Sequence[str],
+    schema: Optional[str],
+    gaps: Optional[Gaps] = None,
 ) -> Dict[str, Any]:
-    return _bare_keys(_call(inspector, method, page=page, schema=schema) or {}, page)
+    return _bare_keys(_call(inspector, method, page=page, schema=schema, gaps=gaps) or {}, page)
 
 
-def _probe_names(inspector: Inspector, method: str, schema: Optional[str]) -> List[str]:
-    return [str(name) for name in _call(inspector, method, page=None, schema=schema) or []]
+def _probe_names(
+    inspector: Inspector, method: str, schema: Optional[str], gaps: Optional[Gaps] = None
+) -> List[str]:
+    return [str(name) for name in _call(inspector, method, page=None, schema=schema, gaps=gaps) or []]
+
+
+def _accepts_tables(probe: Callable[..., Any]) -> bool:
+    """
+    Whether this probe can be handed ``tables=``, which decides what a TypeError means.
+
+    A probe that never took the keyword is answering a *signature* question — the reason
+    the retry below exists — while a TypeError raised from inside a probe that does take it
+    is a reflection failure. They arrive as the same exception, and today they are treated
+    the same; the measurement that opened this file found the real one
+    (``NullType() takes no arguments``, MySQL's own parser on a ``vector(3)`` column) in the
+    second family, where it reads as a dialect that has no such method and the page simply
+    loses whatever that probe answers.
+    """
+    try:
+        parameters = inspect.signature(probe).parameters
+    except (TypeError, ValueError):
+        return True  # nothing to read it off: assume the call was well-formed and it threw
+    if any(one.kind is one.VAR_KEYWORD for one in parameters.values()):
+        return True
+    return "tables" in parameters
+
+
+def _gap(gaps: Optional[Gaps], method: str, exc: BaseException) -> None:
+    """Record one thrown probe, counted, so a whole schema failing the same way says it once."""
+    if gaps is None:
+        return
+    failure = "%s: %s" % (type(exc).__name__, str(exc).strip() or "the probe gave no message")
+    key = (method, failure)
+    gaps[key] = gaps.get(key, 0) + 1
+
+
+def gap_warnings(gaps: Mapping[Tuple[str, str], int]) -> List[str]:
+    """One sentence per thrown probe: what threw, how often, and which half of the read is gone."""
+    out: List[str] = []
+    for (method, failure), count in sorted(gaps.items()):
+        loss = PROBE_LOSS.get(method, "whatever %s answers" % method)
+        again = "" if count == 1 else " (%d times)" % count
+        out.append(
+            "%s%s raised %s, so the names read with it have no %s" % (method, again, failure, loss)
+        )
+    return out
 
 
 def _call(
-    inspector: Inspector, method: str, page: Optional[Sequence[str]], schema: Optional[str]
+    inspector: Inspector,
+    method: str,
+    page: Optional[Sequence[str]],
+    schema: Optional[str],
+    gaps: Optional[Gaps] = None,
 ) -> Any:
     """
     An optional reflection method, or one this dialect cannot answer.
 
     Absent and unsupported are both gaps rather than errors: a view list a MySQL 5.x
-    build withholds must not fail the discovery of the tables it does have.
+    build withholds must not fail the discovery of the tables it does have. A probe that
+    *throws* is a third and different fact — the read goes on without its answer either
+    way, and the only thing that changes here is that ``gaps`` now says so.
     """
     probe = getattr(inspector, method, None)
     if probe is None:
         return None
     try:
         return probe(tables=list(page) if page is not None else None, schema=schema)
-    except TypeError:
+    except NotImplementedError:
+        return None  # the dialect's own "I have no such list", which stays silent
+    except TypeError as exc:
+        if _accepts_tables(probe):
+            _gap(gaps, method, exc)
+            return None
         try:
             return probe(schema=schema) if page is None else None
-        except Exception:
+        except NotImplementedError:
             return None
-    except Exception:
+        except Exception as inner:
+            if page is not None:
+                return None  # no unpaged form of a per-page probe exists to fall back on
+            _gap(gaps, method, inner)
+            return None
+    except Exception as exc:
+        _gap(gaps, method, exc)
         return None
 
 
@@ -184,12 +266,31 @@ def _unique_index_columns(rows: Sequence[Any]) -> Tuple[str, ...]:
     return tuple(out)
 
 
-def type_name(value: object) -> str:
+def dialect_of(inspector: Inspector) -> Any:
+    """
+    The dialect an inspector carries, when it carries one.
+
+    A real ``sqlalchemy.Inspector`` does, and it is the only party that knows how this
+    engine spells a type; a duck-typed inspector from a test may not, and gets the
+    argument-free spelling the walk has always produced. Read, never imported — the
+    protocol in this file is duck-typed on purpose.
+    """
+    return getattr(inspector, "dialect", None)
+
+
+def type_name(value: object, dialect: object = None) -> str:
     """
     The SQL name of whatever the inspector called a column's type.
 
     A reflected type is a ``TypeEngine`` instance, and importing sqlalchemy to say so
     is not a price worth paying for a string: ``compile()`` is how it spells itself.
+
+    ``dialect`` is that instance's own, when the reader has one, and it is not decoration:
+    several types spell differently per backend, and the name written down here is the
+    only type information a bind is later chosen from. ``ARRAY(TEXT)`` spells ``ARRAY``
+    to the generic compiler — SQLAlchemy's class name, which no engine declares — and
+    ``TEXT[]`` to PostgreSQL's, which is the column. Without a dialect nothing is asked
+    for one, so a duck-typed inspector keeps answering what it always answered.
     """
     if value is None:
         return UNKNOWN_TYPE
@@ -197,10 +298,11 @@ def type_name(value: object) -> str:
         return value.strip() or UNKNOWN_TYPE
     spell = getattr(value, "compile", None)
     if callable(spell):
-        try:
-            return str(spell()).strip() or UNKNOWN_TYPE
-        except Exception:  # a type that cannot spell itself is still a column
-            pass
+        for arguments in ((dialect,), ()) if dialect is not None else ((),):
+            try:
+                return str(spell(*arguments)).strip() or UNKNOWN_TYPE
+            except Exception:  # a type that cannot spell itself is still a column
+                continue
     return str(value).strip() or UNKNOWN_TYPE
 
 

@@ -349,6 +349,11 @@ class MySQLEngine(EngineSpelling):
         text parameter against a ``POINT`` column is not a comparison MySQL defines.
         """
         declared = parse_declared_type(declared_type or "")
+        if declared.array:
+            # MySQL has no array column type, so an ``[]`` suffix here is a name the server
+            # was never asked for — and reading it as its element is what made a filter
+            # that cannot exist look like a predicate that merely missed. See ``array_binding``.
+            return self.array_binding(declared)
         return _COLUMN_TYPES.get(declared.base)
 
     def unkeyable_types(self) -> frozenset:

@@ -50,12 +50,15 @@ from ...models.graph_mapping import (
 )
 from .reflect import (
     PAGE_SIZE,
+    Gaps,
     Inspector,
     Row,
     RowCounts,
     _bare,
     _probe_names,
     _read_pages,
+    dialect_of,
+    gap_warnings,
     type_name,
 )
 
@@ -196,9 +199,11 @@ def discover(
             warnings=["schema {!r} is the engine's own; nothing in it is your data".format(schema)],
         )
     catalog = Catalog(schema=schema)
-    names = _visible_names(inspector, schema, catalog, internal_schemas)
-    pages = _read_pages(inspector, names, schema, page_size, row_counts)
-    _build_tables(catalog, names, pages)
+    gaps: Gaps = {}
+    names = _visible_names(inspector, schema, catalog, internal_schemas, gaps)
+    pages = _read_pages(inspector, names, schema, page_size, row_counts, gaps)
+    _build_tables(catalog, names, pages, dialect_of(inspector))
+    catalog.warnings.extend(gap_warnings(gaps))
     return catalog
 
 
@@ -236,10 +241,11 @@ def _visible_names(
     schema: Optional[str],
     catalog: Catalog,
     internal_schemas: Iterable[str],
+    gaps: Optional[Gaps] = None,
 ) -> List[str]:
     """The tables the inspector calls *tables*, minus anything the engine keeps for itself."""
     names = [str(name) for name in inspector.get_table_names(schema=schema)]
-    views = set(_probe_names(inspector, "get_view_names", schema=schema))
+    views = set(_probe_names(inspector, "get_view_names", schema=schema, gaps=gaps))
     internal = {str(one).casefold() for one in internal_schemas}
     keep: List[str] = []
     for name in names:
@@ -258,8 +264,19 @@ def _is_system_table(name: str) -> bool:
     return lowered.startswith(SYSTEM_TABLE_PREFIXES) or lowered in SYSTEM_TABLE_NAMES
 
 
-def _build_tables(catalog: Catalog, names: Sequence[str], pages: Dict[str, Dict[str, Any]]) -> None:
-    """Turn the reflected pages into ``SchemaTable`` objects, and mark who is referenced."""
+def _build_tables(
+    catalog: Catalog,
+    names: Sequence[str],
+    pages: Dict[str, Dict[str, Any]],
+    dialect: object = None,
+) -> None:
+    """
+    Turn the reflected pages into ``SchemaTable`` objects, and mark who is referenced.
+
+    ``dialect`` is the reader's own, carried straight to :func:`type_name`: the name a
+    column's type spells is the only type information a bind is later chosen from, and
+    the generic compiler lies about the few types that differ per backend.
+    """
     referenced: Set[str] = set()
     foreign: Dict[str, List[ForeignKey]] = {}
     for name in names:
@@ -278,7 +295,7 @@ def _build_tables(catalog: Catalog, names: Sequence[str], pages: Dict[str, Dict[
             column = str((row or {}).get("name") or "")
             if not column:
                 continue
-            columns[column] = type_name(row.get("type"))
+            columns[column] = type_name(row.get("type"), dialect)
             if not row.get("nullable", True):
                 not_null.add(column)
         if not columns:

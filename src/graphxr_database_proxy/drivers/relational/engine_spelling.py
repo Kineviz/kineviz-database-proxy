@@ -166,6 +166,23 @@ class EngineSpelling(abc.ABC):
         None, and let the caller say what that costs (:exc:`UnbindableType`).
         """
 
+    def array_binding(self, declared: DeclaredType) -> Optional[TypeEngine]:
+        """This engine's bind for an array-shaped declaration, or None to refuse it.
+
+        Every engine behind this seam answers None, for one reason each says in its own
+        file: a property predicate built here compares **one value against one column** —
+        ``=``, ``IN``, ``LIKE`` — and ``text[] = text`` is a binder error on PostgreSQL
+        and not a type at all on the other two. Reading ``TEXT[]`` as its element instead
+        is the silent half of the same bug: the plan compiles, the value leaves as a
+        scalar, and the server's own type error is what reaches the person.
+
+        Binding an array for real is a different operator — ``@>`` or ``= ANY(col)`` there,
+        a JSON table elsewhere — and what a filter on a list *means* is a contract
+        decision, not a reflection fix. The column is still projected:
+        :meth:`declared_column_type` answers text where a bind is refused.
+        """
+        return None
+
     def declared_column_type(self, declared_type: Optional[str]) -> TypeEngine:
         """A type to declare a column with: the engine's own, or text when it has none.
 

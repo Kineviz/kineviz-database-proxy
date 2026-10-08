@@ -327,6 +327,11 @@ class PostgreSQLEngine(EngineSpelling):
         # and text-search vocabulary, which PostgreSQL reads off an untyped literal
         # anyway: adding those is a decision taken beside ``_TYPE_TABLE``, not here.
         declared = parse_declared_type(declared_type or "")
+        if declared.array:
+            # PostgreSQL *has* these columns, which is exactly why the element answer is
+            # the wrong one: ``text[] = text`` is server error 42804, and a plan that
+            # compiles is not a plan that runs. Refused by name — see ``array_binding``.
+            return self.array_binding(declared)
         return _COLUMN_TYPES.get(declared.base)
 
     def unkeyable_types(self) -> frozenset:
