@@ -1,6 +1,6 @@
-# GraphXR Database Proxy - Python API Examples
+# Kineviz Database Proxy - Python API Examples
 
-This directory contains complete examples for using the GraphXR Database Proxy Python API.
+This directory contains complete examples for using the Kineviz Database Proxy Python API.
 
 ## 📁 File Description
 
@@ -18,7 +18,7 @@ This directory contains complete examples for using the GraphXR Database Proxy P
 
 ### 1. Prepare Service Account
 
-GraphXR Database Proxy supports two Service Account authentication methods:
+Kineviz Database Proxy supports two Service Account authentication methods:
 
 #### Method A: File Path Method
 1. Visit [Google Cloud Console](https://console.cloud.google.com/)
@@ -345,6 +345,6 @@ proxy.start(port=3002, dev=True)
 
 ## 📚 More Resources
 
-- [GraphXR Database Proxy Documentation](../README.md)
+- [Kineviz Database Proxy Documentation](../README.md)
 - [Google Cloud Spanner Documentation](https://cloud.google.com/spanner/docs)
 - [Service Account Documentation](https://cloud.google.com/iam/docs/service-accounts)

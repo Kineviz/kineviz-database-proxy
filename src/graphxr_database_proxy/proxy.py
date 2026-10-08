@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-DatabaseProxy - High-level interface for GraphXR Database Proxy
+DatabaseProxy - High-level interface for Kineviz Database Proxy
 """
 
 import asyncio
@@ -19,10 +19,10 @@ from .services.project_service import ProjectService
 
 class DatabaseProxy:
     """
-    High-level interface for GraphXR Database Proxy
+    High-level interface for Kineviz Database Proxy
     
     This class provides a simplified Python API for configuring and running
-    the GraphXR Database Proxy with Service Account authentication.
+    the Kineviz Database Proxy with Service Account authentication.
     """
     
     def __init__(self, config_dir: str = "config"):
@@ -493,13 +493,13 @@ class DatabaseProxy:
         show_apis: bool = True
     ) -> None:
         """
-        Start the GraphXR Database Proxy server
+        Start the Kineviz Database Proxy server
         Args:
             host: Host to bind to (default: "0.0.0.0")
             port: Port to bind to (default: 9080)
             show_apis: Show API endpoints information (default: True)
         """
-        print("\n[START] Starting GraphXR Database Proxy...")
+        print("\n[START] Starting Kineviz Database Proxy...")
         print(f"   Web UI: http://{host if host != '0.0.0.0' else 'localhost'}:{port}")
         
         if show_apis and self.projects:
@@ -529,9 +529,9 @@ class DatabaseProxy:
                 log_level="info" if not dev else "debug"
             )
         except KeyboardInterrupt:
-            print("\n[STOP] Stopping GraphXR Database Proxy...")
+            print("\n[STOP] Stopping Kineviz Database Proxy...")
             self.stop()
     
     def stop(self) -> None:
         """Stop the server"""
-        print("[SUCCESS] GraphXR Database Proxy stopped")
+        print("[SUCCESS] Kineviz Database Proxy stopped")

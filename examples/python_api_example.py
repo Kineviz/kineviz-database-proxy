@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GraphXR Database Proxy - Complete Python API Example
+Kineviz Database Proxy - Complete Python API Example
 
 This example demonstrates how to use the DatabaseProxy class directly via Python code:
 1. Create Spanner database projects (Service Account authentication only)
@@ -20,7 +20,7 @@ from graphxr_database_proxy import DatabaseProxy
 def main():
     """Main function - complete usage example"""
     
-    print("🔧 GraphXR Database Proxy - Python API Example")
+    print("🔧 Kineviz Database Proxy - Python API Example")
     print("=" * 50)
     
     # 1. Create DatabaseProxy instance
@@ -160,7 +160,7 @@ def main():
         print(f"  {endpoint_name}: {endpoint_url}")
     
     # 7. Start server
-    print("\n6. Starting GraphXR Database Proxy server...")
+    print("\n6. Starting Kineviz Database Proxy server...")
     print("=" * 50)
     print("🚀 Server is about to start...")
     print("   - Web UI will be available in browser")

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GraphXR Database Proxy - Service Account Authentication Methods Example
+Kineviz Database Proxy - Service Account Authentication Methods Example
 
 This example demonstrates different ways to use Service Account authentication:
 1. File Path Method - Pass the path to the JSON file
@@ -236,7 +236,7 @@ def security_best_practices():
 def main():
     """Main function - show all examples"""
     
-    print("🚀 GraphXR Database Proxy - Service Account Authentication Complete Example")
+    print("🚀 Kineviz Database Proxy - Service Account Authentication Complete Example")
     print("=" * 80)
     
     # Example 1: File path method

@@ -1,6 +1,6 @@
 # PyPI 发布指南
 
-GraphXR Database Proxy 发布到 PyPI (pip) 的完整步骤。
+Kineviz Database Proxy 发布到 PyPI (pip) 的完整步骤。
 
 > **语言**: [English](PYPI_PUBLISHING.md) | [中文](PYPI_PUBLISHING.zh.md)
 
@@ -103,8 +103,8 @@ python -m build --wheel    # wheel 包
 ```
 
 构建成功后，`dist/` 目录将包含：
-- `graphxr-database-proxy-1.0.1.tar.gz` (源码包)
-- `graphxr_database_proxy-1.0.1-py3-none-any.whl` (wheel 包)
+- `kineviz-database-proxy-1.0.1.tar.gz` (源码包)
+- `kineviz_database_proxy-1.0.1-py3-none-any.whl` (wheel 包)
 
 ### 步骤 3: 验证包内容
 
@@ -113,7 +113,7 @@ python -m build --wheel    # wheel 包
 twine check dist/*
 
 # 查看包文件列表
-tar -tzf dist/graphxr-database-proxy-1.0.1.tar.gz
+tar -tzf dist/kineviz-database-proxy-1.0.1.tar.gz
 ```
 
 ### 步骤 4: 测试发布 (TestPyPI)
@@ -130,7 +130,7 @@ twine upload --repository testpypi dist/*
 
 ```bash
 # 从 TestPyPI 安装测试
-pip install --index-url https://test.pypi.org/simple/ graphxr-database-proxy
+pip install --index-url https://test.pypi.org/simple/ kineviz-database-proxy
 
 # 测试基本功能
 python -c "from graphxr_database_proxy import DatabaseProxy; print('✅ 导入成功')"

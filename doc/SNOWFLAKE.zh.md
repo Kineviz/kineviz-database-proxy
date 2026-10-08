@@ -12,7 +12,7 @@ Snowflake 复用关系型数据库驱动，支持表发现、图查询、Expand�
 uv sync --extra dev --extra snowflake
 ```
 
-安装发行包时使用 `pip install "graphxr-database-proxy[snowflake]"`。
+安装发行包时使用 `pip install "kineviz-database-proxy[snowflake]"`。
 `relational` 扩展包含 Snowflake、SQL Server、PostgreSQL 和 MySQL。
 Snowflake 的 SQLAlchemy 方言目前依赖 2.0 的编译接口，因此此扩展将版本限制在 2.1 以下。
 

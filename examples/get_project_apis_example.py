@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GraphXR Database Proxy - get_project_apis Enhanced Example
+Kineviz Database Proxy - get_project_apis Enhanced Example
 
 This example demonstrates the enhanced get_project_apis() method that supports
 finding projects by both project_id and project_name.
@@ -13,7 +13,7 @@ from graphxr_database_proxy import DatabaseProxy
 def demonstrate_get_project_apis():
     """Demonstrate enhanced get_project_apis functionality"""
     
-    print("🔍 GraphXR Database Proxy - Enhanced get_project_apis Example")
+    print("🔍 Kineviz Database Proxy - Enhanced get_project_apis Example")
     print("=" * 70)
     
     # Set environment variables for convenience

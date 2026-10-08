@@ -1,6 +1,6 @@
 # 前端文件集成指南
 
-GraphXR Database Proxy 支持将前端文件打包到 Python 包中，这样安装包后就能直接访问完整的 Web UI。
+Kineviz Database Proxy 支持将前端文件打包到 Python 包中，这样安装包后就能直接访问完整的 Web UI。
 
 ## 🏗️ 构建流程
 
@@ -70,10 +70,10 @@ proxy.start()
 
 ```bash
 # 安装包
-pip install graphxr-database-proxy
+pip install kineviz-database-proxy
 
 # 启动服务（包含 Web UI）
-graphxr-proxy --host 0.0.0.0 --port 9080
+kineviz-proxy --host 0.0.0.0 --port 9080
 ```
 
 访问 http://localhost:9080 查看 Web UI。
@@ -173,7 +173,7 @@ python scripts/build_frontend.py
 ### 包大小异常
 ```bash
 # 检查包内容
-python -m zipfile -l dist/graphxr_database_proxy-*.whl | grep static
+python -m zipfile -l dist/kineviz_database_proxy-*.whl | grep static
 ```
 
 ### 静态文件访问失败

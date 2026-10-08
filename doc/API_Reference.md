@@ -1,4 +1,4 @@
-# GraphXR Database Proxy API Reference
+# Kineviz Database Proxy API Reference
 
 > Comprehensive API documentation for Google Cloud Spanner integration
 

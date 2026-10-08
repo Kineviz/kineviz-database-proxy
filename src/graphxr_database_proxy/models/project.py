@@ -1,5 +1,5 @@
 """
-Data models for the GraphXR Database Proxy
+Data models for the Kineviz Database Proxy
 
 These models define the structure of requests and responses for the API,
 as documented in doc/API_Reference.md

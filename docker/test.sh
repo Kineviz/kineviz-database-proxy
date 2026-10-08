@@ -12,10 +12,10 @@ else
     echo "GNU/Linux"
 fi
 
-docker rm -f graphxr-database-proxy 2>/dev/null
+docker rm -f kineviz-database-proxy 2>/dev/null
 
 docker run -d -p 9080:9080 \
---name graphxr-database-proxy \
+--name kineviz-database-proxy \
 -v  ${DATA_DIR}:/app/config \
-kineviz/graphxr-database-proxy:latest
+kineviz/kineviz-database-proxy:latest
 

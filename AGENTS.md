@@ -5,7 +5,7 @@ update project conventions here rather than copying them between tools.
 
 ## Project and commands
 
-GraphXR Database Proxy is a FastAPI backend with a React 18 + antd TypeScript
+Kineviz Database Proxy is a FastAPI backend with a React 18 + antd TypeScript
 admin UI. One production process serves the API and the built UI.
 
 Run commands from the repository root. Use `uv` and `.venv` for Python; use npm

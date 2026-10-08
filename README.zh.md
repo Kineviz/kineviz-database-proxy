@@ -1,4 +1,4 @@
-# GraphXR 数据库代理
+# Kineviz 数据库代理
 
 [English](README.md) | [中文](README.zh.md)
 
@@ -12,9 +12,12 @@ LatticeDB、SQL Server、PostgreSQL、MySQL 和 Snowflake。可选的管理员�
 ## 快速开始
 
 ```bash
-pip install "graphxr-database-proxy[ui]"
-graphxr-proxy --ui
+pip install "kineviz-database-proxy[ui]"
+kineviz-proxy --ui
 ```
+
+为兼容已有调用和配置，Python 导入名仍为 `graphxr_database_proxy`，
+并继续支持 `graphxr-proxy` 命令、`GRAPHXR_PROXY_*` 环境变量和现有存储路径。
 
 打开 http://localhost:9080/admin，创建项目，将其 API URL 复制到 GraphXR 的
 **Database Proxy** 连接中。例如：`http://localhost:9080/api/spanner/Test`。
@@ -28,8 +31,8 @@ Snowflake 的连接和映射说明见 [Snowflake 指南](doc/SNOWFLAKE.zh.md)。
 需要 Python >= 3.9、Node.js >= 22 和 [uv](https://docs.astral.sh/uv/)。
 
 ```bash
-git clone https://github.com/Kineviz/graphxr-database-proxy.git
-cd graphxr-database-proxy
+git clone https://github.com/Kineviz/kineviz-database-proxy.git
+cd kineviz-database-proxy
 uv sync --extra dev
 npm install
 npm run install:frontend
@@ -45,7 +48,7 @@ Claude Code、Codex、Cursor、GitHub Copilot 和 Gemini CLI 共用
 ## Docker
 
 ```bash
-docker run -d -p 9080:9080 --name graphxr-database-proxy -v graphxr-proxy-config:/app/config kineviz/graphxr-database-proxy:latest
+docker run -d -p 9080:9080 --name kineviz-database-proxy -v graphxr-proxy-config:/app/config kineviz/kineviz-database-proxy:latest
 ```
 
 打开 http://localhost:9080/admin。命名卷会持久保存项目配置。
@@ -58,5 +61,5 @@ docker run -d -p 9080:9080 --name graphxr-database-proxy -v graphxr-proxy-config
 - [关系型映射](doc/RELATIONAL_MAPPING.zh.md) · [嵌入式数据库](doc/EMBEDDED_STORES.zh.md)
 - [Docker 发布](doc/DOCKER_PUBLISHING.zh.md) · [PyPI 发布](doc/PYPI_PUBLISHING.zh.md)
 
-[MIT 许可证](LICENSE) · [问题反馈](https://github.com/Kineviz/graphxr-database-proxy/issues)
+[MIT 许可证](LICENSE) · [问题反馈](https://github.com/Kineviz/kineviz-database-proxy/issues)
 · support@kineviz.com

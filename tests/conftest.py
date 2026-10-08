@@ -1,4 +1,4 @@
-"""Pytest configuration for graphxr-database-proxy tests."""
+"""Pytest configuration for kineviz-database-proxy tests."""
 import sys
 from pathlib import Path
 

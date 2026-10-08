@@ -111,7 +111,7 @@ class EngineSpelling(abc.ABC):
         """What to say when the DBAPI is not installed."""
         return (
             f"{self.name} projects need the {self.data_api_name()} package, which this "
-            f"proxy installs as an optional extra: pip install 'graphxr-database-proxy"
+            f"proxy installs as an optional extra: pip install 'kineviz-database-proxy"
             f"[{self.name}]' (or pip install {self.data_api_name()})."
         )
 

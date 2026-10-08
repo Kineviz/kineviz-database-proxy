@@ -1,7 +1,7 @@
 """
 Google Application Default Credentials (ADC) Example
 
-This example demonstrates how to configure and start the GraphXR Database Proxy
+This example demonstrates how to configure and start the Kineviz Database Proxy
 using Google Application Default Credentials (ADC) for authentication.
 
 # Quick Start
@@ -15,11 +15,11 @@ gcloud auth application-default login
 2. Clone the repository and install the dependencies
 
 ```bash
-git clone git@github.com:Kineviz/graphxr-database-proxy.git
-cd graphxr-database-proxy
+git clone git@github.com:Kineviz/kineviz-database-proxy.git
+cd kineviz-database-proxy
 uv venv
 source .venv/bin/activate
-uv pip install graphxr-database-proxy google-auth google-cloud-resource-manager
+uv pip install kineviz-database-proxy google-auth google-cloud-resource-manager
 export PROJECT_ID="your-gcp-project-id"
 export INSTANCE_ID="your-spanner-instance-id"
 export DATABASE_ID="your-spanner-database-id" # e.g. "retail"
@@ -27,12 +27,12 @@ export PROPERTY_GRAPH_NAME="your-property-graph-name" # e.g. "ECommerceGraph"
 python examples/google_adc.py
 ```
 
-3. Connect to the GraphXR Database Proxy from GraphXR
+3. Connect to the Kineviz Database Proxy from GraphXR
 
 Copy the "API URL(GraphXR)" from the output of google_adc.py and paste it into the proxy url  below:
 Create GraphXR project
 - Database Type = `Database Proxy`
-- GraphXR Database Proxy URL = `http://localhost:3003/api/spanner/kineviz-public`
+- Kineviz Database Proxy URL = `http://localhost:3003/api/spanner/kineviz-public`
 
 4. Run a query
 
@@ -55,7 +55,7 @@ Configure ADC using one of these methods:
     - Environment variable: Set GOOGLE_APPLICATION_CREDENTIALS to service account JSON path
 
 Installation:
-    uv pip install graphxr-database-proxy google-auth google-cloud-resource-manager
+    uv pip install kineviz-database-proxy google-auth google-cloud-resource-manager
 
 Usage:
     1. Set environment variables or update defaults in the script:
@@ -113,7 +113,7 @@ def check_required_env_vars():
 
 def quick_start_with_google_adc():
     """
-    Start the GraphXR Database Proxy using Google ADC authentication.
+    Start the Kineviz Database Proxy using Google ADC authentication.
     
     This function:
     1. Uses configuration from environment variables
@@ -143,7 +143,7 @@ def quick_start_with_google_adc():
 
     # Start the proxy server on an available port
     port = find_available_port()
-    print(f"\n GraphXR Database Proxy Server Starting...")
+    print(f"\n Kineviz Database Proxy Server Starting...")
     print(f"\n Server URL: http://localhost:{port}")
     print(f" GraphXR API: http://localhost:{port}/api/spanner/{PROJECT_ID}")
     print(f"\n Copy the GraphXR API URL above into GraphXR using 'Database Proxy' connection type.\n")

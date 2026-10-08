@@ -39,7 +39,7 @@ from .api.admin import router as admin_router
 
 # Create FastAPI app
 app = FastAPI(
-    title="GraphXR Database Proxy",
+    title="Kineviz Database Proxy",
     description="Secure middleware for connecting GraphXR to databases",
     version="1.0.0",
     docs_url="/docs",
@@ -80,7 +80,7 @@ async def health_check():
     """Health check endpoint"""
     return {
         "status": "healthy", 
-        "message": "GraphXR Database Proxy is running",
+        "message": "Kineviz Database Proxy is running",
         "version": "1.0.0",
         "environment": "development",
         "auto_reload": "enabled"
@@ -118,7 +118,7 @@ def main():
     """Main entry point"""
     import argparse
     
-    parser = argparse.ArgumentParser(description="GraphXR Database Proxy")
+    parser = argparse.ArgumentParser(description="Kineviz Database Proxy")
     parser.add_argument("--host", default="0.0.0.0", help="Host to bind to")
     parser.add_argument("--port", type=int, default=9080, help="Port to bind to")
     parser.add_argument("--ui", action="store_true", help="Enable UI mode")

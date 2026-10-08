@@ -4,7 +4,7 @@ export PATH=$PATH:/usr/local/bin
 
 USAGE="Usage: $0 {release|source|aliyun} \n
 e.g. \n
-release: build docker image and push to kineviz/graphxr-database-proxy \n
+release: build docker image and push to kineviz/kineviz-database-proxy \n
 source: build frontend code \n
 aliyun: build docker image and push to aliyun \n
 "
@@ -20,10 +20,10 @@ SHELLPATH=$(echo $(ls -l "$CURRENTPATH"  | grep "$SHELLNAME") | awk  -F "->" '{p
 PROJECTPATH=$(cd "$(echo ${SHELLPATH%/*})/"; cd ./.. ; pwd)
 fi
 
-PROJECTNAME="graphxr-database-proxy" #graphxr-database-proxy
+PROJECTNAME="kineviz-database-proxy" #kineviz-database-proxy
 DOCKERHOST="kineviz" #registry.cn-hangzhou.aliyuncs.com/kineviz
 
-#registry.cn-hangzhou.aliyuncs.com/kineviz/graphxr-database-proxy:release
+#registry.cn-hangzhou.aliyuncs.com/kineviz/kineviz-database-proxy:release
 if [ -z "$2" ]; then
     echo "Default docker registry host : $DOCKERHOST "
 else

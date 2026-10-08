@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-GraphXR Database Proxy - Quick Start Example
+Kineviz Database Proxy - Quick Start Example
 
-This is the simplest example showing how to quickly start GraphXR Database Proxy.
+This is the simplest example showing how to quickly start Kineviz Database Proxy.
 Just modify the configuration parameters to use.
 
 Supports two Service Account authentication methods:
@@ -16,7 +16,7 @@ from graphxr_database_proxy import DatabaseProxy
 def quick_start_with_service_account_file():
     """Quick start example using file path"""
     
-    print("🚀 GraphXR Database Proxy - Using File Path")
+    print("🚀 Kineviz Database Proxy - Using File Path")
     print("=" * 50)
     
     # Create proxy instance
@@ -39,7 +39,7 @@ def quick_start_with_service_account_file():
 def quick_start_with_service_account_json():
     """Quick start example using JSON string"""
     
-    print("🚀 GraphXR Database Proxy - Using JSON String")
+    print("🚀 Kineviz Database Proxy - Using JSON String")
     print("=" * 50)
     
     # Create proxy instance
@@ -77,7 +77,7 @@ def quick_start_with_service_account_json():
 def quick_start_with_google_ADC_json():
     """Quick start example using JSON string"""
     
-    print("🚀 GraphXR Database Proxy - Using JSON String")
+    print("🚀 Kineviz Database Proxy - Using JSON String")
     print("=" * 50)
     
     # Create proxy instance

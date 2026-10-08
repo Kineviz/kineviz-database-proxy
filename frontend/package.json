@@ -1,7 +1,7 @@
 {
-  "name": "graphxr-database-proxy-frontend",
+  "name": "kineviz-database-proxy-frontend",
   "version": "1.0.1",
-  "description": "GraphXR Database Proxy Frontend Application",
+  "description": "Kineviz Database Proxy Frontend Application",
   "private": true,
   "scripts": {
     "start": "webpack serve --mode development",

@@ -65,7 +65,7 @@ class SnowflakeEngine(EngineSpelling):
             "session_parameters": {
                 "STATEMENT_TIMEOUT_IN_SECONDS": timeout_seconds(config, "query_timeout", 120),
                 "QUOTED_IDENTIFIERS_IGNORE_CASE": False,
-                "QUERY_TAG": "graphxr-database-proxy",
+                "QUERY_TAG": "kineviz-database-proxy",
             },
         }
         for name in ("warehouse", "role", "authenticator"):

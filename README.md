@@ -1,4 +1,4 @@
-# GraphXR Database Proxy
+# Kineviz Database Proxy
 
 [English](README.md) | [中文](README.zh.md)
 
@@ -12,9 +12,13 @@ authentication protect management and database access.
 ## Quick start
 
 ```bash
-pip install "graphxr-database-proxy[ui]"
-graphxr-proxy --ui
+pip install "kineviz-database-proxy[ui]"
+kineviz-proxy --ui
 ```
+
+The Python import name remains `graphxr_database_proxy`; the `graphxr-proxy`
+command, `GRAPHXR_PROXY_*` environment variables and existing storage paths
+remain supported for compatibility.
 
 Open http://localhost:9080/admin, create a project and copy its API URL into
 GraphXR's **Database Proxy** connection. For example:
@@ -30,8 +34,8 @@ Snowflake connection and mapping details are in the [Snowflake guide](doc/SNOWFL
 Requires Python >= 3.9, Node.js >= 22 and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/Kineviz/graphxr-database-proxy.git
-cd graphxr-database-proxy
+git clone https://github.com/Kineviz/kineviz-database-proxy.git
+cd kineviz-database-proxy
 uv sync --extra dev
 npm install
 npm run install:frontend
@@ -49,7 +53,7 @@ entry points and verification commands.
 ## Docker
 
 ```bash
-docker run -d -p 9080:9080 --name graphxr-database-proxy -v graphxr-proxy-config:/app/config kineviz/graphxr-database-proxy:latest
+docker run -d -p 9080:9080 --name kineviz-database-proxy -v graphxr-proxy-config:/app/config kineviz/kineviz-database-proxy:latest
 ```
 
 Open http://localhost:9080/admin. The named volume preserves project configuration.
@@ -62,5 +66,5 @@ Open http://localhost:9080/admin. The named volume preserves project configurati
 - [Relational mapping](doc/RELATIONAL_MAPPING.md) · [Embedded stores](doc/EMBEDDED_STORES.md)
 - [Docker publishing](doc/DOCKER_PUBLISHING.md) · [PyPI publishing](doc/PYPI_PUBLISHING.md)
 
-[MIT license](LICENSE) · [Issues](https://github.com/Kineviz/graphxr-database-proxy/issues)
+[MIT license](LICENSE) · [Issues](https://github.com/Kineviz/kineviz-database-proxy/issues)
 · support@kineviz.com

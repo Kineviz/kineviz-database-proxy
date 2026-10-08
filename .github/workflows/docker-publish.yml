@@ -105,8 +105,8 @@ jobs:
         file: ./docker/Dockerfile
         push: true
         tags: |
-          kineviz/graphxr-database-proxy:latest
-          ${{ steps.version.outputs.version != 'latest' && format('kineviz/graphxr-database-proxy:{0}', steps.version.outputs.version) || '' }}
+          kineviz/kineviz-database-proxy:latest
+          ${{ steps.version.outputs.version != 'latest' && format('kineviz/kineviz-database-proxy:{0}', steps.version.outputs.version) || '' }}
         cache-from: type=gha,scope=dockerhub
         cache-to: type=gha,mode=max,scope=dockerhub
         platforms: linux/amd64,linux/arm64
@@ -119,8 +119,8 @@ jobs:
         file: ./docker/Dockerfile
         push: true
         tags: |
-          registry.cn-hangzhou.aliyuncs.com/kineviz/graphxr-database-proxy:latest
-          ${{ steps.version.outputs.version != 'latest' && format('registry.cn-hangzhou.aliyuncs.com/kineviz/graphxr-database-proxy:{0}', steps.version.outputs.version) || '' }}
+          registry.cn-hangzhou.aliyuncs.com/kineviz/kineviz-database-proxy:latest
+          ${{ steps.version.outputs.version != 'latest' && format('registry.cn-hangzhou.aliyuncs.com/kineviz/kineviz-database-proxy:{0}', steps.version.outputs.version) || '' }}
         cache-from: type=gha,scope=aliyun
         cache-to: type=gha,mode=max,scope=aliyun
         platforms: linux/amd64,linux/arm64
@@ -135,11 +135,11 @@ jobs:
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Pull the image:" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-        echo "docker pull kineviz/graphxr-database-proxy:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-        echo "docker pull kineviz/graphxr-database-proxy:latest" >> $GITHUB_STEP_SUMMARY
+        echo "docker pull kineviz/kineviz-database-proxy:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "docker pull kineviz/kineviz-database-proxy:latest" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY
         echo "### Run the container:" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-        echo "docker run -p 9080:9080 kineviz/graphxr-database-proxy:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+        echo "docker run -p 9080:9080 kineviz/kineviz-database-proxy:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
         echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

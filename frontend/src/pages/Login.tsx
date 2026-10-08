@@ -67,7 +67,7 @@ const Login: React.FC<LoginProps> = ({ onLoginSuccess }) => {
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
           <LockOutlined style={{ fontSize: 48, color: '#1890ff', marginBottom: 16 }} />
           <Title level={3} style={{ marginBottom: 8 }}>
-            GraphXR Database Proxy
+            Kineviz Database Proxy
           </Title>
           <Text type="secondary">
             Enter admin password to continue

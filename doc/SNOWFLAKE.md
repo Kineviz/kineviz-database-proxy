@@ -13,7 +13,7 @@ are documented in [RELATIONAL_MAPPING](RELATIONAL_MAPPING.md).
 uv sync --extra dev --extra snowflake
 ```
 
-For packaged installations, use `pip install "graphxr-database-proxy[snowflake]"`.
+For packaged installations, use `pip install "kineviz-database-proxy[snowflake]"`.
 The `relational` extra includes Snowflake alongside SQL Server, PostgreSQL and
 MySQL. Snowflake's SQLAlchemy dialect currently requires SQLAlchemy 2.0; this
 extra constrains the version below 2.1.

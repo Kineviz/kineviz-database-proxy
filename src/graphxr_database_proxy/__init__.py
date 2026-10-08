@@ -1,5 +1,5 @@
 """
-GraphXR Database Proxy
+Kineviz Database Proxy
 
 A secure middleware for connecting GraphXR Frontend to various backend databases.
 """

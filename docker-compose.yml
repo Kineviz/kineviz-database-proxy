@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  graphxr-database-proxy:
+  kineviz-database-proxy:
     build: .
     ports:
       - "9080:9080"

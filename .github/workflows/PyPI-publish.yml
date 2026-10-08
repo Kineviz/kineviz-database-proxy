@@ -112,17 +112,17 @@ jobs:
         tag_name: ${{ github.ref }}
         release_name: Release ${{ github.ref }}
         body: |
-          🎉 GraphXR Database Proxy ${{ github.ref }} Released!
+          🎉 Kineviz Database Proxy ${{ github.ref }} Released!
           
           ## 📦 Installation
           ```bash
-          pip install graphxr-database-proxy==${{ github.ref_name }}
+          pip install kineviz-database-proxy==${{ github.ref_name }}
           ```
           
           ## 🔗 Links
-          - [PyPI Package](https://pypi.org/project/graphxr-database-proxy/${{ github.ref_name }}/)
-          - [Documentation](https://docs.kineviz.com/graphxr-database-proxy)
-          - [Changelog](https://github.com/Kineviz/graphxr-database-proxy/blob/main/CHANGELOG.md)
+          - [PyPI Package](https://pypi.org/project/kineviz-database-proxy/${{ github.ref_name }}/)
+          - [Documentation](https://docs.kineviz.com/kineviz-database-proxy)
+          - [Changelog](https://github.com/Kineviz/kineviz-database-proxy/blob/main/CHANGELOG.md)
           
           ## 🚀 Quick Start
           ```python

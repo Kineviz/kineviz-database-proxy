@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GraphXR Database Proxy - 未来数据库支持示例
+Kineviz Database Proxy - 未来数据库支持示例
 
 这个示例展示了 DatabaseProxy 的通用设计，以及如何为未来支持的数据库类型
 准备扩展接口。当前支持 Spanner，未来可以支持 Neo4j、PostgreSQL 等。
@@ -171,7 +171,7 @@ def show_api_compatibility():
 def main():
     """主函数 - 展示扩展性和兼容性"""
     
-    print("🌟 GraphXR Database Proxy - 数据库扩展性示例")
+    print("🌟 Kineviz Database Proxy - 数据库扩展性示例")
     print("=" * 80)
     
     # 1. 当前 Spanner 支持

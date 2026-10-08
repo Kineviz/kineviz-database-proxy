@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-GraphXR Database Proxy Automated Publishing Script
+Kineviz Database Proxy Automated Publishing Script
 
 Usage:
    python scripts/publish.py test    # Publish to TestPyPI
@@ -247,12 +247,12 @@ def upload_to_pypi():
         return False
 
 def main():
-    parser = argparse.ArgumentParser(description="Publish GraphXR Database Proxy to PyPI")
+    parser = argparse.ArgumentParser(description="Publish Kineviz Database Proxy to PyPI")
     parser.add_argument("target", nargs="?", choices=["test", "prod", "build"], 
                        help="Publish target: test (TestPyPI), prod (PyPI), or build (build and validate only)")
     args = parser.parse_args()
     
-    print("🚀 GraphXR Database Proxy Publishing Tool")
+    print("🚀 Kineviz Database Proxy Publishing Tool")
     print("=" * 50)
     
     # Check and install dependencies
@@ -322,8 +322,8 @@ def main():
         if upload_to_testpypi():
             print(f"\n🎉 Successfully published to TestPyPI!")
             print(f"📦 Test installation:")
-            print(f"   pip install --index-url https://test.pypi.org/simple/ graphxr-database-proxy=={version}")
-            print(f"🔗 View: https://test.pypi.org/project/graphxr-database-proxy/{version}/")
+            print(f"   pip install --index-url https://test.pypi.org/simple/ kineviz-database-proxy=={version}")
+            print(f"🔗 View: https://test.pypi.org/project/kineviz-database-proxy/{version}/")
         else:
             sys.exit(1)
             
@@ -336,8 +336,8 @@ def main():
             if upload_to_pypi():
                 print(f"\n🎉 Successfully published to PyPI!")
                 print(f"📦 Installation:")
-                print(f"   pip install graphxr-database-proxy=={version}")
-                print(f"🔗 View: https://pypi.org/project/graphxr-database-proxy/{version}/")
+                print(f"   pip install kineviz-database-proxy=={version}")
+                print(f"🔗 View: https://pypi.org/project/kineviz-database-proxy/{version}/")
             else:
                 sys.exit(1)
         else:

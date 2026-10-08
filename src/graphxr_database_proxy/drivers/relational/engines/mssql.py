@@ -263,7 +263,7 @@ class MSSQLEngine(EngineSpelling):
                 config, QUERY_TIMEOUT_OPTION, DEFAULT_QUERY_TIMEOUT_SECONDS
             ),
             "charset": str(option_value(config, "charset", "UTF-8")),
-            "appname": str(option_value(config, "appname", "graphxr-proxy")),
+            "appname": str(option_value(config, "appname", "kineviz-proxy")),
         }
         extra = option_value(config, CONNECT_ARGS_OPTION, {})
         if isinstance(extra, Mapping):

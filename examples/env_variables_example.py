@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-GraphXR Database Proxy - Environment Variables Example
+Kineviz Database Proxy - Environment Variables Example
 
 This example demonstrates how to use environment variables to configure
 the DatabaseProxy for Spanner projects. This approach is especially useful
@@ -248,7 +248,7 @@ def best_practices():
 def main():
     """Main function - demonstrate environment variables usage"""
     
-    print("🚀 GraphXR Database Proxy - Environment Variables Complete Example")
+    print("🚀 Kineviz Database Proxy - Environment Variables Complete Example")
     print("=" * 80)
     
     # Check current environment status

@@ -100,7 +100,7 @@ module.exports = (env, argv) => {
     plugins: [
       new HtmlWebpackPlugin({
         template: "./public/index.html",
-        title: "GraphXR Database Proxy",
+        title: "Kineviz Database Proxy",
         favicon: "./public/favicon.ico",
         templateParameters: {
           PUBLIC_URL: "",

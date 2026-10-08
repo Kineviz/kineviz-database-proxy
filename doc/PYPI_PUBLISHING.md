@@ -2,7 +2,7 @@
 
 > Notice: When push a new version tag (e.g., v1.0.0) to the repository, GitHub Actions will automatically trigger the publishing workflow to build and publish the package to PyPI.
 
-Complete steps for publishing GraphXR Database Proxy to PyPI (pip).
+Complete steps for publishing Kineviz Database Proxy to PyPI (pip).
 
 > **Language**: [English](PYPI_PUBLISHING.md) | [中文](PYPI_PUBLISHING.zh.md)
 
@@ -105,8 +105,8 @@ python -m build --wheel    # Wheel package
 ```
 
 After successful build, the `dist/` directory will contain:
-- `graphxr-database-proxy-1.0.1.tar.gz` (source package)
-- `graphxr_database_proxy-1.0.1-py3-none-any.whl` (wheel package)
+- `kineviz-database-proxy-1.0.1.tar.gz` (source package)
+- `kineviz_database_proxy-1.0.1-py3-none-any.whl` (wheel package)
 
 ### Step 3: Validate Package Contents
 
@@ -115,7 +115,7 @@ After successful build, the `dist/` directory will contain:
 twine check dist/*
 
 # View package file list
-tar -tzf dist/graphxr-database-proxy-1.0.1.tar.gz
+tar -tzf dist/kineviz-database-proxy-1.0.1.tar.gz
 ```
 
 ### Step 4: Test Publish (TestPyPI)
@@ -132,7 +132,7 @@ twine upload --repository testpypi dist/*
 
 ```bash
 # Install from TestPyPI for testing
-pip install --index-url https://test.pypi.org/simple/ graphxr-database-proxy
+pip install --index-url https://test.pypi.org/simple/ kineviz-database-proxy
 
 # Test basic functionality
 python -c "from graphxr_database_proxy import DatabaseProxy; print('✅ Import successful')"

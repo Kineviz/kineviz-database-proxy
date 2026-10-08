@@ -110,7 +110,7 @@ def list_static_files():
             print(f"   📄 {relative_path} ({size:.1f} KB)")
 
 def main():
-    print("🏗️ GraphXR Database Proxy Frontend Build Tool")
+    print("🏗️ Kineviz Database Proxy Frontend Build Tool")
     print("=" * 50)
     
     # Check if in project root directory

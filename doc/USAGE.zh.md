@@ -1,6 +1,6 @@
-# GraphXR Database Proxy - 使用指南
+# Kineviz Database Proxy - 使用指南
 
-> **语言**: [English](https://github.com/Kineviz/graphxr-database-proxy/blob/main/doc/USAGE.md) | [中文](https://github.com/Kineviz/graphxr-database-proxy/blob/main/doc/USAGE.zh.md)
+> **语言**: [English](https://github.com/Kineviz/kineviz-database-proxy/blob/main/doc/USAGE.md) | [中文](https://github.com/Kineviz/kineviz-database-proxy/blob/main/doc/USAGE.zh.md)
 
 ## 🚀 快速启动
 
@@ -287,7 +287,7 @@ curl -X POST \
 
 ### 项目结构
 ```
-graphxr-database-proxy/
+kineviz-database-proxy/
 ├── src/
 │   └── graphxr_database_proxy/
 │       ├── main.py          # FastAPI 应用
@@ -336,12 +336,12 @@ graphxr-database-proxy/
 ### Docker 部署
 ```bash
 # 构建镜像
-docker build -t kineviz/graphxr-database-proxy .
+docker build -t kineviz/kineviz-database-proxy .
 
 # 运行容器
 docker run -p 9080:9080 \
   -v $(pwd)/config:/app/config \
-  kineviz/graphxr-database-proxy:latest
+  kineviz/kineviz-database-proxy:latest
 ```
 
 或者脚本方式:

@@ -1,6 +1,6 @@
-# GraphXR Database Proxy - User Guide
+# Kineviz Database Proxy - User Guide
 
-> **Language**: [English](https://github.com/Kineviz/graphxr-database-proxy/blob/main/doc/USAGE.md) | [中文](https://github.com/Kineviz/graphxr-database-proxy/blob/main/doc/USAGE.zh.md)
+> **Language**: [English](https://github.com/Kineviz/kineviz-database-proxy/blob/main/doc/USAGE.md) | [中文](https://github.com/Kineviz/kineviz-database-proxy/blob/main/doc/USAGE.zh.md)
 
 ## 🚀 Quick Start
 
@@ -275,7 +275,7 @@ To disable API key authentication, simply leave the `API_KEY` environment variab
 
 ### Project Structure
 ```
-graphxr-database-proxy/
+kineviz-database-proxy/
 ├── src/
 │   └── graphxr_database_proxy/
 │       ├── main.py          # FastAPI application
@@ -324,12 +324,12 @@ graphxr-database-proxy/
 ### Docker Deployment
 ```bash
 # Build image
-docker build -t kineviz/graphxr-database-proxy .
+docker build -t kineviz/kineviz-database-proxy .
 
 # Run container
 docker run -p 9080:9080 \
   -v $(pwd)/config:/app/config \
-  kineviz/graphxr-database-proxy:latest
+  kineviz/kineviz-database-proxy:latest
 ```
 
 Or Script:

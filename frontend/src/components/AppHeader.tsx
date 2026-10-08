@@ -58,7 +58,7 @@ const AppHeader: React.FC<AppHeaderProps> = ({ onLogout }) => {
         <Space align="center">
           <DatabaseOutlined className="logo-icon" />
           <Title level={3} className="title" style={{color: 'white', margin: 0}}>
-            GraphXR Database Proxy
+            Kineviz Database Proxy
           </Title>
         </Space>
         
