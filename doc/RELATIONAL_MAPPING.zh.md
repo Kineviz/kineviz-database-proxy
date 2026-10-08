@@ -161,15 +161,25 @@ OrderItem   <- OrderItem   notes: not a node: its primary key is ['order_id', 'l
 
 **key 的类型轮不到你来声明。** 文档里没有 `keyType` 这个字段，因为 id `<Label>:<key>` 和每
 一次重新选中的 seed 都要按 key 列自己的类型来绑定，所以代理去 schema 里读它——只读一次。
-这次读取只在这个 key 仍然表示"没人查过"时才发生：空的，或者还是 `STRING` 占位符。而同一个
-读取器交回来的那个 `NULL` 不会被再看第二遍，它就直接被当作这个 key 的声明类型。所以一个最
-终落在本引擎无法绑定的类型名上的 key——那个标记，或者一列真的是这里没有绑定的类型，比如
-`geometry`——
-会让整条记录被按名字拒绝，而且是在**每一条**触达它的语句上，不只是那些过滤 key 的语句：
-*node label 'Widget' is keyed by column 'id', whose declared type 'NULL' this engine cannot
-bind as the column's own type*。自动发现认识这张表的时候，把这一列写进 `properties` 也救不
-回来：自动发现留下的那个 `STRING` 比你的文件先被读到，而 key 列无论如何都不会变成属性。把这个
-标签的 key 换成本引擎能叫出名字的一列。
+这次读取只在这个 key 仍然表示"没人查过"时才发生：空、仍是 `STRING` 占位符、或者读取器
+自身的 resolver 认不出这一列时交回来的 `NULL` 标记。读取器交回来的那个标记直接被当作 key
+的声明类型，不会再看第二遍。所以一个最终落在本引擎无法绑定的类型名上的 key，会让整条记
+录被按名字拒绝，而且是在**每一条**触达它的语句上，不只是那些过滤 key 的语句。两种情况
+会触发同一次拒绝，但消息不同：
+
+- 标记类（空、`STRING`、`NULL`）：*node label 'Widget' is keyed by column 'id', whose type
+  the schema did not name, so this engine has nothing to bind as the column's own type;
+  a seed could not be re-selected, so the lookup is refused rather than answered with an
+  empty result.*
+- 真实名字但本引擎绑不了，比如 `geometry`：*node label 'Widget' is keyed by column 'id',
+  whose declared type 'geometry' this engine cannot bind as the column's own type; a seed
+  could not be re-selected, so the lookup is refused rather than answered with an empty
+  result.*
+
+两种消息都以同一句出路收尾：**把这个标签的 key 换到 schema 能叫出名字的一列，或者把这条
+记录从图里挪走**（`exclude` 掉，或从 `include` 里清掉）。给 key 声明一个类型不在这条出
+路里——文档里没有 `keyType` 字段，key 列也不会变成属性（`mapping.py:319-320` 读的是表的
+列类型先于你的文件，`mapping_props.py:62-66` 把 key 丢掉）。
 
 ### 为什么理由要写在字段里
 

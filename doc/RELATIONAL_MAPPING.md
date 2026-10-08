@@ -175,16 +175,27 @@ refused filter is pointing at.
 **A key's type is not yours to state.** There is no `keyType` field, because the id
 `<Label>:<key>` and every re-selected seed bind against the key column's own type, so the
 proxy reads that off the schema — once. The read only runs while the key still says nobody
-looked: blank, or the `STRING` placeholder. The `NULL` that the very same reader hands back
-is not looked at again, and is used as the key's declared type. So a key that ends up on a
-name this engine has no binding for — that marker, or a column whose own type name is absent
-from this engine's table, `geometry` for one — has the whole record refused, by name, for
-**every** statement that reaches it, not only the ones
-filtering on it: *node label 'Widget' is keyed by column 'id', whose
-declared type 'NULL' this engine cannot bind as the column's own type*. Naming that column in
-`properties` does not lift it once discovery knows the table: the `STRING` discovery leaves
-behind is read before your file is, and a key column never becomes a property anyway. Key the
-label on a column this engine can name.
+looked: blank, the `STRING` placeholder, or the `NULL` marker the reader writes when its
+own resolver could not recognize the column's type. The marker it returns is used as the
+key's declared type and is not revisited. So a key that ends up on a name this engine has
+no binding for has the whole record refused, by name, for **every** statement that reaches
+it, not only the ones filtering on it. Two cases reach the same refusal, with different
+messages:
+
+- a marker (blank, `STRING`, `NULL`): *node label 'Widget' is keyed by column 'id', whose
+  type the schema did not name, so this engine has nothing to bind as the column's own type;
+  a seed could not be re-selected, so the lookup is refused rather than answered with an
+  empty result.*
+- a real name the engine has no binding for, `geometry` for one: *node label 'Widget' is
+  keyed by column 'id', whose declared type 'geometry' this engine cannot bind as the
+  column's own type; a seed could not be re-selected, so the lookup is refused rather than
+  answered with an empty result.*
+
+Both messages end with the same remedy: **key the label on a column whose type the schema
+can name, or remove the record from the graph** (exclude it, or clear it from `include`).
+Declaring a type for a key is not an option — there is no `keyType` field, and a key column
+never becomes a property (`mapping.py:319-320` reads the table's column types before your
+file, and `mapping_props.py:62-66` drops the key).
 
 ### Why the reasoning lives in fields
 
