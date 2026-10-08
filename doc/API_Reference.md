@@ -209,7 +209,9 @@ Retrieve the graph schema including node categories and relationship types.
 The response is served from a short-lived in-process cache (60s by default) so
 that opening a graph costs one probe rather than one per panel. Set
 `GRAPH_SCHEMA_CACHE_TTL_SECONDS` to change the window, or to `0` to disable the
-cache. Pass `?refresh=true` after altering the database to see the change
+cache. The cache holds at most 256 entries (override with
+`GRAPH_SCHEMA_CACHE_MAX_ENTRIES`); an insert past the ceiling evicts the oldest.
+Pass `?refresh=true` after altering the database to see the change
 immediately; a project whose connection settings were edited misses the cache on
 its own.
 

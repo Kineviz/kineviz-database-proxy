@@ -22,7 +22,6 @@ from graphxr_database_proxy.api import relational as relational_module
 from graphxr_database_proxy.api.auth import verify_admin_token
 from graphxr_database_proxy.api.relational import get_project_service
 from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
-from graphxr_database_proxy.drivers.relational.reads import VERDICTS
 from graphxr_database_proxy.main import app
 from graphxr_database_proxy.models.project import (
     AuthType,
@@ -41,11 +40,6 @@ from tests.test_relational_pool import (
     mapped_project,
 )
 from tests.test_relational_reflect import SPEC
-
-ORDERED = {
-    "src": {"label": "Order", "column": "order_id", "column_type": "int"},
-    "dst": {"label": "Person", "column": "customer_id", "column_type": "int"},
-}
 
 
 class ScriptedProjects:
