@@ -23,12 +23,13 @@ is not somewhere to spend a page load. The Cypher-to-SQL stages are named only i
 
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Tuple
 
 from ...models.graph_mapping import GraphMapping
 from ...models.project import Project
 from ..base import BaseDatabaseDriver
 from . import query as query_layer
+from .catalog import SchemaTable
 from .driver_mapping import RelationalMappingSurface
 from .driver_query import RelationalQuerySurface
 from .driver_schema import RelationalSchemaReadSurface
@@ -84,6 +85,7 @@ class RelationalDriver(
         self._mapping: Optional[EffectiveMapping] = None
         self._document: Optional[GraphMapping] = None
         self._spelling: Optional[Any] = None
+        self._catalog_tables: Dict[Tuple[Optional[str], str], Optional[SchemaTable]] = {}
 
     # -- engine and connection ---------------------------------------------
 

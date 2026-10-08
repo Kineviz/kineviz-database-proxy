@@ -18,12 +18,13 @@ one reflection call over forty tables is a load spike on someone's live server.
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import Any, Dict, Mapping, Optional
+from typing import Any, Dict, Mapping, Optional, Sequence, Set, Tuple, Union
 
 from ...models.graph_mapping import GraphMapping
-from .catalog import propose
+from .catalog import SchemaTable, propose
 from .mapping import EffectiveMapping, from_document
 from .mapping_index import names_a_type
+from .schemas import NodeSchema, RelSchema
 
 
 class RelationalMappingSurface:
@@ -63,14 +64,61 @@ class RelationalMappingSurface:
         if self._mapping is not None:
             return self._mapping
         document = self.override_document()
+        schema = self.access.schema
         if document is None:
             resolved = from_document(None, await self.draft_document())
         else:
+            document = document.model_copy(
+                update={"schema_name": document.schema_name or schema}
+            )
             resolved = from_document(document)
             if not resolved.valid:
-                resolved = from_document(document, await self.draft_document())
+                draft = await self.draft_document(schema=document.schema_name)
+                resolved = from_document(document, draft)
+        # Reflection and generated SELECTs must resolve an unqualified table to the
+        # same schema, even when the database login has a different default schema.
+        resolved = replace(
+            resolved,
+            nodes={
+                name: replace(node, schema=node.schema or schema)
+                for name, node in resolved.nodes.items()
+            },
+            edges={
+                name: replace(edge, schema=edge.schema or schema)
+                for name, edge in resolved.edges.items()
+            },
+        )
         self._mapping = self._remember(await self.with_key_types(resolved))
         return self._mapping
+
+    async def mapped_tables(
+        self, records: Sequence[Union[NodeSchema, RelSchema]]
+    ) -> Dict[Tuple[Optional[str], str], Optional[SchemaTable]]:
+        """Reflect only these tables, in schema-specific pages, once per request.
+
+        A bare table name cannot identify a physical table across schemas. Missing
+        tables are cached too; failed reads are left uncached so a later read can
+        report the connection error rather than silently treating it as absence.
+        """
+        wanted = {
+            (record.schema or self.access.schema, record.table) for record in records
+        }
+        groups: Dict[Optional[str], Set[str]] = {}
+        for schema, table in sorted(wanted, key=lambda item: (item[0] or "", item[1])):
+            if (schema, table) not in self._catalog_tables:
+                groups.setdefault(schema, set()).add(table)
+        size = max(1, int(self.spelling.names_page_size))
+        for schema, names in groups.items():
+            ordered = sorted(names)
+            for start in range(0, len(ordered), size):
+                page = ordered[start : start + size]
+                catalog = await self.access.catalog(
+                    schema=schema, names=page, page_size=len(page)
+                )
+                found = catalog.by_name
+                for table in page:
+                    self._catalog_tables[(schema, table)] = found.get(table)
+        return {key: self._catalog_tables[key] for key in wanted}
 
     async def with_key_types(self, mapping: EffectiveMapping) -> EffectiveMapping:
         """
@@ -97,34 +145,25 @@ class RelationalMappingSurface:
         ]
         if not nodes and not edges:
             return mapping
-        wanted = sorted({node.table for node in nodes} | {edge.table for edge in edges})
-        declared: Dict[str, Any] = {}
-        size = max(1, int(self.spelling.names_page_size))
         try:
-            # The mapping's own table list is the bound, and the engine's page size is the
-            # unit: a reviewed file that leaves every key untyped names forty tables, and one
-            # reflection call of forty tables is a load spike on someone's live server.
-            for start in range(0, len(wanted), size):
-                page = list(wanted[start : start + size])
-                declared.update(
-                    (await self.access.catalog(names=page, page_size=len(page))).by_name
-                )
+            tables = await self.mapped_tables([*nodes, *edges])
         except Exception:
             return mapping
-        tables = declared
         filled = dict(mapping.nodes)
         for node in nodes:
-            declared = _declared_key(tables, node.table, node.key)
+            entry = tables.get((node.schema or self.access.schema, node.table))
+            declared = _declared_key({node.table: entry}, node.table, node.key)
             if declared:
                 filled[node.label] = replace(node, key_type=declared)
         filled_edges = dict(mapping.edges)
         for edge in edges:
-            declared = _declared_key(tables, edge.table, str(edge.key))
+            entry = tables.get((edge.schema or self.access.schema, edge.table))
+            declared = _declared_key({edge.table: entry}, edge.table, str(edge.key))
             if declared:
                 filled_edges[edge.type] = replace(edge, key_type=declared)
         return replace(mapping, nodes=filled, edges=filled_edges)
 
-    async def draft_document(self) -> Optional[GraphMapping]:
+    async def draft_document(self, schema: Optional[str] = None) -> Optional[GraphMapping]:
         """
         Discovery's proposal for the live schema, with its caps and skips kept.
 
@@ -132,7 +171,7 @@ class RelationalMappingSurface:
         about what was *not* mapped — a 3 000-table schema capped at 200 labels, the views
         that cannot be an end — and a document has nowhere else to put them.
         """
-        return propose(await self.access.catalog())
+        return propose(await self.access.catalog(schema=schema))
 
     def _remember(self, mapping: EffectiveMapping) -> EffectiveMapping:
         """

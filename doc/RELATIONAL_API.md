@@ -156,6 +156,10 @@ being wrong. What an unloadable mapping costs is the graph surface, which refuse
 and says so. Each problem's meaning is
 [Validation is per control](RELATIONAL_MAPPING.md#validation-is-per-control-and-it-is-the-same-list-either-way).
 
+Malformed YAML, empty documents, unknown fields and mappings larger than 1 MiB return
+`422` with `detail: [{"path", "message"}]` from both save and validate. A rejected save
+leaves the stored mapping, schema cache and connection pool untouched.
+
 **Saving invalidates the derived cache by itself.** The route drops this project's cached
 graph schema and disposes its pooled engine. The cache is the one that matters for
 correctness, and it needs no help to be right: the schema cache key digests the whole
@@ -392,6 +396,11 @@ above is what those routes read.
 | `/query` | Cypher-shaped text translated to per-engine SQL; writes and unanswerable constructs refused by name |
 | `/expand`, `/pullCategory`, `/pullRelationship`, `/search` | graph intents over the same mapping, seeds re-selected by primary key |
 | `/sampleData` | a bounded look at each label, `LIMIT` at the source, only the mapped columns |
+
+`/schema` reads each table in its mapped schema and reuses key-type reflection within the
+request. A new request reflects again. Table names remain bare when unique in the mapping;
+when schemas contain the same mapped table name, the response uses `schema.table` for each
+of those entries so neither set of columns overwrites the other.
 
 The contract, the wrapping and the request bodies of these belong to
 [`doc/API_Reference.md`](API_Reference.md) and are not restated here. What those routes

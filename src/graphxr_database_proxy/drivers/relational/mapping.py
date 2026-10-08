@@ -151,7 +151,7 @@ class _Loader:
         #: problem for the one field, at an ``auto.`` path no control can highlight.
         self.refused: Set[str] = set()
         #: Tables a record already took, so discovery cannot map one twice.
-        self.claimed: Set[str] = set()
+        self.claimed: Set[Tuple[Optional[str], str]] = set()
         #: Name -> the path of the entry that made it, so a clash has an address. The
         #: edge's own path wins: when one name means both, the link is the thing to
         #: rename, because every endpoint in the file already points at the record.
@@ -160,6 +160,26 @@ class _Loader:
         self.default_schema = (doc.schema_name if doc is not None else None) or (
             self.index.doc.schema_name if self.index.doc is not None else None
         )
+        self.schema_indexes: Dict[Optional[str], _CatalogIndex] = {}
+
+    def index_for(self, schema: Optional[str]) -> _CatalogIndex:
+        """Keep discovery from another schema out of this record's defaults."""
+        catalog = self.index.doc
+        if catalog is None:
+            return self.index
+        if schema not in self.schema_indexes:
+            scoped = catalog.model_copy(update={
+                "nodes": [
+                    node for node in catalog.nodes
+                    if (node.schema_name or catalog.schema_name or schema) == schema
+                ],
+                "edges": [
+                    edge for edge in catalog.edges
+                    if (edge.schema_name or catalog.schema_name or schema) == schema
+                ],
+            })
+            self.schema_indexes[schema] = _CatalogIndex.of(scoped)
+        return self.schema_indexes[schema]
 
     # -- pass order ----------------------------------------------------------
 
@@ -255,18 +275,20 @@ class _Loader:
             return None
         return self.db_name(parts[0], path, "{} key".format(what)) or None
 
-    def check_table(self, path: str, table: str) -> None:
-        if self.index.live and table not in self.index.tables:
+    def check_table(self, path: str, table: str, schema: Optional[str]) -> None:
+        index = self.index_for(schema)
+        if index.live and table not in index.tables:
             self.warn(
                 path,
                 "table {!r} is not in this schema — another database, another schema, "
                 "or gone".format(table),
             )
 
-    def check_column(self, path: str, table: str, column: str) -> None:
-        if not self.index.live:
+    def check_column(self, path: str, table: str, column: str, schema: Optional[str]) -> None:
+        index = self.index_for(schema)
+        if not index.live:
             return
-        known = self.index.columns.get(table)
+        known = index.columns.get(table)
         if known and column not in known:
             self.warn(path, "column {!r} is not a column of {!r} in this schema".format(column, table))
 
@@ -279,6 +301,8 @@ class _Loader:
             path = "nodes[{}]".format(i)
             label = self.ident(node.label, path + ".label", "node label")
             table = self.db_name(node.table or node.label, path + ".table", "table name")
+            physical_table = (node.schema_name or self.default_schema, table)
+            index = self.index_for(physical_table[0])
             if not label or not table:
                 self.broken.add(str(node.label))
                 self.refuse(label or str(node.label))
@@ -286,8 +310,8 @@ class _Loader:
                     # The table goes with the record, and discovery's label for it is named
                     # as broken too, so the links that need it cascade on the warning an
                     # endpoint already gives instead of spelling out the one misspelling twice.
-                    self.claimed.add(table)
-                    found = self.index.node_for_table(table)
+                    self.claimed.add(physical_table)
+                    found = index.node_for_table(table)
                     if found is not None:
                         self.broken.add(found.label)
                 continue
@@ -295,29 +319,29 @@ class _Loader:
                 # A record the person took out stays out: discovery has the same table,
                 # and putting it back would undo the untick that produced this.
                 self.out.provenance[label] = PROVENANCE_EXCLUDED
-                self.claimed.add(table)
+                self.claimed.add(physical_table)
                 continue
             if label in self.out.nodes:
                 self.problem(path + ".label", "duplicate node label {!r}".format(label))
                 continue
-            if table in self.claimed:
+            if physical_table in self.claimed:
                 self.problem(
                     path + ".table",
                     "table {!r} is already mapped; one table cannot be two labels and "
                     "still round-trip an id".format(table),
                 )
                 continue
-            self.claimed.add(table)
-            self.check_table(path + ".table", table)
+            self.claimed.add(physical_table)
+            self.check_table(path + ".table", table, physical_table[0])
 
-            found = self.index.node_for_table(table)
+            found = index.node_for_table(table)
             key = self.node_key(node, found, table, path)
             if key is None:
                 self.broken.add(label)
                 self.refuse(label)
                 continue
-            props = _props(node, table, self.index, {key}, path, self.out)
-            key_type = self.index.column_type(table, key) or node.properties.get(key) or UNKNOWN_TYPE
+            props = _props(node, table, index, {key}, path, self.out)
+            key_type = index.column_type(table, key) or node.properties.get(key) or UNKNOWN_TYPE
             self.add_node(node, label, table, key, key_type, props, path, _node_kind(node, found))
             if found is not None and found.label != node.label:
                 self.renames[found.label] = label
@@ -326,10 +350,12 @@ class _Loader:
         self, node: MappingNode, found: Optional[MappingNode], table: str, path: str
     ) -> Optional[str]:
         """A node needs a single-column key: stated, else discovery's, else refused."""
+        schema = node.schema_name or self.default_schema
+        index = self.index_for(schema)
         if node.key:
             key = self.single_key(node.key, path + ".key", "node")
             if key is not None:
-                self.check_column(path + ".key", table, key)
+                self.check_column(path + ".key", table, key, schema)
                 if found is not None and not found.include:
                     self.warn(
                         path + ".key",
@@ -338,7 +364,7 @@ class _Loader:
                         "both unique and not null".format(table, key),
                     )
             return key
-        discovered = found.key if found is not None else self.index.key_for_table(table)
+        discovered = found.key if found is not None else index.key_for_table(table)
         if discovered:
             key = self.single_key(discovered, path + ".key", "node")
             if key is not None:
@@ -387,9 +413,14 @@ class _Loader:
         """Records discovery found that the document never mentioned, in as they stand."""
         for node in self.index.nodes():
             table = node.table or node.label
+            physical_table = (
+                node.schema_name or self.index.doc.schema_name or self.default_schema,
+                table,
+            )
+            index = self.index_for(physical_table[0])
             if node.label in self.declared or node.label in self.refused:
                 continue
-            if table in self.claimed:
+            if physical_table in self.claimed:
                 continue
             if self.out.provenance.get(node.label) == PROVENANCE_EXCLUDED:
                 continue
@@ -403,14 +434,14 @@ class _Loader:
                 # out of the graph, and the reason stays with it.
                 self.out.provenance.setdefault(node.label, PROVENANCE_EXCLUDED)
                 continue
-            self.claimed.add(table)
-            props = _props(node, table, self.index, {key}, path, self.out)
+            self.claimed.add(physical_table)
+            props = _props(node, table, index, {key}, path, self.out)
             self.add_node(
-                node,
+                node.model_copy(update={"schema_name": physical_table[0]}),
                 node.label,
                 table,
                 key,
-                self.index.column_type(table, key) or UNKNOWN_TYPE,
+                index.column_type(table, key) or UNKNOWN_TYPE,
                 props,
                 path,
                 PROVENANCE_AUTO,
@@ -433,7 +464,13 @@ class _Loader:
                 # it went with it. Discovery must not quietly put either back.
                 continue
             self.add_edge(
-                edge, "auto.edges[{}]".format(edge.type), from_document=False
+                edge.model_copy(update={
+                    "schema_name": (
+                        edge.schema_name or self.index.doc.schema_name or self.default_schema
+                    )
+                }),
+                "auto.edges[{}]".format(edge.type),
+                from_document=False,
             )
 
     def add_edge(self, edge: MappingEdge, path: str, from_document: bool) -> None:
@@ -449,6 +486,8 @@ class _Loader:
         if not etype or not table:
             self.refuse(etype or edge.type)
             return
+        schema = edge.schema_name or self.default_schema
+        index = self.index_for(schema)
         if not edge.include or self.scope.out([edge.type, table]):
             self.out.provenance[etype] = PROVENANCE_EXCLUDED
             return
@@ -464,8 +503,8 @@ class _Loader:
             self.refuse(etype)
             return
         if from_document:
-            self.check_table(path + ".table", table)
-        found = self.index.edge_for(edge) if from_document else edge
+            self.check_table(path + ".table", table, schema)
+        found = index.edge_for(edge) if from_document else edge
         pairs, state = self.pairs(edge, path)
         if state == _ERROR:
             self.refuse(etype)
@@ -480,7 +519,7 @@ class _Loader:
         props = _props(
             edge,
             table,
-            self.index,
+            index,
             _columns_of(pairs) | ({key} if key else set()),
             path,
             self.out,
@@ -528,12 +567,14 @@ class _Loader:
         reason on the screen and must not be served as the keyless case beside it.
         """
         stated = edge.key or (found.key if found is not None else None)
+        schema = edge.schema_name or self.default_schema
+        index = self.index_for(schema)
         if stated:
             key = self.single_key(stated, path + ".key", "edge")
             if key is None:
                 return None, None, True
-            self.check_column(path + ".key", table, key)
-            return key, self.index.column_type(table, key) or UNKNOWN_TYPE, False
+            self.check_column(path + ".key", table, key, schema)
+            return key, index.column_type(table, key) or UNKNOWN_TYPE, False
         if from_document and not self.index.live:
             self.problem(
                 path + ".key",
@@ -615,8 +656,13 @@ class _Loader:
             )
             return None, _ERROR
         table = edge.table or edge.type
-        self.check_column(path + ".column", table, column)
-        type_name = end.column_type or self.index.column_type(table, column) or UNKNOWN_TYPE
+        schema = edge.schema_name or self.default_schema
+        self.check_column(path + ".column", table, column, schema)
+        type_name = (
+            end.column_type
+            or self.index_for(schema).column_type(table, column)
+            or UNKNOWN_TYPE
+        )
         return Endpoint(label=resolved, column=column, column_type=type_name), _PLACED
 
     # -- across both kinds -----------------------------------------------------

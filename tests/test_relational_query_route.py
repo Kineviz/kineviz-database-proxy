@@ -167,7 +167,7 @@ def test_a_node_id_the_route_answered_selects_its_own_table_again_in_the_next_st
     again = posted_graph(client, backend, expand(backend, label, *seeds(client, backend)[label], key))
 
     assert again["nodes"], "{} came back as nothing — the id does not round-trip".format(neighbour)
-    assert any('FROM "{}" AS v0'.format(label) in text for text in server.queries()), (
+    assert any('FROM dbo."{}" AS v0'.format(label) in text for text in server.queries()), (
         "{} was sent as a seed and no statement pins its table".format(neighbour)
     )
     assert any(str(one) == key for bound in server.bounds() for one in bound.values()), (
@@ -298,7 +298,7 @@ def test_a_hidden_relationship_type_is_excluded_by_the_source_not_in_python(clie
     assert len(texts) == 4, texts
     contradicted = [index for index, one in enumerate(texts) if "WHERE false" in one]
     assert len(contradicted) == 1, texts
-    assert 'JOIN "Employment" AS e0' in texts[contradicted[0]], texts
+    assert 'JOIN dbo."Employment" AS e0' in texts[contradicted[0]], texts
     # The seed is not even bound where nothing can match; every other branch still carries it.
     # The exclusion is pinned on the statements rather than on the answer because the stand-in
     # database answers a row for every statement it is handed, `WHERE false` included.

@@ -98,7 +98,7 @@ At the top level:
 | Field | Changes |
 |---|---|
 | `version` | document format; only `1` exists |
-| `schema` | which schema every table below lives in, unless an entry names its own. Defaults: `dbo` (SQL Server), `public` (PostgreSQL), the database itself (MySQL) |
+| `schema` | which schema every table below lives in, unless an entry names its own. Falls back to the project's connection schema, then `dbo` (SQL Server), `public` (PostgreSQL), or the database itself (MySQL) |
 | `include` | when non-empty, **only** the named records are in the graph |
 | `exclude` | the named records are out — the short form of an entry with `include: false` |
 | `nodes` / `edges` | the records and links, in the order you wrote them |
@@ -109,6 +109,11 @@ one you happen to remember. When a schema was read to check against, a name that
 nothing is warned about once rather than silently ignored.
 
 A node entry:
+
+Schema selection applies to both catalog reads and generated SQL: an entry's `schema`,
+then the document's, then the connection's. Tables with the same name in different schemas
+can use separate labels, for example `Person` and `ArchivedPerson`; their keys and column
+types are resolved independently. One physical table still cannot have two node labels.
 
 | Field | Changes |
 |---|---|

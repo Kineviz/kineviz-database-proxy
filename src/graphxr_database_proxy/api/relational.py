@@ -226,13 +226,16 @@ def _document_from(body: MappingBody) -> GraphMapping:
     of path-named problems, one rule about what an unknown key means. The round trip costs a
     YAML dump and buys the same error a file upload would have produced.
     """
-    if body.model is None and not body.yaml:
-        raise mapping_io.MappingFileError.at(
-            "file", "send the mapping as 'model' or as 'yaml', not neither"
-        )
-    if body.yaml:
-        return mapping_io.parse(body.yaml)
-    return mapping_io.parse(yaml.safe_dump(body.model, sort_keys=False))
+    try:
+        if body.model is None and not body.yaml:
+            raise mapping_io.MappingFileError.at(
+                "file", "send the mapping as 'model' or as 'yaml', not neither"
+            )
+        if body.yaml:
+            return mapping_io.parse(body.yaml)
+        return mapping_io.parse(yaml.safe_dump(body.model, sort_keys=False))
+    except mapping_io.MappingFileError as exc:
+        raise _problem(exc) from exc
 
 
 def _mapping_answer(project: Project, document: Optional[GraphMapping]) -> Dict[str, Any]:

@@ -16,6 +16,7 @@ reports the verdict ``reads.verdict_of`` defines.
 
 from __future__ import annotations
 
+from collections import Counter
 from typing import Any, Dict, List, Mapping, Optional
 
 from ...models.project import GraphSchemaResponse, SampleDataResponse, SchemaResponse
@@ -131,19 +132,19 @@ class RelationalSchemaReadSurface:
                 success=False,
                 error=_problems_or(mapping.problems, "this project has no valid mapping"),
             )
-        wanted = sorted(
-            {node.table for node in mapping.nodes.values()}
-            | {edge.table for edge in mapping.edges.values()}
-        )
         data: Dict[str, Dict[str, str]] = {}
-        size = max(1, int(self.spelling.names_page_size))
         try:
-            for start in range(0, len(wanted), size):
-                page = list(wanted[start : start + size])
-                catalog = await self.access.catalog(names=page, page_size=len(page))
-                for table in catalog.tables:
-                    if table.columns:
-                        data[table.name] = dict(table.columns)
+            tables = await self.mapped_tables(
+                [*mapping.nodes.values(), *mapping.edges.values()]
+            )
+            names = Counter(name for _, name in tables)
+            ordered = sorted(
+                tables.items(), key=lambda item: (item[0][0] or "", item[0][1])
+            )
+            for (schema, name), table in ordered:
+                if table is not None and table.columns:
+                    key = "{}.{}".format(schema, name) if names[name] > 1 else name
+                    data[key] = dict(table.columns)
         except Exception as exc:
             return SchemaResponse(success=False, error=_failure(exc))
         return SchemaResponse(success=True, data=data)

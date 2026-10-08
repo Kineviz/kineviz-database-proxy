@@ -1,20 +1,4 @@
-"""
-The reflection call count for one ``GET /api/{backend}/{project}/schema`` request.
-
-A single ``/schema`` for a project that has a stored document walks the catalog twice:
-``effective_mapping()`` runs ``with_key_types()`` to fill in the key type a document did
-not declare (``"STRING"`` is the placeholder the loader writes when no schema is passed,
-which is the normal case), and the name-page walk in ``get_schema()`` itself then
-reflects the same names again to answer the route. The cost is real — every probe
-(``get_multi_columns``, ``get_multi_pk_constraint``, ``get_multi_foreign_keys``,
-``get_multi_unique_constraints``, ``get_multi_indexes``, plus the per-page row
-counts) is paid twice on the hot path.
-
-This file pins the total probe count for one request, so a refactor that merged the
-two walks reports a lower number and a refactor that added a third one fails loudly.
-A mutation test (extra fake probe call) is appended at the bottom to prove the
-assertion is not a tautology of the spy.
-"""
+"""One schema request reuses key reflection; a fresh request reads again."""
 
 from __future__ import annotations
 
@@ -194,31 +178,12 @@ def schema_url(target: Project) -> str:
 
 
 # ---------------------------------------------------------------------------
-# the count, today
+# request-local reflection reuse
 # ---------------------------------------------------------------------------
 
 
-def test_one_schema_request_paid_each_probe_twice_on_a_draft_mapped_project() -> None:
-    """
-    Two reflection walks for one ``/schema`` — ``with_key_types`` and the name page.
-
-    A draft document loads, every key is undeclared (the loader writes ``"STRING"`` when
-    no schema is passed), so ``effective_mapping()`` reflects the mapping's own tables
-    to read the key type, and the name-page walk in ``get_schema()`` reflects the same
-    tables again. The total probe count is measured here at the inspector so a refactor
-    that merged the two walks is forced to update this number.
-
-    Measured today: **probes=10** (each of the 5 probes called exactly twice),
-    **rows=2** (one per walk's page), total **12**. The two walks serve different
-    purposes — ``with_key_types`` walks only tables whose keys lack a type,
-    ``get_schema`` walks every mapping table — and they happen to coincide here only
-    because the draft document leaves every key with the ``"STRING"`` placeholder the
-    loader writes when no schema is passed. A manual override that declares all key
-    types would have ``with_key_types`` walk a strict subset; a refactor that always
-    walks the full set in ``effective_mapping`` would change the cost paid by
-    ``/graphSchema``, ``/sampleData`` and the query path. The board's "Cost, not
-    correctness" item therefore pins the count rather than merging the walks.
-    """
+def test_one_schema_request_reflects_each_mapped_table_once() -> None:
+    """The schema response reuses the bounded read that resolved its keys."""
     target = relational_project(RELATIONAL_BACKENDS[0])
     with served_schema(target, SPEC) as (client, server):
         reply = client.get(schema_url(target))
@@ -229,42 +194,25 @@ def test_one_schema_request_paid_each_probe_twice_on_a_draft_mapped_project() ->
 
     probes = server.inspector.total()
     rows = sum(sp.row_count_calls for sp in server.spellings.values())
-    assert probes == 10, (
-        "today's count for one /schema is 10 probes; got probes={}, rows={}, total={}; "
-        "if this changes, one walk was added or merged, and a reviewer has to ask "
-        "whether /schema, /graphSchema, /sampleData and the query path are all still "
-        "the same".format(probes, rows, probes + rows)
-    )
-    assert rows == 2, (
-        "row counts were asked {} times; the page-by-page walk calls the spelling once "
-        "per page, and one /schema is two pages today".format(rows)
-    )
+    assert probes == 5
+    assert server.inspector.probe_counts == {name: 1 for name in REFLECTIVE_PROBES}
+    assert rows == 1
 
 
 # ---------------------------------------------------------------------------
-# the mutation: a refactor that quietly adds a third walk is caught here
+# a later request does not inherit the previous request's catalog
 # ---------------------------------------------------------------------------
 
 
-def test_an_extra_probe_call_breaks_the_count() -> None:
-    """
-    A walk that grew by one probe should fail this count, not pass it.
-
-    The board item names the second walk as the cost: the call count assertion above
-    is exactly twice the per-walk cost, so a refactor that adds a third walk reports
-    a higher number. This test installs a one-shot extra probe call and proves the
-    assertion above does not absorb it.
-    """
+def test_a_new_request_reads_the_catalog_again() -> None:
+    """Reflection reuse ends with the driver, so external DDL is seen next time."""
     target = relational_project(RELATIONAL_BACKENDS[0])
     with served_schema(target, SPEC) as (client, server):
-        # One extra call to ``get_multi_columns`` against the inspector before the
-        # request is made: a refactor that added a third walk would do the same.
-        server.inspector.get_multi_columns(tables=["Person"])
-        reply = client.get(schema_url(target))
+        first = client.get(schema_url(target))
+        second = client.get(schema_url(target))
 
-    assert reply.status_code == 200, reply.text
-    probes = server.inspector.total()
-    assert probes != 10, (
-        "the extra probe was absorbed: probes={}; the count above is a tautology of "
-        "the spy and the cost is unpinned".format(probes)
-    )
+    assert first.status_code == second.status_code == 200
+    assert first.json()["success"] and second.json()["success"]
+    assert first.json()["data"] == second.json()["data"]
+    assert server.inspector.probe_counts == {name: 2 for name in REFLECTIVE_PROBES}
+    assert sum(sp.row_count_calls for sp in server.spellings.values()) == 2

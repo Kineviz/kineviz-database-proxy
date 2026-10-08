@@ -18,6 +18,8 @@ from __future__ import annotations
 from typing import Any, List
 from unittest.mock import patch
 
+import pytest
+
 from graphxr_database_proxy.drivers.relational import mapping_io
 from graphxr_database_proxy.models.graph_mapping import GraphMapping, MappingNode
 from graphxr_database_proxy.services.graph_schema_cache import (
@@ -150,3 +152,28 @@ def test_an_unparseable_yaml_body_returns_422_and_does_not_invalidate_or_poison(
     assert GRAPH_SCHEMA_CACHE.get(key) is sentinel, (
         "the prior entry must survive a rejected save"
     )
+
+
+@pytest.mark.parametrize("method,route", [("put", "mapping"), ("post", "validate")])
+@pytest.mark.parametrize("body,path", [
+    ({"yaml": "nodes: ["}, "line 1"),
+    ({"yaml": "- a list"}, "file"),
+    ({"yaml": "# no document"}, "file"),
+    ({}, "file"),
+    ({"model": {"nodes": [{"label": "Person", "typo": True}]}}, "nodes[0].typo"),
+    ({"yaml": "notes: " + "x" * mapping_io.MAX_MAPPING_BYTES}, "file"),
+])
+def test_invalid_mapping_bodies_report_paths_without_saving(
+    client, projects, server, method, route, body, path
+):
+    project = projects.by_name["mapped"]
+    before = project.database_config.graph_mapping
+    key = cache_key(project)
+    sentinel = object()
+    GRAPH_SCHEMA_CACHE.put(key, sentinel)
+    response = getattr(client, method)("/api/relational/mapped/" + route, json=body)
+    assert response.status_code == 422, response.text
+    assert any(problem["path"] == path for problem in response.json()["detail"])
+    assert projects.saved == []
+    assert projects.by_name["mapped"].database_config.graph_mapping == before
+    assert GRAPH_SCHEMA_CACHE.get(key) is sentinel

@@ -92,7 +92,7 @@ OrderItem   <- OrderItem   notes: not a node: its primary key is ['order_id', 'l
 | 字段 | 改变什么 |
 |---|---|
 | `version` | 文档格式版本；目前只有 `1` |
-| `schema` | 下面所有表默认所在的 schema，条目自己写了就以条目为准。默认值：`dbo`（SQL Server）、`public`（PostgreSQL）、数据库本身（MySQL） |
+| `schema` | 下面所有表默认所在的 schema，条目自己写了就以条目为准。不写则采用项目连接的 schema，再回退到 `dbo`（SQL Server）、`public`（PostgreSQL）或数据库本身（MySQL） |
 | `include` | 一旦非空，图里**只有**点名的这些记录，其余全部出局 |
 | `exclude` | 点名的记录出局——它是"某条目写 `include: false`"的简写 |
 | `nodes` / `edges` | 记录与连接，按你写的顺序 |
@@ -103,6 +103,10 @@ OrderItem   <- OrderItem   notes: not a node: its primary key is ['order_id', 'l
 悄悄忽略。
 
 节点条目：
+
+目录读取和生成的 SQL 使用相同的 schema 优先级：条目、映射文档、项目连接。
+不同 schema 中的同名表可以分别映射为 `Person`、`ArchivedPerson` 等不同标签，
+各自的主键和列类型独立解析。同一张物理表仍然不能对应两个节点标签。
 
 | 字段 | 改变什么 |
 |---|---|
