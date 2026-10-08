@@ -31,7 +31,7 @@ export interface MappingActions {
   /** Drop the override: the project goes back to pure auto-discovery. */
   reset(): Promise<MappingEnvelope>;
   /** What is stored, as text. The only YAML the browser is ever given. */
-  text(): Promise<MappingTextResponse>;
+  text(format?: 'json' | 'yaml'): Promise<MappingTextResponse>;
   /** The annotated example the proxy ships. */
   example(): Promise<MappingTextResponse>;
   /** What discovery would propose, with its reasoning. Nothing is stored. */
@@ -46,7 +46,7 @@ export const createActions = (project: string): MappingActions => ({
   save: (document) => projectService.saveMapping(project, { model: document }),
   saveText: (yaml) => projectService.saveMapping(project, { yaml }),
   reset: () => projectService.saveMapping(project, { model: null }),
-  text: () => projectService.getMappingText(project),
+  text: (format) => projectService.getMappingText(project, format),
   example: () => projectService.getMappingExample(),
   discover: () => projectService.discoverMapping(project),
   preview: (request) => projectService.previewEdge(project, request),

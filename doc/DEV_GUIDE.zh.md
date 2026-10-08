@@ -15,7 +15,8 @@ npm run dev
 ```
 
 依赖文件变更后，重新安装依赖。连接关系型数据库还需对应扩展，例如
-`uv sync --extra dev --extra postgresql`；使用 `--extra relational` 安装全部三个 SQL 驱动。
+`uv sync --extra dev --extra postgresql`；使用 `--extra relational` 安装全部四个 SQL 驱动。
+单独安装 Snowflake 使用 `--extra snowflake`，见 [Snowflake 配置](SNOWFLAKE.zh.md)。
 
 后端地址为 http://localhost:9080（API 文档位于 `/docs`）。
 前端使用 `PORT` 指定的端口，未设置时由 webpack 自动选择，请以终端输出地址为准。
@@ -69,6 +70,26 @@ npm run dev
 
 Claude 的 `/verify` 会根据变更文件选择检查并报告结果。
 文档变更应检查本地链接，并同步已有的中英文版本。
+
+### PostgreSQL 18 示例集成测试
+
+启动代理和 GraphXRSupportDB 的 pg18 示例后，在仓库根目录运行：
+
+```sh
+uv sync --extra dev --extra postgresql --inexact
+uv run --no-sync python scripts/check_pg18_proxy.py --connection-file ../GraphXRSupportDB/connections/pg18.local.json
+```
+
+脚本通过管理 API 创建尚不存在的 `pg18-supportdb` 项目，已有项目则直接复用，
+不覆盖配置。测试只读取示例数据库，不重置或修改数据。15 组检查将 HTTP 结果与
+直接 SQL 查询对照，覆盖结构发现、计数、两跳查询、Expand、节点与关系拉取、
+特殊字符以及写入拒绝。输出不包含凭据。可通过 `--proxy-url` 或 `--project`
+指定其他代理地址或项目，通过 `--mapping-out` 导出不含凭据的映射，参见
+[pg18 示例映射](../examples/pg18.graph-mapping.json)。
+
+需要导入并验证指定 JSON/YAML 文件时，可增加 `--mapping-file` 参数并提供文件路径。
+此选项会通过管理 API 明确替换项目映射，并检查 JSON/YAML 下载和重新导入。
+原始格式示例参见 [pg18.graphxr-mapping.json](../examples/pg18.graphxr-mapping.json)。
 
 ## 延伸阅读
 

@@ -10,6 +10,7 @@ export type DatabaseType =
   | 'postgresql'
   | 'mysql'
   | 'mssql'
+  | 'snowflake'
   | 'mongodb';
 
 /**
@@ -18,7 +19,7 @@ export type DatabaseType =
  * `drivers/relational/engine.py`; a type here is a project type the mapping
  * editor can serve.
  */
-export const RELATIONAL_TYPES: DatabaseType[] = ['mssql', 'postgresql', 'mysql'];
+export const RELATIONAL_TYPES: DatabaseType[] = ['mssql', 'postgresql', 'mysql', 'snowflake'];
 
 export const isRelationalType = (type?: DatabaseType | string | null): boolean =>
   !!type && (RELATIONAL_TYPES as string[]).includes(type);
@@ -28,6 +29,7 @@ export const RELATIONAL_DEFAULT_PORT: Record<string, number> = {
   mssql: 1433,
   postgresql: 5432,
   mysql: 3306,
+  snowflake: 443,
 };
 
 /**
@@ -290,6 +292,7 @@ export interface MappingNode {
   key?: string | null;
   /** Whitelist of columns: a column not here is invisible in GraphXR. */
   properties?: Record<string, string> | string[] | null;
+  property_columns?: Record<string, string>;
   exclude_properties?: string[] | null;
   /** False keeps the entry as a decision without putting it in the graph. */
   include?: boolean;
@@ -308,6 +311,7 @@ export interface MappingEdge {
   /** True reads the link the other way round from what discovery proposed. */
   flip?: boolean;
   properties?: Record<string, string> | string[] | null;
+  property_columns?: Record<string, string>;
   exclude_properties?: string[] | null;
   include?: boolean;
   show_as?: string | null;
@@ -358,6 +362,8 @@ export type MappingProblemLike = MappingProblem | string | (string | null)[];
  * document as `model`, which the service hands over as `mapping`.
  */
 export interface MappingEnvelope {
+  text?: string | null;
+  json?: string | null;
   success?: boolean;
   mapping?: GraphMappingDocument | null;
   /** Per-entry tags, keyed either by document path or by label / type. */

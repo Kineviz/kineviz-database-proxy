@@ -22,6 +22,7 @@ from .dialect import (
     MEMGRAPH_DIALECT,
     MSSQL_DIALECT,
     MYSQL_DIALECT,
+    SNOWFLAKE_DIALECT,
     NEO4J_DIALECT,
     POSTGRESQL_DIALECT,
     ROCKETGRAPH_DIALECT,
@@ -282,6 +283,7 @@ LATTICEDB_CAPABILITIES = _latticedb_capabilities()
 MSSQL_CAPABILITIES = _relational_capabilities("mssql")
 POSTGRESQL_CAPABILITIES = _relational_capabilities("postgresql")
 MYSQL_CAPABILITIES = _relational_capabilities("mysql")
+SNOWFLAKE_CAPABILITIES = _relational_capabilities("snowflake")
 
 
 class GraphIntentSupport(GraphIntentMixin):
@@ -382,3 +384,8 @@ class PostgresqlGraphIntents(RelationalGraphIntents):
 class MysqlGraphIntents(RelationalGraphIntents):
     graph_capabilities = MYSQL_CAPABILITIES
     graph_dialect = MYSQL_DIALECT
+
+
+class SnowflakeGraphIntents(RelationalGraphIntents):
+    graph_capabilities = SNOWFLAKE_CAPABILITIES
+    graph_dialect = SNOWFLAKE_DIALECT

@@ -118,6 +118,7 @@ export const useProjectFormState = ({
       "username",
       "password",
       "schema_name",
+      "options",
       // Unregistered by any control, so it only goes away when asked for by name.
       "graph_mapping_yaml",
     ]);
@@ -139,7 +140,7 @@ export const useProjectFormState = ({
       form.setFieldsValue({
         auth_type: defaultAuth,
         port: RELATIONAL_DEFAULT_PORT[value],
-        use_tls: false,
+        use_tls: value === "snowflake",
         schema_name: RELATIONAL_DEFAULT_SCHEMA[value] ?? "",
       });
     } else if (value === "bigquery") {

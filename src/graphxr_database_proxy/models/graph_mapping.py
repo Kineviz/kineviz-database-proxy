@@ -25,7 +25,9 @@ from __future__ import annotations
 
 from typing import Any, Dict, List, Optional
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from .mapping_v2 import canonical_mapping
 
 SCHEMA_ALIAS = "schema"
 
@@ -147,6 +149,7 @@ class MappingNode(_DocumentModel):
             "Empty means every column of the table, minus ``exclude_properties``."
         ),
     )
+    property_columns: Dict[str, str] = Field(default_factory=dict)
     exclude_properties: List[str] = Field(
         default_factory=list,
         description="Columns to drop from the whitelist — the usual way to leave a blob out.",
@@ -216,6 +219,7 @@ class MappingEdge(_DocumentModel):
             "columns and the key are never properties, and discovery leaves them out."
         ),
     )
+    property_columns: Dict[str, str] = Field(default_factory=dict)
     exclude_properties: List[str] = Field(default_factory=list, description="Columns to drop.")
     include: bool = Field(
         default=True,
@@ -251,14 +255,14 @@ class GraphMapping(_DocumentModel):
     """The whole override document: one project's answer to "what is this schema as a graph"."""
 
     version: int = Field(
-        default=1, description="Document format version. Currently only 1 is defined."
+        default=1, description="Document format version: proxy v1 or GraphXR v2."
     )
     schema_name: Optional[str] = Field(
         default=None,
         alias=SCHEMA_ALIAS,
         description=(
             "Schema every table below lives in, unless an entry says otherwise. "
-            "Engine defaults: dbo (mssql), public (postgresql), the database itself (mysql)."
+            "Engine defaults: dbo (mssql), public (postgresql), PUBLIC (snowflake), the database itself (mysql)."
         ),
     )
     include: List[str] = Field(
@@ -290,9 +294,14 @@ class GraphMapping(_DocumentModel):
         ),
     )
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_graphxr_mapping(cls, value: Any) -> Any:
+        return canonical_mapping(value)
+
     @field_validator("version")
     @classmethod
     def _supported_version(cls, value: int) -> int:
-        if value != 1:
-            raise ValueError("only version 1 is defined")
+        if value not in (1, 2):
+            raise ValueError("only versions 1 and 2 are defined")
         return value

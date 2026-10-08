@@ -340,6 +340,7 @@ const NodeList: React.FC<Props> = ({ project, draft, dispatch, actions }) => {
         rowKey={(node) => node.label}
         columns={columns}
         dataSource={nodes}
+        scroll={{ x: 1300 }}
         pagination={{ pageSize: 20, showSizeChanger: true, size: 'small', hideOnSinglePage: false }}
         expandable={{
           columnWidth: 34,

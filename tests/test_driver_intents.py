@@ -49,6 +49,7 @@ from graphxr_database_proxy.drivers.mssql import MssqlDriver
 from graphxr_database_proxy.drivers.mysql import MysqlDriver
 from graphxr_database_proxy.drivers.neo4j import Neo4jDriver
 from graphxr_database_proxy.drivers.postgresql import PostgresqlDriver
+from graphxr_database_proxy.drivers.snowflake import SnowflakeDriver
 from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
 from graphxr_database_proxy.drivers.rocketgraph import RocketGraphDriver
 from graphxr_database_proxy.drivers.spanner import SpannerDriver
@@ -66,6 +67,7 @@ ALL_DRIVERS = (
     MssqlDriver,
     PostgresqlDriver,
     MysqlDriver,
+    SnowflakeDriver,
 )
 
 

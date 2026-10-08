@@ -135,8 +135,8 @@ def test_each_engine_paginates_the_way_its_grammar_demands():
     Without those the dialect raises before a statement exists — see
     ``test_sql_server_cannot_page_at_all_without_an_order_by`` in the compile tests.
     """
-    paged = text(PAGED_STATEMENT, "postgresql")
-    assert "ORDER BY v0.person_id ASC" in paged and "LIMIT %(param_1)s::INTEGER OFFSET %(param_2)s::INTEGER" in paged
+    paged = text(PAGED_STATEMENT, "postgresql").replace("::INTEGER", "")
+    assert "ORDER BY v0.person_id ASC" in paged and "LIMIT %(param_1)s OFFSET %(param_2)s" in paged
     assert "LIMIT %s, %s" in text(PAGED_STATEMENT, "mysql")
     mssql_text = text(PAGED_STATEMENT, "mssql")
     assert "ROW_NUMBER() OVER (ORDER BY v0.person_id ASC" in mssql_text

@@ -213,7 +213,24 @@ class RelationalAccess:
         return self._pool.engine(self.project, self.spelling)
 
     def inspector(self) -> Inspector:
-        return self._inspector_for(self.engine())
+        engine = self.engine()
+        if self._inspector_for is not inspector_for:
+            return self._inspector_for(engine)
+        custom = self.spelling.catalog_inspector(engine, self.project.database_config)
+        return custom if custom is not None else self._inspector_for(engine)
+
+    async def names_page(self, *, schema: Optional[str], offset: int, limit: int,
+                         search: Optional[str] = None) -> Optional[Tuple[List[str], int]]:
+        """Use source pagination when supplied by the catalog adapter."""
+        if not self.spelling.supports_catalog_paging:
+            return None
+        want = self.schema if schema is None else schema
+
+        def work(conn: Connection) -> Optional[Tuple[List[str], int]]:
+            reader = getattr(self.inspector(), "get_table_names_page", None)
+            return reader(want, offset, limit, search) if reader else None
+
+        return await self.run(work)
 
     @contextmanager
     def connection(self) -> Iterator[Connection]:
@@ -306,7 +323,9 @@ class RelationalAccess:
             counted = self._count_reader(conn, want_schema)
             inspector = self.inspector()
             source = inspector if names is None else _NamePage(inspector, names)
-            return discover(source, schema=want_schema, row_counts=counted, page_size=size)
+            catalog = discover(source, schema=want_schema, row_counts=counted, page_size=size)
+            catalog.warnings.extend(self.spelling.discovery_warnings)
+            return catalog
 
         return await self.run(work)
 

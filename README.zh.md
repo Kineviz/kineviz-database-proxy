@@ -6,7 +6,7 @@
 连接到数据库，并提供 React 管理界面来配置连接和设置。
 
 支持 Spanner Graph、BigQuery、RocketGraph、Neo4j、Memgraph、Kuzu、Ladybug、
-LatticeDB、SQL Server、PostgreSQL 和 MySQL。可选的管理员密码和 API 密钥
+LatticeDB、SQL Server、PostgreSQL、MySQL 和 Snowflake。可选的管理员密码和 API 密钥
 分别保护管理操作与数据库访问。
 
 ## 快速开始
@@ -19,8 +19,9 @@ graphxr-proxy --ui
 打开 http://localhost:9080/admin，创建项目，将其 API URL 复制到 GraphXR 的
 **Database Proxy** 连接中。例如：`http://localhost:9080/api/spanner/Test`。
 
-使用 SQL 驱动时，安装对应扩展：`[mssql]`、`[postgresql]`、`[mysql]`，
-或用 `[relational]` 安装全部三个驱动。连接和认证配置见[使用指南](doc/USAGE.zh.md)。
+使用 SQL 驱动时，安装对应扩展：`[mssql]`、`[postgresql]`、`[mysql]`、`[snowflake]`，
+或用 `[relational]` 安装全部四个驱动。连接和认证配置见[使用指南](doc/USAGE.zh.md)。
+Snowflake 的连接和映射说明见 [Snowflake 指南](doc/SNOWFLAKE.zh.md)。
 
 ## 源码开发
 

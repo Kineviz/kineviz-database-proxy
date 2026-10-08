@@ -51,6 +51,11 @@ class EngineSpelling(abc.ABC):
     max_identifier_length: int = 128
     #: How many table names one statistics round trip may carry.
     names_page_size: int = 500
+    supports_catalog_paging: bool = False
+    discovery_warnings: Tuple[str, ...] = ()
+    # None lets SQLAlchemy choose; engines that fold lowercase names differently
+    # require explicit quotes on every physical table, schema and column.
+    identifier_quote: Optional[bool] = None
 
     # -- connection --------------------------------------------------------
 
@@ -109,6 +114,10 @@ class EngineSpelling(abc.ABC):
             f"proxy installs as an optional extra: pip install 'graphxr-database-proxy"
             f"[{self.name}]' (or pip install {self.data_api_name()})."
         )
+
+    def catalog_inspector(self, engine: object, config: ConnectConfig) -> object:
+        """An engine-specific catalog adapter, or None for SQLAlchemy reflection."""
+        return None
 
     # -- types -------------------------------------------------------------
 

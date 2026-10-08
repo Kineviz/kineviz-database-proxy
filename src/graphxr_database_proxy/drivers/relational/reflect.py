@@ -53,15 +53,15 @@ class Inspector(Protocol):
     def get_table_names(self, schema: Optional[str] = None) -> List[str]: ...
 
     def get_multi_columns(
-        self, tables: Optional[Sequence[str]] = None, schema: Optional[str] = None
+        self, filter_names: Optional[Sequence[str]] = None, schema: Optional[str] = None
     ) -> Dict[str, List[Row]]: ...
 
     def get_multi_pk_constraint(
-        self, tables: Optional[Sequence[str]] = None, schema: Optional[str] = None
+        self, filter_names: Optional[Sequence[str]] = None, schema: Optional[str] = None
     ) -> Dict[str, Row]: ...
 
     def get_multi_foreign_keys(
-        self, tables: Optional[Sequence[str]] = None, schema: Optional[str] = None
+        self, filter_names: Optional[Sequence[str]] = None, schema: Optional[str] = None
     ) -> Dict[str, List[Row]]: ...
 
 
@@ -102,7 +102,7 @@ def _read_pages(
         ).items():
             uniques[table] = _single_columns(rows, "constrained_columns")
         for table, rows in _optional_multi(inspector, "get_multi_indexes", page, schema, gaps).items():
-            uniques[table] = tuple(list(uniques.get(table, ())) + _unique_index_columns(rows))
+            uniques[table] = uniques.get(table, ()) + _unique_index_columns(rows)
         out["unique"].update(uniques)
         if row_counts is not None:
             # Answering nothing for a page is a normal answer, not a failure: this page of
@@ -122,7 +122,29 @@ def _multi(
     call: Callable[..., Dict[str, Any]], page: Sequence[str], schema: Optional[str]
 ) -> Dict[str, Any]:
     """One ``get_multi_*`` call, keyed by bare table name however the dialect keys it."""
-    return _bare_keys(call(tables=list(page), schema=schema) or {}, page)
+    return _bare_keys(call(**_page_arguments(call, page, schema)) or {}, page)
+
+
+def _page_arguments(
+    probe: Callable[..., Any], page: Optional[Sequence[str]], schema: Optional[str]
+) -> Dict[str, Any]:
+    """SQLAlchemy pages with ``filter_names``; older adapters use ``tables``.
+
+    Passing ``tables`` through SQLAlchemy's ``**kw`` does not filter a read and
+    can put an unhashable list into its reflection cache key.
+    """
+    arguments: Dict[str, Any] = {"schema": schema}
+    if page is None:
+        return arguments
+    try:
+        parameters = inspect.signature(probe).parameters
+    except (TypeError, ValueError):
+        parameters = {}
+    keyword = (
+        "tables" if "tables" in parameters and "filter_names" not in parameters else "filter_names"
+    )
+    arguments[keyword] = list(page)
+    return arguments
 
 
 def _optional_multi(
@@ -143,7 +165,7 @@ def _probe_names(
 
 def _accepts_tables(probe: Callable[..., Any]) -> bool:
     """
-    Whether this probe can be handed ``tables=``, which decides what a TypeError means.
+    Whether this probe accepts a page keyword, which decides what a TypeError means.
 
     A probe that never took the keyword is answering a *signature* question — the reason
     the retry below exists — while a TypeError raised from inside a probe that does take it
@@ -159,7 +181,7 @@ def _accepts_tables(probe: Callable[..., Any]) -> bool:
         return True  # nothing to read it off: assume the call was well-formed and it threw
     if any(one.kind is one.VAR_KEYWORD for one in parameters.values()):
         return True
-    return "tables" in parameters
+    return "tables" in parameters or "filter_names" in parameters
 
 
 def _gap(gaps: Optional[Gaps], method: str, exc: BaseException) -> None:
@@ -202,7 +224,7 @@ def _call(
     if probe is None:
         return None
     try:
-        return probe(tables=list(page) if page is not None else None, schema=schema)
+        return probe(**_page_arguments(probe, page, schema))
     except NotImplementedError:
         return None  # the dialect's own "I have no such list", which stays silent
     except TypeError as exc:
@@ -223,11 +245,11 @@ def _call(
         return None
 
 
-def _bare_keys(payload: Mapping[str, Any], page: Sequence[str]) -> Dict[str, Any]:
+def _bare_keys(payload: Mapping[object, Any], page: Sequence[str]) -> Dict[str, Any]:
     """
     Index one reflection payload by table name, however the dialect keyed it.
 
-    SQLAlchemy keys by table name; some paths answer ``{"dbo.Person": …}`` and a
+    SQLAlchemy keys by ``(schema, table)``; some paths answer ``{"dbo.Person": …}`` and a
     schema-level reflection answers ``{"dbo": {"Person": …}}``. Only the names actually
     asked about on this page are read, so an unexpected shape is skipped rather than
     mistaken for a table.
@@ -235,8 +257,11 @@ def _bare_keys(payload: Mapping[str, Any], page: Sequence[str]) -> Dict[str, Any
     wanted = {str(name) for name in page}
     out: Dict[str, Any] = {}
     for key, value in payload.items():
-        text = str(key)
-        name = text.rsplit(".", 1)[-1]
+        if isinstance(key, tuple) and len(key) == 2:
+            name = str(key[1])
+        else:
+            text = str(key)
+            name = text if text in wanted else text.rsplit(".", 1)[-1]
         if name in wanted:
             out[name] = value
             continue

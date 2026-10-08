@@ -19,7 +19,7 @@ class DatabaseType(str, Enum):
     for a graph driver the value doubles as the statement dialect's name, so a
     value string is a wire contract rather than a display label.
 
-    `postgresql`, `mysql` and `mssql` are the relational family this round
+    `postgresql`, `mysql`, `mssql` and `snowflake` are the relational family this round
     implements; `mongodb` is still an unimplemented placeholder.
     """
     SPANNER = "spanner"
@@ -33,6 +33,7 @@ class DatabaseType(str, Enum):
     POSTGRESQL = "postgresql"
     MYSQL = "mysql"
     MSSQL = "mssql"
+    SNOWFLAKE = "snowflake"
     MONGODB = "mongodb"
 
 

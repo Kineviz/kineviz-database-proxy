@@ -477,7 +477,6 @@ const applyAction = (state: DraftState, action: MappingAction): DraftState => {
               ? {
                   ...edge,
                   flip: !edge.flip,
-                  endpoints: (edge.endpoints ?? []).map((pair) => ({ ...pair, src: pair.dst, dst: pair.src })),
                 }
               : edge,
           ),

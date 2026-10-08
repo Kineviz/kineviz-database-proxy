@@ -65,12 +65,13 @@ INTEGER_TYPES = frozenset(
         "decimal",
         "dec",
         "fixed",
+        "number",
     }
 )
 
 #: Exact-but-not-necessarily-whole numerics: ``decimal(10,2)`` holds a fraction, so it
 #: becomes a ``Decimal`` and never a float.
-EXACT_TYPES = frozenset({"numeric", "decimal", "dec", "fixed", "money", "smallmoney"})
+EXACT_TYPES = frozenset({"numeric", "decimal", "dec", "fixed", "number", "money", "smallmoney"})
 
 #: Approximate numerics, where a float is what the column actually is.
 APPROX_TYPES = frozenset({"float", "real", "double", "double precision", "float4", "float8"})
@@ -82,7 +83,7 @@ BOOLEAN_TYPES = frozenset({"bit", "bool", "boolean"})
 #: ``with time zone`` words, so the short bases are the whole list.
 DATE_TYPES = frozenset({"date"})
 TIME_TYPES = frozenset({"time", "timetz"})
-TIMESTAMP_TYPES = frozenset({"datetime", "datetime2", "datetimeoffset", "smalldatetime", "timestamp", "timestamptz"})
+TIMESTAMP_TYPES = frozenset({"datetime", "datetime2", "datetimeoffset", "smalldatetime", "timestamp", "timestamptz", "timestamp_ntz", "timestamp_tz", "timestamp_ltz"})
 
 
 def _base(key_type: Optional[str]) -> str:
@@ -125,7 +126,9 @@ def key_text(value: object, key_type: Optional[str] = None) -> str:
         return value.isoformat()
     if isinstance(value, decimal.Decimal):
         if value.is_finite() and value == value.to_integral_value() and is_integral_type(key_type):
-            return str(value.quantize(decimal.Decimal(1)))
+            # int conversion is exact and independent of Decimal's default
+            # 28-digit context, including Snowflake NUMBER(38,0) keys.
+            return str(int(value))
         return str(value)
     if isinstance(value, float):
         if value.is_integer() and is_integral_type(key_type):

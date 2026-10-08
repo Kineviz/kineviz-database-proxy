@@ -25,6 +25,7 @@ What the readers hand over is one of two different things, and the rule differs:
 from __future__ import annotations
 
 from dataclasses import replace
+import inspect
 from types import SimpleNamespace
 from typing import Any, Dict, List, Optional
 
@@ -49,7 +50,26 @@ from tests.test_relational_reflect import FakeInspector
 
 def mssql_column(declared: str, base: Optional[str] = None) -> Any:
     """The reflected ``type`` a live SQL Server inspector hands for a column of ``declared``."""
-    row = mssql_dialect.dialect()._parse_column_info(
+    dialect = mssql_dialect.dialect()
+    if not hasattr(dialect, "_parse_column_info"):
+        # SQLAlchemy 2.0 resolves types inside get_columns; 2.1 extracts the
+        # resolver. Exercise the real 2.0 resolver with one catalog result row.
+        class Connection:
+            def execution_options(self, **kwargs):
+                return self
+
+            def execute(self, statement):
+                values = ["odd", declared, base, 1, None, None, None, None,
+                          None, None, False, None, None, None, None]
+                row = dict(zip(statement.selected_columns, values))
+                row.update({column.key: value for column, value in zip(statement.selected_columns, values)})
+                for column, value in zip(statement.selected_columns, values):
+                    for proxy in column.proxy_set:
+                        row.setdefault(proxy, value)
+                return SimpleNamespace(mappings=lambda: [row])
+
+        return dialect.get_columns(Connection(), "Widget", schema="dbo")[0]["type"]
+    row = dialect._parse_column_info(
         "odd", declared, True, None, None, None, None, None, None, False, False, None, None, None,
         base_type=base,
     )
@@ -81,7 +101,11 @@ def postgresql_column(format_type: str, domain: Optional[str] = None) -> Any:
                 "collation_schema": None,
             }
         }
-    return postgresql_dialect.dialect()._reflect_type(
+    reflect_type = postgresql_dialect.dialect()._reflect_type
+    if "domains" in inspect.signature(reflect_type).parameters:
+        return reflect_type(format_type, named.domains, named.enums,
+                            type_description="column odd", collation=None)
+    return reflect_type(
         format_type, named, type_description="column odd", collation=None
     )
 

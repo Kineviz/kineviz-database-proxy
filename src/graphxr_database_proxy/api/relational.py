@@ -43,7 +43,7 @@ router = APIRouter(prefix="/api/relational", tags=["relational"])
 
 #: The three backends this surface serves. A project of any other type is refused by name,
 #: because a mapping written against a Neo4j database is not a thing that can be edited here.
-_RELATIONAL = ("mssql", "postgresql", "mysql")
+_RELATIONAL = ("mssql", "postgresql", "mysql", "snowflake")
 
 
 def get_project_service() -> ProjectService:
@@ -60,8 +60,8 @@ class MappingBody(BaseModel):
     """
     A mapping, as the editor sends it: the object it edited, or the text it edited.
 
-    Exactly one of the two. ``model`` is what a form holds; ``yaml`` is what the file tab
-    holds, and it is parsed by ``mapping_io`` so the text path and the upload path get one
+    Exactly one document. ``model`` is what a form holds; the text fields carry a file.
+    It is parsed by ``mapping_io`` so the text path and the upload path get one
     set of rules and one set of paths in the errors.
     """
 
@@ -69,6 +69,10 @@ class MappingBody(BaseModel):
         None, description="The mapping document, as the editor's state"
     )
     yaml: Optional[str] = Field(None, description="The mapping document, as YAML or JSON text")
+    text: Optional[str] = Field(None, description="The mapping document, as JSON or YAML text")
+    json_text: Optional[Union[str, Dict[str, Any]]] = Field(
+        None, alias="json", description="The mapping document, as JSON text or an object"
+    )
 
 
 class PreviewBody(BaseModel):
@@ -227,13 +231,15 @@ def _document_from(body: MappingBody) -> GraphMapping:
     YAML dump and buys the same error a file upload would have produced.
     """
     try:
-        if body.model is None and not body.yaml:
+        supplied = [value for value in (body.model, body.yaml, body.text, body.json_text) if value is not None]
+        if not supplied:
             raise mapping_io.MappingFileError.at(
-                "file", "send the mapping as 'model' or as 'yaml', not neither"
+                "file", "send the mapping as 'model', 'yaml', 'json' or 'text'"
             )
-        if body.yaml:
-            return mapping_io.parse(body.yaml)
-        return mapping_io.parse(yaml.safe_dump(body.model, sort_keys=False))
+        if len(supplied) != 1:
+            raise mapping_io.MappingFileError.at("file", "send exactly one mapping document")
+        value = supplied[0]
+        return mapping_io.parse(value if isinstance(value, str) else yaml.safe_dump(value, sort_keys=False))
     except mapping_io.MappingFileError as exc:
         raise _problem(exc) from exc
 
@@ -269,6 +275,7 @@ def _mapping_answer(project: Project, document: Optional[GraphMapping]) -> Dict[
         "provenance": dict(effective.provenance) if effective is not None else {},
         "model": document.model_dump(by_alias=True) if document is not None else None,
         "text": mapping_io.to_yaml(document) if document is not None else None,
+        "json": mapping_io.to_json(document) if document is not None else None,
     }
 
 
@@ -320,7 +327,7 @@ async def mapping_example(_: Optional[str] = Depends(verify_admin_token)) -> Dic
 @router.get("/{project_name}/mapping")
 async def get_mapping(
     project_name: str = Path(..., description="Project name"),
-    output: Optional[str] = Query(None, alias="format", description="'yaml' for the file itself"),
+    output: Optional[str] = Query(None, alias="format", description="'json' or 'yaml' for the file itself"),
     service: ProjectService = Depends(get_project_service),
     _: Optional[str] = Depends(verify_admin_token),
 ) -> Any:
@@ -334,7 +341,9 @@ async def get_mapping(
     project = await _project(service, project_name)
     driver = _relational_driver(project)
     document = driver.override_document()
-    if output == "yaml":
+    if output not in (None, "yaml", "json"):
+        raise HTTPException(status_code=422, detail="format must be json or yaml")
+    if output in ("yaml", "json"):
         if document is None:
             raise HTTPException(
                 status_code=404,
@@ -342,10 +351,12 @@ async def get_mapping(
                 "and save what it proposes".format(project_name, project_name),
             )
         return PlainTextResponse(
-            mapping_io.to_yaml(document),
-            media_type="text/yaml",
+            mapping_io.to_json(document) if output == "json" else mapping_io.to_yaml(document),
+            media_type="application/json" if output == "json" else "text/yaml",
             headers={
-                "Content-Disposition": 'attachment; filename="{}.mapping.yml"'.format(project_name)
+                "Content-Disposition": 'attachment; filename="{}.mapping.{}"'.format(
+                    project_name, "json" if output == "json" else "yml"
+                )
             },
         )
     return _mapping_answer(project, document)
@@ -428,6 +439,7 @@ async def validate_mapping(
         "edges": len(dumped.get("edges") or []),
         "model": dumped,
         "text": mapping_io.to_yaml(document),
+        "json": mapping_io.to_json(document),
     }
 
 
@@ -646,10 +658,17 @@ async def _tables_answer(
             "page": 1,
             "page_size": 1,
         }
-    names = page.narrowed(await driver.access.names(schema=schema))
-    page_names = page.window(names)
+    page_reader = getattr(driver.access, "names_page", None)
+    source_page = await page_reader(
+        schema=schema, offset=(page.number - 1) * page.size, limit=page.size, search=page.search
+    ) if page_reader else None
+    if source_page is not None:
+        page_names, total = source_page
+    else:
+        names = page.narrowed(await driver.access.names(schema=schema))
+        page_names, total = page.window(names), len(names)
     if not page_names:
-        return {"rows": [], "total": len(names), "page": page.number, "page_size": page.size}
+        return {"rows": [], "total": total, "page": page.number, "page_size": page.size}
     found = await driver.access.catalog(
         names=page_names, page_size=len(page_names), schema=schema
     )
@@ -666,7 +685,7 @@ async def _tables_answer(
             }
             for name in page_names
         ],
-        "total": len(names),
+        "total": total,
         "page": page.number,
         "page_size": page.size,
     }

@@ -147,6 +147,7 @@ def test_the_check_answers_exactly_the_document_keys_the_editor_reads(
         "edges",
         "model",
         "text",
+        "json",
     }
     assert answer["nodes"] == len(answer["model"]["nodes"])
     assert "saved" not in answer and "removed" not in answer

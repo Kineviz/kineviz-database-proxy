@@ -18,6 +18,7 @@ authority for what an export looks like.
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any, List, Sequence, Tuple, Union
 
@@ -25,6 +26,7 @@ import yaml
 from pydantic import ValidationError
 
 from ...models.graph_mapping import GraphMapping
+from ...models.mapping_v2 import external_mapping
 
 #: A mapping is a description of a schema, not a schema dump. Past this it is a
 #: person having pasted a database into the wrong box, and saying so is kinder than
@@ -97,6 +99,12 @@ def to_yaml(doc: GraphMapping) -> str:
         indent=2,
         width=1_000_000,
     )
+
+
+def to_json(doc: GraphMapping) -> str:
+    """Write GraphXR v2 JSON, including explicit physical property columns."""
+    data = doc.model_dump(mode="json", by_alias=True, exclude_none=True)
+    return json.dumps(external_mapping(data), ensure_ascii=False, indent=2) + "\n"
 
 
 # --------------------------------------------------------------------- internals

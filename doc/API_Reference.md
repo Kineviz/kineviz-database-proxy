@@ -33,7 +33,7 @@ Accept: application/json
 **Response Schema:**
 ```typescript
 {
-  type: DatabaseType,           // Enum: "spanner" | "bigquery" | "rocketgraph" | "neo4j" | "memgraph" | "kuzu" | "ladybug" | "latticedb" | "postgresql" | "mysql" | "mssql" | "mongodb"
+  type: DatabaseType,           // Enum: "spanner" | "bigquery" | "rocketgraph" | "neo4j" | "memgraph" | "kuzu" | "ladybug" | "latticedb" | "postgresql" | "mysql" | "mssql" | "snowflake" | "mongodb"
   api_urls: {
     info: string,               // URL to this endpoint
     query: string,              // URL to query endpoint
@@ -399,6 +399,7 @@ type DatabaseType =
   | "postgresql"
   | "mysql"
   | "mssql"
+  | "snowflake"
   | "mongodb";
 ```
 

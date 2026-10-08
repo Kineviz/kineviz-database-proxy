@@ -28,6 +28,7 @@ from graphxr_database_proxy.drivers.factory import DriverFactory
 from graphxr_database_proxy.drivers.graph_support import (
     MSSQL_CAPABILITIES,
     MYSQL_CAPABILITIES,
+    SNOWFLAKE_CAPABILITIES,
     POSTGRESQL_CAPABILITIES,
 )
 from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
@@ -210,7 +211,7 @@ def test_the_backends_under_test_are_the_ones_the_factory_registers() -> None:
 def test_every_relational_backend_has_a_recorded_golden_document() -> None:
     """The bite of the guard: an unrecorded backend fails here before anything else does."""
     recorded = {backend.value for backend in RELATIONAL_BACKENDS}
-    assert recorded == {"mssql", "postgresql", "mysql"}
+    assert recorded == {"mssql", "postgresql", "mysql", "snowflake"}
 
 
 # -- the golden document ----------------------------------------------------------------
@@ -276,6 +277,7 @@ def test_the_declared_records_are_the_document_the_route_answers() -> None:
         MSSQL_CAPABILITIES.type: MSSQL_CAPABILITIES,
         POSTGRESQL_CAPABILITIES.type: POSTGRESQL_CAPABILITIES,
         MYSQL_CAPABILITIES.type: MYSQL_CAPABILITIES,
+        SNOWFLAKE_CAPABILITIES.type: SNOWFLAKE_CAPABILITIES,
     }
     for backend in RELATIONAL_BACKENDS:
         record = declared[backend.value]

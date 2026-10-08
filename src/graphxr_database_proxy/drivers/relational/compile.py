@@ -284,8 +284,9 @@ class _Builder:
             return existing
         # Declaring a column is not binding one: nothing leaves for these types, so the
         # unnamed ones stay text here and refuse where a value is actually sent.
-        args = [sa.Column(column, self.spelling.declared_column_type(type_name)) for column, type_name in columns.items()]
-        table = Table(name, self.metadata, *args, schema=schema)
+        args = [sa.Column(column, self.spelling.declared_column_type(type_name), quote=self.spelling.identifier_quote) for column, type_name in columns.items()]
+        table = Table(name, self.metadata, *args, schema=schema,
+                      quote=self.spelling.identifier_quote, quote_schema=self.spelling.identifier_quote)
         self._tables[key] = table
         return table
 
@@ -296,7 +297,10 @@ class _Builder:
             return existing
         index = self._vertex_index(var)
         schema = self.node(self.label_of(var))
-        columns = schema.all_props()
+        columns = {
+            schema.property_columns.get(name, name): declared
+            for name, declared in schema.all_props().items()
+        }
         alias = self._table(schema.table, schema.schema, columns).alias("v%d" % index)
         self._vertex_alias[var] = alias
         return alias
@@ -308,7 +312,11 @@ class _Builder:
             return existing
         index = self._edge_index(bound)
         schema = self.rel(bound.rel_type)
-        alias = self._table(schema.table, schema.schema, edge_columns(schema, bound.pair)).alias("e%d" % index)
+        columns = {
+            schema.property_columns.get(name, name): declared
+            for name, declared in edge_columns(schema, bound.pair).items()
+        }
+        alias = self._table(schema.table, schema.schema, columns).alias("e%d" % index)
         self._edge_alias[bound.var] = alias
         return alias
 
@@ -345,7 +353,7 @@ class _Builder:
                     var=vertex.var,
                     entity=self.label_of(vertex.var),
                     kind=expression.VERTEX_KIND,
-                    columns={name: alias.c[name] for name in columns},  # type: ignore[attr-defined]
+                    columns={name: alias.c[schema.property_columns.get(name, name)] for name in columns},  # type: ignore[attr-defined]
                     types=dict(columns),
                     key_prop=schema.key,
                 )
@@ -360,7 +368,7 @@ class _Builder:
                     var=bound.var,
                     entity=bound.rel_type,
                     kind=expression.EDGE_KIND,
-                    columns={name: alias.c[name] for name in columns},  # type: ignore[attr-defined]
+                    columns={name: alias.c[schema.property_columns.get(name, name)] for name in columns},  # type: ignore[attr-defined]
                     types=dict(columns),
                     key_prop=schema.key or "",
                 )
@@ -489,7 +497,7 @@ class _Builder:
                     continue
                 label = "%s_v%d_p%d" % (COLUMN_PREFIX, index, position)
                 position += 1
-                columns.append(alias.c[name].label(label))  # type: ignore[attr-defined]
+                columns.append(alias.c[schema.property_columns.get(name, name)].label(label))  # type: ignore[attr-defined]
                 properties[label] = name
             vertices.append(
                 VertexEntry(
@@ -521,7 +529,7 @@ class _Builder:
                     continue
                 label = "%s_e%d_p%d" % (COLUMN_PREFIX, index, position)
                 position += 1
-                columns.append(alias.c[name].label(label))  # type: ignore[attr-defined]
+                columns.append(alias.c[schema.property_columns.get(name, name)].label(label))  # type: ignore[attr-defined]
                 properties[label] = name
             edges.append(
                 EdgeEntry(
@@ -580,10 +588,14 @@ class _Builder:
         if item.prop and item.var:
             column, declared = scope.resolve(item.var, item.prop)
         elif item.var:
-            schema = self.node(self.label_of(item.var))
-            alias = self.vertex_alias(item.var)
-            column = alias.c[schema.key]  # type: ignore[attr-defined]
-            declared = schema.key_type
+            bound = scope.entity_of(item.var)
+            if not bound.key_prop:
+                if item.func == "count" and not item.distinct:
+                    return func.count()
+                raise CompileError(
+                    "%s(%s) needs an entity key for this aggregate" % (item.func, item.var)
+                )
+            column, declared = scope.resolve(item.var, bound.key_prop)
         if column is None:
             raise CompileError("%s() needs a variable or a variable's property" % item.func)
         if item.distinct:

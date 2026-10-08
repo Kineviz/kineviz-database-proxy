@@ -276,6 +276,7 @@ LADYBUG_DIALECT = _embedded_dialect("ladybug")
 MSSQL_DIALECT = _relational_dialect("mssql")
 POSTGRESQL_DIALECT = _relational_dialect("postgresql")
 MYSQL_DIALECT = _relational_dialect("mysql")
+SNOWFLAKE_DIALECT = _relational_dialect("snowflake")
 
 DIALECTS: Dict[str, StatementDialect] = {
     "spanner": SPANNER_DIALECT,
@@ -289,6 +290,7 @@ DIALECTS: Dict[str, StatementDialect] = {
     "mssql": MSSQL_DIALECT,
     "postgresql": POSTGRESQL_DIALECT,
     "mysql": MYSQL_DIALECT,
+    "snowflake": SNOWFLAKE_DIALECT,
 }
 
 

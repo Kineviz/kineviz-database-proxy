@@ -1,5 +1,5 @@
 import React from 'react';
-import { Alert, Button, Card, Input, Modal, Select, Space, Spin, Tabs, Tag, Tooltip, Typography, message } from 'antd';
+import { Alert, Button, Drawer, Input, Modal, Select, Space, Spin, Tabs, Tag, Typography, message } from 'antd';
 import { MappingProblem } from '../../types/project';
 import { DraftState, emptyDraft, errorMessage, reduceDraft, toProblems } from './reducer';
 import { MappingActions, createActions } from './actions';
@@ -9,14 +9,16 @@ import NodeList from './NodeList';
 import LinkList from './LinkList';
 import YamlPane from './YamlPane';
 import Toolbar from './Toolbar';
+import VisualMapping from './VisualMapping';
+import { SettingOutlined, ApartmentOutlined, TableOutlined, CodeOutlined } from '@ant-design/icons';
 
 const { Text, Paragraph } = Typography;
 
 /**
- * The editor: three tabs over one draft.
+ * The editor: structured and text views over one draft.
  *
- * Records, Links and YAML are not three documents that need reconciling — they are views of
- * one object, and the YAML pane is that object as the proxy renders it. A save is one `PUT`
+ * Records, Links, JSON and YAML are views of one object. Text panes show that
+ * object as the proxy renders it. A save is one `PUT`
  * of the whole draft, so there is no order of operations to get wrong and no half-applied
  * edit. The proxy answers a save with two facts and they are not the same one: whether it
  * stored the document, and whether that document loads.
@@ -31,12 +33,16 @@ interface Props {
   project: string;
   /** The database type, so the header can say what kind of schema it is reading. */
   databaseType: string;
+  onDirtyChange?: (dirty: boolean) => void;
 }
 
-const MappingPane: React.FC<Props> = ({ project, databaseType }) => {
+const MappingPane: React.FC<Props> = ({ project, databaseType, onDirtyChange }) => {
   const [draft, dispatch] = React.useReducer(reduceDraft, undefined, emptyDraft);
   const [loading, setLoading] = React.useState(true);
   const [saving, setSaving] = React.useState(false);
+  const [checking, setChecking] = React.useState(false);
+  const [settingsOpen, setSettingsOpen] = React.useState(false);
+  React.useEffect(() => { onDirtyChange?.(draft.dirty); }, [draft.dirty, onDirtyChange]);
   const [failure, setFailure] = React.useState<string | null>(null);
   /**
    * Whether an override is stored, as `GET /mapping` says it: `override` or `none`.
@@ -47,7 +53,7 @@ const MappingPane: React.FC<Props> = ({ project, databaseType }) => {
    * proposal stays behind the button that makes it: Re-discover.
    */
   const [source, setSource] = React.useState<string | null>(null);
-  const [tab, setTab] = React.useState('records');
+  const [tab, setTab] = React.useState('visual');
   const [actions, setActions] = React.useState<MappingActions>(() => createActions(project));
 
   React.useEffect(() => {
@@ -180,165 +186,74 @@ const MappingPane: React.FC<Props> = ({ project, databaseType }) => {
   };
 
   const declared = (draft.document.nodes ?? []).map((node) => ({ value: node.label }));
+  const validate = async () => {
+    setChecking(true);
+    try {
+      const answer = await actions.validate(draft.document);
+      const problems = toProblems(answer.problems);
+      dispatch({ kind: 'problems', problems, warnings: toProblems(answer.warnings) });
+      if (problems.length) message.warning(`${problems.length} mapping problems to review`);
+      else message.success('Mapping validated. No structural problems found.');
+    } catch (caught: unknown) { message.error(errorMessage(caught)); }
+    finally { setChecking(false); }
+  };
 
   return (
-    <Card
-      title={
-        <Space>
-          <Text strong>{project}</Text>
+    <section className="mapping-workbench">
+      <div className="mapping-workbench-heading">
+        <div className="mapping-project-identity">
+          <h2>{project}</h2>
           <Tag>{databaseType.toUpperCase()}</Tag>
-          {draft.dirty ? <Tag color="orange">unsaved</Tag> : <Tag color="green">saved</Tag>}
-        </Space>
-      }
-      extra={
-        <Toolbar
-          draft={draft}
-          dispatch={dispatch}
-          actions={actions}
-          saving={saving}
-          onSave={save}
-          onReload={reload}
-          onReset={reset}
-        />
-      }
-    >
-      <Paragraph type="secondary" style={{ marginBottom: 12 }}>
-        One document describes this schema as a graph: which tables are records, which are links, which
-        column identifies a row, and which way round each link goes. Save is one call, and a mapping the
-        proxy cannot load is stored and reported rather than refused — its problems name the control to fix.
-      </Paragraph>
-
-      {loading ? (
-        <Spin style={{ display: 'block', margin: '40px auto' }} />
-      ) : null}
-
-      {failure ? (
-        <Alert
-          type="error"
-          showIcon
-          message="The mapping could not be read"
-          description={
-            <Space direction="vertical" size={6}>
-              <Text style={{ fontSize: 12 }}>{failure}</Text>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                A relational project has to be able to open its database for this page to read a catalog.
-                If the connection is wrong, fix it on the project before editing what it means.
-              </Text>
-              <Button size="small" onClick={() => load()}>
-                Try again
-              </Button>
-            </Space>
-          }
-          style={{ marginBottom: 12 }}
-        />
-      ) : null}
-
-      <Space direction="vertical" size={12} style={{ width: '100%' }}>
-        {source === 'none' && !draft.dirty ? (
-          <Alert
-            type="info"
-            showIcon
-            message="Nothing is saved over auto-discovery yet"
-            description={
-              <Space direction="vertical" size={4}>
-                <Text style={{ fontSize: 12 }}>
-                  This page edits the override you have stored, and there is none. The graph you
-                  see in GraphXR is whatever auto-discovery reads from the live schema each time it
-                  is asked, so these empty tabs are not an empty graph.
-                </Text>
-                <Text type="secondary" style={{ fontSize: 12 }}>
-                  Re-discover above to see what this catalog would propose and edit that, or name
-                  the records yourself — either way nothing is stored until you save.
-                </Text>
-              </Space>
-            }
-          />
-        ) : null}
-
-        <ProblemsPanel
-          problems={draft.problems}
-          warnings={draft.warnings}
-          shownElsewhere={draft.problemIndex.rest.length === draft.problems.length ? 0 : countShown(draft)}
-        />
-
-        <Space wrap size={12} align="end">
-          <Tooltip title="Every table below lives in this schema unless the row says otherwise. Empty means the engine's own default: dbo, public, or the database itself.">
-            <Space direction="vertical" size={2}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Schema
-              </Text>
-              <Input
-                size="small"
-                style={{ width: 180 }}
-                defaultValue={draft.document.schema ?? ''}
-                placeholder="engine default"
-                onBlur={(event) =>
-                  dispatch({ kind: 'level', patch: { schema: event.target.value.trim() || null } })
-                }
-              />
-            </Space>
-          </Tooltip>
-          <Tooltip title="When this list is not empty, only the records named here are in the graph and everything else is out.">
-            <Space direction="vertical" size={2}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Include only
-              </Text>
-              <Select
-                mode="multiple"
-                size="small"
-                style={{ minWidth: 260 }}
-                value={draft.document.include ?? []}
-                options={declared}
-                placeholder="everything"
-                onChange={(value: string[]) => dispatch({ kind: 'level', patch: { include: value } })}
-              />
-            </Space>
-          </Tooltip>
-          <Tooltip title="Records out of the graph by name — the short form of unticking one.">
-            <Space direction="vertical" size={2}>
-              <Text type="secondary" style={{ fontSize: 12 }}>
-                Exclude
-              </Text>
-              <Select
-                mode="multiple"
-                size="small"
-                style={{ minWidth: 220 }}
-                value={draft.document.exclude ?? []}
-                options={declared}
-                placeholder="nothing"
-                onChange={(value: string[]) => dispatch({ kind: 'level', patch: { exclude: value } })}
-              />
-            </Space>
-          </Tooltip>
-        </Space>
-
-        <Tabs
-          activeKey={tab}
-          onChange={setTab}
-          items={[
-            {
-              key: 'records',
-              label: `Records (${(draft.document.nodes ?? []).length})`,
-              children: <NodeList project={project} draft={draft} dispatch={dispatch} actions={actions} />,
-            },
-            {
-              key: 'links',
-              label: `Links (${(draft.document.edges ?? []).length})`,
-              children: <LinkList project={project} draft={draft} dispatch={dispatch} actions={actions} />,
-            },
-            {
-              key: 'yaml',
-              label: 'YAML',
-              children: <YamlPane draft={draft} dispatch={dispatch} actions={actions} />,
-            },
-          ]}
-        />
-      </Space>
-    </Card>
+          <Tag color={draft.dirty ? 'orange' : 'green'}>{draft.dirty ? 'Unsaved changes' : 'Saved'}</Tag>
+        </div>
+        <Button icon={<SettingOutlined />} onClick={() => setSettingsOpen(true)}>Mapping settings</Button>
+      </div>
+      <Toolbar draft={draft} dispatch={dispatch} actions={actions} saving={saving} checking={checking}
+        onValidate={validate} onSave={save} onReload={reload} onReset={reset} />
+      <div className="mapping-summary-strip">
+        <span><strong>{draft.document.nodes?.length ?? 0}</strong> node types</span>
+        <span><strong>{draft.document.edges?.length ?? 0}</strong> relationship types</span>
+        <span className="mapping-summary-schema">Schema: {draft.document.schema || 'connection default'}</span>
+        <span className="mapping-summary-hint">Select an element to configure its mapping</span>
+      </div>
+      {failure ? <div className="mapping-notice"><Alert type="error" showIcon message="Could not read the mapping" description={failure}
+        action={<Button size="small" onClick={() => load()}>Try again</Button>} /></div> : null}
+      {source === 'none' && !draft.dirty && !loading ? <div className="mapping-notice"><Alert type="info" showIcon
+        message="Start with your database schema" description="Discover tables to create a draft, upload a JSON/YAML mapping, or add nodes below. Save when you are ready." /></div> : null}
+      {draft.problems.length || draft.warnings.length ? <div className="mapping-notice">
+        <ProblemsPanel problems={draft.problems} warnings={draft.warnings} />
+      </div> : null}
+      <Spin spinning={loading}>
+        <Tabs className="mapping-workbench-tabs" activeKey={tab} onChange={setTab} items={[
+          { key: 'visual', label: <span><ApartmentOutlined /> Visual mapping</span>, children:
+            <VisualMapping project={project} draft={draft} dispatch={dispatch} actions={actions} /> },
+          { key: 'records', label: <span><TableOutlined /> Nodes</span>, children: <div className="mapping-table-view">
+            <NodeList project={project} draft={draft} dispatch={dispatch} actions={actions} /></div> },
+          { key: 'links', label: <span><TableOutlined /> Relationships</span>, children: <div className="mapping-table-view">
+            <LinkList project={project} draft={draft} dispatch={dispatch} actions={actions} /></div> },
+          { key: 'json', label: <span><CodeOutlined /> JSON</span>, children: <div className="mapping-text-view">
+            <YamlPane draft={draft} dispatch={dispatch} actions={actions} format="json" /></div> },
+          { key: 'yaml', label: <span><CodeOutlined /> YAML</span>, children: <div className="mapping-text-view">
+            <YamlPane draft={draft} dispatch={dispatch} actions={actions} /></div> },
+        ]} />
+      </Spin>
+      <Drawer title="Mapping settings" open={settingsOpen} onClose={() => setSettingsOpen(false)} width={360}>
+        <div className="mapping-settings-form">
+          <label>Default schema</label>
+          <Input key={draft.document.schema ?? ''} defaultValue={draft.document.schema ?? ''} placeholder="Use connection default"
+            onBlur={(event) => dispatch({ kind: 'level', patch: { schema: event.target.value.trim() || null } })} />
+          <Paragraph type="secondary">Used for every table that does not specify its own schema.</Paragraph>
+          <label>Include only</label>
+          <Select mode="multiple" value={draft.document.include ?? []} options={declared} placeholder="Include all mappings"
+            onChange={(value: string[]) => dispatch({ kind: 'level', patch: { include: value } })} />
+          <label>Exclude</label>
+          <Select mode="multiple" value={draft.document.exclude ?? []} options={declared} placeholder="No exclusions"
+            onChange={(value: string[]) => dispatch({ kind: 'level', patch: { exclude: value } })} />
+          <Paragraph type="secondary">Excluded mappings stay in the document and are left out of the graph.</Paragraph>
+        </div>
+      </Drawer>
+    </section>
   );
 };
-
-/** How many of the current problems already sit under a control that shows them. */
-const countShown = (draft: DraftState): number => draft.problems.length - draft.problemIndex.rest.length;
 
 export default MappingPane;

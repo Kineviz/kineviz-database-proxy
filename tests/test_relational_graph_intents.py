@@ -243,7 +243,7 @@ def test_every_node_id_an_expand_answers_is_accepted_as_a_seed_by_the_next_expan
     for one in seeds:
         label, key = decode(one)
         assert label and key, one
-        assert any('FROM dbo."{}" AS v0'.format(label) in text for text in statements), (
+        assert any('FROM dbo."{}" AS v0'.format(label) in text.replace('"dbo"', 'dbo') for text in statements), (
             "{} was sent as a seed and no statement pins its table".format(one)
         )
         assert any(int(key) in bound for bound in bindings), "{} lost its key".format(one)

@@ -43,6 +43,7 @@ const TypeAuthSelectors: React.FC<Props> = ({
             <Option value="mssql">SQL Server</Option>
             <Option value="postgresql">PostgreSQL</Option>
             <Option value="mysql">MySQL</Option>
+            <Option value="snowflake">Snowflake</Option>
             {/* <Option value="mongodb">MongoDB</Option> */}
           </Select>
         </Form.Item>

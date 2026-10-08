@@ -195,6 +195,8 @@ const ProjectManagement: React.FC = () => {
         return 'orange';
       case 'mssql':
         return 'gold';
+      case 'snowflake':
+        return 'blue';
       case 'mongodb':
         return 'purple';
       default:

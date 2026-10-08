@@ -6,7 +6,7 @@ FastAPI middleware that connects [GraphXR](https://www.kineviz.com/graphxr) to
 databases through a REST API, with a React admin UI for connections and settings.
 
 Supports Spanner Graph, BigQuery, RocketGraph, Neo4j, Memgraph, Kuzu, Ladybug,
-LatticeDB, SQL Server, PostgreSQL and MySQL. Optional admin-password and API-key
+LatticeDB, SQL Server, PostgreSQL, MySQL and Snowflake. Optional admin-password and API-key
 authentication protect management and database access.
 
 ## Quick start
@@ -21,8 +21,9 @@ GraphXR's **Database Proxy** connection. For example:
 `http://localhost:9080/api/spanner/Test`.
 
 For SQL drivers, install the corresponding extra: `[mssql]`, `[postgresql]`,
-`[mysql]` or `[relational]` for all three. See the
+`[mysql]`, `[snowflake]` or `[relational]` for all four. See the
 [user guide](doc/USAGE.md) for connection and authentication setup.
+Snowflake connection and mapping details are in the [Snowflake guide](doc/SNOWFLAKE.md).
 
 ## Develop from source
 

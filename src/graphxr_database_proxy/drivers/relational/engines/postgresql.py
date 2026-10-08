@@ -277,6 +277,15 @@ class PostgreSQLEngine(EngineSpelling):
     def session_statements(self) -> Tuple[str, ...]:
         return SESSION_STATEMENTS
 
+    def read_only_statement(self) -> Optional[str]:
+        """Protect the transaction already begun by the session setup SELECTs.
+
+        ``default_transaction_read_only`` only affects subsequent transactions.
+        In autocommit mode that session default protects each standalone read;
+        in normal mode this statement protects the current transaction as well.
+        """
+        return "SET TRANSACTION READ ONLY"
+
     def isolation(self, config: ConnectConfig) -> Optional[str]:
         """None by default: the server's READ COMMITTED is the right reading of a
         graph canvas, and the read-only guarantee comes from the session statement,

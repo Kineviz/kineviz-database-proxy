@@ -1,18 +1,19 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { Alert, Card, Empty, Select, Space, Spin, Tag, Typography } from 'antd';
+import { Alert, Modal, Empty, Select, Space, Spin, Tag, Typography } from 'antd';
 import { PartitionOutlined } from '@ant-design/icons';
 import { Project, RELATIONAL_TYPES, isRelationalType } from '../types/project';
 import { projectService } from '../services/projectService';
 import MappingPane from '../components/mapping/MappingPane';
 import { errorMessage } from '../components/mapping/reducer';
+import '../components/mapping/mapping.css';
 
 const { Paragraph, Text, Title } = Typography;
 
 /**
  * Reviewing what a relational schema means as a graph.
  *
- * This page is only about the three relational project types, because a graph mapping is
+ * This page is only about relational project types, because a graph mapping is
  * only a question you can ask of a table-and-column catalog. A Spanner, a Neo4j or a Kuzu
  * project is listed here greyed out with the reason rather than left out — reaching this
  * page from a project and finding an empty table is how a person concludes the tool is
@@ -26,6 +27,7 @@ const GraphMapping: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const [projects, setProjects] = React.useState<Project[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [hasDraft, setHasDraft] = React.useState(false);
   const [failure, setFailure] = React.useState<string | null>(null);
   const selected = params.get('project') || '';
 
@@ -85,9 +87,15 @@ const GraphMapping: React.FC = () => {
   }));
 
   const choose = (name: string): void => {
-    const next = new URLSearchParams(params);
-    next.set('project', name);
-    setParams(next);
+    const change = () => {
+      const next = new URLSearchParams(params);
+      next.set('project', name);
+      setHasDraft(false);
+      setParams(next);
+    };
+    if (hasDraft && name !== selected) Modal.confirm({ title: 'Leave your unsaved mapping?',
+      content: 'Switching projects will discard the current draft.', okText: 'Discard and switch', onOk: change });
+    else change();
   };
 
   const body = (): React.ReactNode => {
@@ -111,7 +119,7 @@ const GraphMapping: React.FC = () => {
             <Space direction="vertical" size={4}>
               <Text>There are no projects yet.</Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
-                Add a MySQL, PostgreSQL or SQL Server project first; a mapping is a reading of a catalog
+                Add a Snowflake, MySQL, PostgreSQL or SQL Server project first; a mapping is a reading of a catalog
                 that has to be reachable.
               </Text>
             </Space>
@@ -129,7 +137,7 @@ const GraphMapping: React.FC = () => {
           description={
             <Space direction="vertical" size={4}>
               <Text style={{ fontSize: 13 }}>
-                None of the {projects.length} projects is a MySQL, PostgreSQL or SQL Server database, and a
+                None of the {projects.length} projects is a Snowflake, MySQL, PostgreSQL or SQL Server database, and a
                 graph mapping is only a question you can ask of a table-and-column catalog.
               </Text>
               <Text type="secondary" style={{ fontSize: 12 }}>
@@ -178,46 +186,23 @@ const GraphMapping: React.FC = () => {
       );
     }
 
-    return <MappingPane key={chosen.name} project={chosen.name} databaseType={chosen.database_type} />;
+    return <MappingPane key={chosen.name} project={chosen.name} databaseType={chosen.database_type} onDirtyChange={setHasDraft} />;
   };
 
   return (
-    <Space direction="vertical" size={16} style={{ width: '100%' }}>
-      <Card
-        title={
-          <Space>
-            <PartitionOutlined />
-            <span>Graph Mapping</span>
-          </Space>
-        }
-        extra={
-          <Space size={8}>
-            <Text type="secondary" style={{ fontSize: 12 }}>
-              Project
-            </Text>
-            <Select
-              size="small"
-              style={{ minWidth: 320 }}
-              value={selected || undefined}
-              placeholder="Choose a relational project"
-              options={options}
-              onChange={choose}
-            />
-          </Space>
-        }
-      >
-        <Title level={5} style={{ marginTop: 0 }}>
-          What this schema means as a graph
-        </Title>
-        <Paragraph type="secondary" style={{ marginBottom: 0 }}>
-          Auto-discovery reads foreign keys as links, and a foreign key is a real direction — but not always
-          the one the sentence in the room uses. This page is where the proposal is renamed, flipped,
-          excluded, extended, and checked against real rows before it is saved.
-        </Paragraph>
-      </Card>
-
+    <div className="mapping-page">
+      <header className="mapping-page-heading">
+        <div className="mapping-page-title">
+          <span className="mapping-page-icon"><PartitionOutlined /></span>
+          <div><Title level={3}>Graph Mapping</Title><Paragraph>Turn database tables into a graph you can explore.</Paragraph></div>
+        </div>
+        <div className="mapping-project-picker"><Text type="secondary">PROJECT</Text>
+          <Select aria-label="Mapping project" showSearch optionFilterProp="value" value={selected || undefined}
+            placeholder="Choose a relational project" options={options} onChange={choose} />
+        </div>
+      </header>
       {body()}
-    </Space>
+    </div>
   );
 };
 

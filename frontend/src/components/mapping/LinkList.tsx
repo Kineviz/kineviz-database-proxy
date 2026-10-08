@@ -282,6 +282,7 @@ const LinkList: React.FC<Props> = ({ project, draft, dispatch, actions }) => {
         rowKey={(edge) => edge.type}
         columns={columns}
         dataSource={edges}
+        scroll={{ x: 1100 }}
         pagination={{ pageSize: 10, showSizeChanger: true, size: 'small', hideOnSinglePage: true }}
         expandable={{
           columnWidth: 34,

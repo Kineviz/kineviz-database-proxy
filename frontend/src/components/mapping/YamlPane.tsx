@@ -27,9 +27,10 @@ interface Props {
   actions: MappingActions;
   /** A pasted or uploaded file lands here, so the page can say where it came from. */
   note?: string | null;
+  format?: 'json' | 'yaml';
 }
 
-const YamlPane: React.FC<Props> = ({ draft, dispatch, actions, note }) => {
+const YamlPane: React.FC<Props> = ({ draft, dispatch, actions, note, format = 'yaml' }) => {
   const [text, setText] = React.useState('');
   const [original, setOriginal] = React.useState('');
   const [editing, setEditing] = React.useState(false);
@@ -45,7 +46,7 @@ const YamlPane: React.FC<Props> = ({ draft, dispatch, actions, note }) => {
   const fetchStored = React.useCallback(async () => {
     setLoading(true);
     try {
-      const answer = textOf(await actions.text());
+      const answer = textOf(await actions.text(format));
       setText(answer);
       setOriginal(answer);
       setProblems([]);
@@ -55,21 +56,21 @@ const YamlPane: React.FC<Props> = ({ draft, dispatch, actions, note }) => {
     } finally {
       setLoading(false);
     }
-  }, [actions]);
+  }, [actions, format]);
 
   // The draft's own text, asked of the proxy: what the clicks describe, before anything is saved.
   React.useEffect(() => {
-    if (live === false) return;
+    if (live === false || editing) return;
     let cancelled = false;
     const ask = async () => {
       try {
         const answer = await actions.validate(draft.document);
         if (cancelled) return;
-        const rendered = (answer as { yaml?: string | null; text?: string | null }).yaml
-          ?? (answer as { yaml?: string | null; text?: string | null }).text;
+        const rendered = format === 'json' ? answer.json : answer.text;
         if (typeof rendered === 'string') {
           setLive(true);
           setText(rendered);
+          setOriginal(rendered);
           setProblems(toProblems(answer.problems).map((problem) => `${problem.path ? `${problem.path}: ` : ''}${problem.message}`));
           setChecked(true);
         } else {
@@ -87,7 +88,7 @@ const YamlPane: React.FC<Props> = ({ draft, dispatch, actions, note }) => {
     return () => {
       cancelled = true;
     };
-  }, [actions, draft.document, live]);
+  }, [actions, draft.document, live, editing, format]);
 
   React.useEffect(() => {
     if (live === false && !text) fetchStored();
@@ -148,8 +149,7 @@ const YamlPane: React.FC<Props> = ({ draft, dispatch, actions, note }) => {
         }
         description={
           <Text type="secondary" style={{ fontSize: 12 }}>
-            The browser never parses or writes YAML: this text came from the proxy, and pasted text goes
-            back to it before anything on this page changes shape.
+            View or paste a JSON or YAML mapping. Validate the text before applying it to the draft.
             {draft.dirty ? ' The draft and the stored mapping are not the same thing yet.' : ''}
           </Text>
         }
@@ -159,7 +159,7 @@ const YamlPane: React.FC<Props> = ({ draft, dispatch, actions, note }) => {
         <Button size="small" icon={<CopyOutlined />} onClick={() => {
           navigator.clipboard
             .writeText(text)
-            .then(() => message.success('YAML copied'))
+            .then(() => message.success(`${format.toUpperCase()} copied`))
             .catch(() => message.error('Could not reach the clipboard'));
         }}>
           Copy
@@ -185,7 +185,7 @@ const YamlPane: React.FC<Props> = ({ draft, dispatch, actions, note }) => {
       <Spin spinning={loading}>
         <Input.TextArea
           value={text}
-          onChange={(event) => setText(event.target.value)}
+          onChange={(event) => { setText(event.target.value); setChecked(false); }}
           readOnly={!editing}
           spellCheck={false}
           autoSize={{ minRows: 14, maxRows: 30 }}

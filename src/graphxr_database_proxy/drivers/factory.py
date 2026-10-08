@@ -15,6 +15,7 @@ from .latticedb import LatticeDbDriver
 from .mssql import MssqlDriver
 from .mysql import MysqlDriver
 from .postgresql import PostgresqlDriver
+from .snowflake import SnowflakeDriver
 from ..models.project import Project, DatabaseConfig, DatabaseType
 
 
@@ -33,6 +34,7 @@ class DriverFactory:
         DatabaseType.MSSQL: MssqlDriver,
         DatabaseType.POSTGRESQL: PostgresqlDriver,
         DatabaseType.MYSQL: MysqlDriver,
+        DatabaseType.SNOWFLAKE: SnowflakeDriver,
     }
     
     @classmethod

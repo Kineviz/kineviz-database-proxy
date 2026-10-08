@@ -273,7 +273,7 @@ async def test_the_cap_arrives_in_the_grammar_the_engine_itself_understands(name
 
     compiled = driver.sample_statement(mapping.nodes["Person"], SAMPLE_ROWS).compile(dialect=dialect)
 
-    assert CAP_TOKENS[name] in str(compiled).replace("\n", " "), str(compiled)
+    assert CAP_TOKENS[name].replace("::INTEGER", "") in str(compiled).replace("\n", " ").replace("::INTEGER", ""), str(compiled)
     assert dict(compiled.params) == {"param_1": SAMPLE_ROWS}
 
 

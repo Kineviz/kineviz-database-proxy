@@ -12,19 +12,21 @@ from ..engine import EngineSpelling, register
 from .mssql import MSSQLEngine
 from .mysql import MySQLEngine
 from .postgresql import PostgreSQLEngine
+from .snowflake import SnowflakeEngine
 
 #: One instance per engine: the spellings are stateless, and every answer that needs
 #: a server takes that server's ``ServerInfo`` as an argument instead of caching one.
 MSSQL = MSSQLEngine()
 POSTGRESQL = PostgreSQLEngine()
 MYSQL = MySQLEngine()
+SNOWFLAKE = SnowflakeEngine()
 
-for _spelling in (MSSQL, POSTGRESQL, MYSQL):
+for _spelling in (MSSQL, POSTGRESQL, MYSQL, SNOWFLAKE):
     register(_spelling)
 del _spelling
 
 #: Every registered spelling, in the order the UI lists them.
-ENGINES = (MSSQL, POSTGRESQL, MYSQL)
+ENGINES = (MSSQL, POSTGRESQL, MYSQL, SNOWFLAKE)
 
 __all__ = [
     "ENGINES",
@@ -32,5 +34,6 @@ __all__ = [
     "MSSQL",
     "MYSQL",
     "POSTGRESQL",
+    "SNOWFLAKE",
     "register",
 ]

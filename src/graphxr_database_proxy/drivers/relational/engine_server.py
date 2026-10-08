@@ -87,6 +87,8 @@ class ServerInfo:
             return (not self.mariadb) and self.release >= MYSQL_MIN_SUPPORTED
         if self.engine == "postgresql":
             return self.release >= POSTGRESQL_MIN_SUPPORTED
+        if self.engine == "snowflake":
+            return True
         return False
 
     @property

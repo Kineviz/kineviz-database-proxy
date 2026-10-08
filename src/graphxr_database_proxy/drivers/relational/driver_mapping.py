@@ -88,6 +88,8 @@ class RelationalMappingSurface:
                 for name, edge in resolved.edges.items()
             },
         )
+        if document is not None and document.version == 2:
+            resolved = await self.with_source_types(resolved)
         self._mapping = self._remember(await self.with_key_types(resolved))
         return self._mapping
 
@@ -119,6 +121,39 @@ class RelationalMappingSurface:
                 for table in page:
                     self._catalog_tables[(schema, table)] = found.get(table)
         return {key: self._catalog_tables[key] for key in wanted}
+
+    async def with_source_types(self, mapping: EffectiveMapping) -> EffectiveMapping:
+        """Resolve v2 graph types against the mapped physical columns, in pages.
+
+        GraphXR's INT64 and STRING describe values, not SQL parameter types.
+        Native types stay in the execution mapping; the saved file stays portable.
+        """
+        tables = await self.mapped_tables([*mapping.nodes.values(), *mapping.edges.values()])
+
+        def typed(record: Union[NodeSchema, RelSchema]) -> Union[NodeSchema, RelSchema]:
+            table = tables.get((record.schema or self.access.schema, record.table))
+            if table is None:
+                return record
+            props = {
+                name: table.columns.get(record.property_columns.get(name, name), declared)
+                for name, declared in record.props.items()
+            }
+            updates: Dict[str, Any] = {"props": props}
+            if record.key:
+                updates["key_type"] = table.columns.get(record.key, record.key_type)
+            if isinstance(record, RelSchema):
+                updates["endpoints"] = [
+                    replace(pair,
+                        src=replace(pair.src, column_type=table.columns.get(pair.src.column, pair.src.column_type)),
+                        dst=replace(pair.dst, column_type=table.columns.get(pair.dst.column, pair.dst.column_type)),
+                    ) for pair in record.endpoints
+                ]
+            return replace(record, **updates)
+
+        return replace(mapping,
+            nodes={name: typed(node) for name, node in mapping.nodes.items()},
+            edges={name: typed(edge) for name, edge in mapping.edges.items()},
+        )
 
     async def with_key_types(self, mapping: EffectiveMapping) -> EffectiveMapping:
         """

@@ -1,4 +1,4 @@
-# 把 SQL Server、PostgreSQL、MySQL 当成图来用
+# 把 SQL Server、PostgreSQL、MySQL、Snowflake 当成图来用
 
 你的数据库是一张张表、一列列字段，而 GraphXR 想看到的是点和线。代理会读取你的 catalog，
 给出它自己的解读，再让你在**一份文档**里纠正这个解读。这份文档讲的就是那份文件，以及代理
@@ -91,12 +91,25 @@ OrderItem   <- OrderItem   notes: not a node: its primary key is ['order_id', 'l
 
 | 字段 | 改变什么 |
 |---|---|
-| `version` | 文档格式版本；目前只有 `1` |
-| `schema` | 下面所有表默认所在的 schema，条目自己写了就以条目为准。不写则采用项目连接的 schema，再回退到 `dbo`（SQL Server）、`public`（PostgreSQL）或数据库本身（MySQL） |
+| `version` | 代理 v1 或 GraphXR v2；两种版本都能写成 JSON 或 YAML |
+| `schema` | 下面所有表默认所在的 schema，条目自己写了就以条目为准。不写则采用项目连接的 schema，再回退到 `dbo`（SQL Server）、`public`（PostgreSQL）、`PUBLIC`（Snowflake）或数据库本身（MySQL） |
 | `include` | 一旦非空，图里**只有**点名的这些记录，其余全部出局 |
 | `exclude` | 点名的记录出局——它是"某条目写 `include: false`"的简写 |
 | `nodes` / `edges` | 记录与连接，按你写的顺序 |
 | `tuning` | 预留给项目级的查询层覆盖；样例里列出了键名，每个键在它被读取的地方有说明 |
+
+GraphXR v2 JSON 结构参见 [pg18 示例](../examples/pg18.graphxr-mapping.json)：
+`source.schema` 指定默认 schema，`relationships` 声明关系，每条关系用 `from` / `to`
+定义端点。属性以图字段名为键，值为 `{"column": "physical_column", "type": "STRING"}`。
+图属性名可以与物理列名不同，查询、结果和样本使用图属性名；身份仍以物理 `key` 列确定。
+执行 v2 映射时，代理按 schema 和表名分页读取实际列类型，`INT64`、`STRING` 等图类型
+不会直接用于 SQL 参数绑定。
+
+编辑器接受 `.json`、`.yaml` 和 `.yml` 文件中的任一版本，并提供 JSON、YAML 文本页签
+和下载选项。JSON 下载采用 v2 结构，YAML 下载采用规范化的 `schema` / `nodes` / `edges`
+结构，均保留备注、排除项、翻转方向与属性列映射。多态端点或带行数估算的端点对在 JSON
+中保留为 `endpoints`，确保导出不丢失这些设置。返回表单的规范化文档还通过
+`property_columns` 保存名称不同的图字段与物理列的对应关系。
 
 `include` / `exclude` 里的名字既能匹配标签也能匹配表名，且不区分大小写——你记得哪个就写
 哪个。当有一份读到的 schema 可供比对时，一个什么都匹配不上的名字会被警告一次，而不是被
@@ -196,13 +209,20 @@ OrderItem   <- OrderItem   notes: not a node: its primary key is ['order_id', 'l
 
 ## 上传和编辑，改的是同一份文档
 
-导航栏里的 Graph Mapping 页面列出你的项目；只有 SQL Server、PostgreSQL、MySQL 项目可以
+导航栏里的 Graph Mapping 页面列出你的项目；只有 SQL Server、PostgreSQL、MySQL、Snowflake 项目可以
 选中，其余会被置灰并写明原因——图数据库已经自己命名了节点，没有需要从表里推断的东西。选中
 一个项目会写进 URL，所以别人拿到同一个链接就看到同一次复核。
 
-**Records**、**Links**、**YAML** 三个标签页是同一份草稿的三个视图，而 Save 是**一次调用**
-提交整份草稿。旁边还有：**Upload mapping**、**Download**、**Re-discover**、**Example**、
-**Reset to auto-discovery**、**Reload**、**Discard**、**Save mapping**。
+默认的 **Visual mapping** 工作区由可搜索的元素列表、交互式结构图和详情面板组成。
+选中节点或关系后，可编辑源表、主键、属性和端点。画布支持拖动卡片、平移和缩放，
+这些位置只影响展示，不改变保存的映射。箭头会考虑 `flip`；**Reverse** 只切换一次方向，
+保留原始连接列。多态端点对和自环分别绘制，被排除的元素保留显示并淡化。
+
+**Nodes**、**Relationships**、**JSON**、**YAML** 提供同一份草稿的其他视图。
+项目信息独占一行，下面是可换行的操作栏。主要操作为 **Import mapping**、**Export**、
+**Discover tables**、**Validate**、**Save mapping**；样例、重新加载、重置放在 **More** 菜单中，
+schema 和包含/排除名单放在 **Mapping settings** 中。切换项目或重新发现前，会确认是否
+替换尚未保存的草稿。
 
 最关键的一点是：文件和点击是同一回事。**浏览器从不解析、也从不生成 YAML**：上传的文件在
 页面里被读成文本，交给代理，只有代理会把文本变成 mapping、再把 mapping 变回文本。所以一份
@@ -216,15 +236,15 @@ OrderItem   <- OrderItem   notes: not a node: its primary key is ['order_id', 'l
   任何情况下都不会悄悄截断。
 - 读起来干净的文件进入的是**草稿**，不是存储——还得按 Save，卡片上会一直显示 `unsaved`。
   带着未保存的草稿离开页面会先问你。
-- **Download** 写出的是**已保存**的那份，因为代理渲染的是它手里的那份；草稿未保存时，页面
+- **Export** 写出的是**已保存**的那份，因为代理渲染的是它手里的那份；草稿未保存时，页面
   会先提议保存。
-- **Re-discover** 用此刻 catalog 的提案替换草稿。在你保存之前，什么都不会落盘。
+- **Discover tables** 用此刻 catalog 的提案替换草稿。在你保存之前，什么都不会落盘。
 - 新建项目时也可以**顺手附上 mapping 文件**。这种情况下，一个加载不了的文件只会在项目建好
   之后换来一句警告，不会赔上项目本身。
 - 保存会改变 GraphXR 读到的内容：schema 缓存的摘要键就是这份 mapping，所以下一次 schema
   探测看到的就是你改过的版本。
 
-**YAML** 标签页随着你的点击实时显示代理自己的渲染结果，于是保存之前你就能看见这些点击
+**JSON** 和 **YAML** 标签页随着你的点击实时显示代理自己的渲染结果，于是保存之前你就能看见这些点击
 到底描述了些什么；把文本粘进去再 apply，会在服务端重新解析并刷新另外两个标签页，而带问题
 的文本不会动它们。排除某个记录时，需要它的边会被丢掉，并点名是哪个记录导致的，而不是拒绝
 整份文件——这条级联和 `mapping.py` 在处理上传时用的是同一条规则，所以编辑器的承诺和加载器
@@ -343,7 +363,10 @@ Links 页上每个端点对都有一个 **Check direction**，把这条边*正�
 
 ## 建项目的时候要填什么
 
-主机、端口、数据库、schema、用户名、密码，外加 TLS 开关。默认值就是引擎自己的：`1433`、
+Snowflake 填写账号标识、数据库、schema（默认 `PUBLIC`）、Warehouse、可选 Role、用户名和
+密码，始终使用 HTTPS。大小写规则和非强制约束说明见 [Snowflake 指南](SNOWFLAKE.zh.md)。
+
+SQL Server、PostgreSQL 和 MySQL 填写主机、端口、数据库、schema、用户名、密码，外加 TLS 开关。默认值就是引擎自己的：`1433`、
 `5432`、`3306`，schema 分别是 `dbo` / `public` / 数据库本身——MySQL 那栏故意留空，因为
 在那里 schema **就是**数据库。**只读账号就够了**：代理自始至终只做读取。表单没被要求建模的
 引擎参数，放进连接的 `options`，它们会原样交给驱动。
@@ -360,7 +383,7 @@ Links 页上每个端点对都有一个 **Check direction**，把这条边*正�
 | 解析、1 MiB 上限、导出 | `drivers/relational/mapping_io.py` |
 | 什么算合法，以及为什么不合法 | `drivers/relational/mapping.py`，以及 loader 拆出去的那四个 `mapping_props.py`／`mapping_index.py`／`mapping_pairs.py`／`mapping_scope.py` |
 | 自动发现读什么、拒什么、上限 | `drivers/relational/catalog.py`、`reflect.py` |
-| 每个引擎真正能绑定哪些列类型名 | `drivers/relational/engines/mssql.py`、`mysql.py`、`postgresql.py`——各自那张 `_COLUMN_TYPES` 表，声明的类型就是在这儿查表的 |
+| 每个引擎真正能绑定哪些列类型名 | `drivers/relational/engines/mssql.py`、`mysql.py`、`postgresql.py`、`snowflake.py` |
 | 下游一切代码所依据的中间表示 | `drivers/relational/schemas.py` |
 | 自带的样例文件 | `drivers/relational/data/mapping.example.yml` |
 | 编辑器 | `frontend/src/pages/GraphMapping.tsx`、`frontend/src/components/mapping/` |

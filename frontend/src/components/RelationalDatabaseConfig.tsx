@@ -30,6 +30,7 @@ const ENGINE_LABEL: Record<string, string> = {
   mssql: "SQL Server",
   postgresql: "PostgreSQL",
   mysql: "MySQL",
+  snowflake: "Snowflake",
 };
 
 /**
@@ -42,6 +43,7 @@ export const RELATIONAL_DEFAULT_SCHEMA: Record<string, string> = {
   mssql: "dbo",
   postgresql: "public",
   mysql: "",
+  snowflake: "PUBLIC",
 };
 
 interface Props {
@@ -66,6 +68,7 @@ const RelationalDatabaseConfig: React.FC<Props> = ({
   allowMappingUpload,
 }) => {
   const label = ENGINE_LABEL[databaseType] || databaseType;
+  const snowflake = databaseType === "snowflake";
   const [mappingFileName, setMappingFileName] = React.useState<string | null>(null);
   // The connection the browse is reading, taken when the button was pressed, and the table
   // picked out of it. `null` means no browse is open, and nothing has been read.
@@ -97,8 +100,8 @@ const RelationalDatabaseConfig: React.FC<Props> = ({
     schema_name: text("schema_name"),
     username: text("username"),
     password: text("password"),
-    use_tls: raw("use_tls") === true,
-    options: {},
+    use_tls: snowflake || raw("use_tls") === true,
+    options: (raw("options") as Record<string, unknown> | undefined) ?? {},
   });
 
   /**
@@ -156,7 +159,7 @@ const RelationalDatabaseConfig: React.FC<Props> = ({
 
   const testConnection = async () => {
     try {
-      await form.validateFields(["host", "port"]);
+      await form.validateFields(snowflake ? ["host", "database_id", ["options", "warehouse"]] : ["host", "port"]);
       const result = await projectService.testConnectionWithConfig(databaseType, draftConfig());
       if (result.success) {
         message.success(result.message || "Connection successful");
@@ -175,16 +178,17 @@ const RelationalDatabaseConfig: React.FC<Props> = ({
   return (
     <Card title={`${label} Configuration`} size="small" style={{ marginBottom: 16 }}>
       <Row gutter={16}>
-        <Col span={12}>
+        <Col span={snowflake ? 24 : 12}>
           <Form.Item
-            label="Host"
+            label={snowflake ? "Account identifier" : "Host"}
             name="host"
-            rules={[{ required: true, message: "Please enter host" }]}
+            tooltip={snowflake ? "Your Snowflake organization-account identifier. HTTPS is always used." : undefined}
+            rules={[{ required: true, message: snowflake ? "Please enter your Snowflake account" : "Please enter host" }]}
           >
-            <Input placeholder="e.g. db.internal or 10.0.0.7" />
+            <Input placeholder={snowflake ? "e.g. myorg-myaccount" : "e.g. db.internal or 10.0.0.7"} />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col span={6} style={{ display: snowflake ? "none" : undefined }}>
           <Form.Item
             label="Port"
             name="port"
@@ -198,7 +202,7 @@ const RelationalDatabaseConfig: React.FC<Props> = ({
             />
           </Form.Item>
         </Col>
-        <Col span={6}>
+        <Col span={6} style={{ display: snowflake ? "none" : undefined }}>
           <Form.Item
             label="Use TLS"
             name="use_tls"
@@ -238,6 +242,20 @@ const RelationalDatabaseConfig: React.FC<Props> = ({
         </Col>
       </Row>
 
+      {snowflake && <Row gutter={16}>
+        <Col xs={24} sm={12}>
+          <Form.Item label="Warehouse" name={["options", "warehouse"]}
+            tooltip="The warehouse used to execute graph reads." rules={[{ required: true, message: "Please enter the warehouse" }]}>
+            <Input placeholder="e.g. GRAPHXR_WH" />
+          </Form.Item>
+        </Col>
+        <Col xs={24} sm={12}>
+          <Form.Item label="Role" name={["options", "role"]} tooltip="Use a role with USAGE on the database, schema and warehouse, and SELECT on mapped tables. Empty uses the user's default role.">
+            <Input placeholder="e.g. GRAPHXR_READER" />
+          </Form.Item>
+        </Col>
+      </Row>}
+
       <Card
         title="Credentials"
         size="small"
@@ -261,6 +279,11 @@ const RelationalDatabaseConfig: React.FC<Props> = ({
           </Col>
         </Row>
       </Card>
+
+      {snowflake && <Text type="secondary" style={{ display: "block", marginTop: 12, fontSize: 12 }}>
+        Table and column names are case-sensitive in mappings. Use the names from Browse tables.
+        Standard Snowflake tables do not enforce primary-key uniqueness; choose a key whose values are unique and non-null.
+      </Text>}
 
       {allowMappingUpload && (
         <div style={{ marginTop: 16 }}>

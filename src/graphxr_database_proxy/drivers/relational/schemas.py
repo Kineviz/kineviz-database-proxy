@@ -103,6 +103,7 @@ class NodeSchema:
     schema: Optional[str] = None
     show_as: Optional[str] = None
     notes: str = ""
+    property_columns: Dict[str, str] = field(default_factory=dict)
 
     def all_props(self) -> Dict[str, str]:
         """Every property a row of this label carries, key first."""
@@ -134,6 +135,7 @@ class RelSchema:
     schema: Optional[str] = None
     show_as: Optional[str] = None
     notes: str = ""
+    property_columns: Dict[str, str] = field(default_factory=dict)
 
     @property
     def representative(self) -> Pair:

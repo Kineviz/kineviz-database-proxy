@@ -38,7 +38,7 @@ dependencies = [
     # Wheel-tag matching, so the proxy can tell whether an engine release will
     # install here before it tries. See drivers/embedded/pypi.py.
     "packaging>=23.0",
-    # The shared plumbing of the three relational drivers: statement generation
+    # The shared plumbing of the relational drivers: statement generation
     # and the cross-engine catalog read. A runtime dependency, not an extra,
     # because mssql / postgresql / mysql all use it; the DBAPIs under
     # [project.optional-dependencies] are the parts that are per-engine.
@@ -52,13 +52,16 @@ ui = [
 # One group per relational engine, holding only its DBAPI. They are extras
 # because a DBAPI is a compiled extension that may have no wheel for this
 # interpreter, and the driver imports it lazily — SQLAlchemy can build the
-# statement for all three engines with none of them installed.
+# statement for the built-in dialects without their DBAPIs installed. Snowflake
+# installs its own SQLAlchemy dialect through the optional extra below.
 # pyodbc is deliberately *not* the SQL Server default: 5.2.0 tops out at cp313
 # and this project's venv is CPython 3.14.2, while pymssql ships cp314 wheels.
 mssql = ["pymssql>=2.3"]
 postgresql = ["psycopg[binary]>=3.1"]
 mysql = ["PyMySQL>=1.1"]
-relational = ["graphxr-database-proxy[mssql,postgresql,mysql]"]
+# Snowflake's dialect uses SQLAlchemy 2.0 compiler APIs removed in 2.1.
+snowflake = ["snowflake-sqlalchemy>=1.7", "sqlalchemy>=2.0,<2.1"]
+relational = ["graphxr-database-proxy[mssql,postgresql,mysql,snowflake]"]
 dev = [
     "pytest>=7.0.0",
     "pytest-asyncio>=0.21.0",
@@ -69,7 +72,7 @@ dev = [
     "mypy>=1.5.0",
     "pre-commit>=3.0.0",
 ]
-# `relational` pulls the three DBAPI groups, so it is the one name to extend.
+# `relational` pulls the engine dependency groups, so it is the one name to extend.
 all = [
     "graphxr-database-proxy[ui,dev,relational]",
 ]

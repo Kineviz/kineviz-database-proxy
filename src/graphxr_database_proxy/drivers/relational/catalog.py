@@ -313,7 +313,7 @@ def _build_tables(
                 schema=catalog.schema,
                 columns=columns,
                 not_null=not_null,
-                pk_name=pk.get("constraint_name"),
+                pk_name=pk.get("name") or pk.get("constraint_name"),
                 pk_columns=pk_columns,
                 uniques=tuple(pages["unique"].get(name) or ()),
                 foreign_keys=tuple(foreign[name]),

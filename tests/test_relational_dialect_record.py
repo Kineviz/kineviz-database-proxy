@@ -299,6 +299,8 @@ def test_the_flags_the_profile_declares_are_decided_by_these_tokens_and_records(
         "postgresql": POSTGRESQL_CAPABILITIES,
         "mysql": MYSQL_CAPABILITIES,
     }
+    from graphxr_database_proxy.drivers.graph_support import SNOWFLAKE_CAPABILITIES
+    records["snowflake"] = SNOWFLAKE_CAPABILITIES
     record = records[dialect.name]
     assert record.expand.internalRelationships is CLIENT_PROFILE["supportsInternalRelationships"]
     assert record.expand.multiHop is CLIENT_PROFILE["supportsMultiHop"]

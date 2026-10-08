@@ -88,7 +88,7 @@ def engine(name: str) -> EngineSpelling:
     return engines_for(name)
 
 def test_registry_answers_each_database_type_and_refuses_any_other() -> None:
-    assert registered_engines() == tuple(sorted(ALL_ENGINES))
+    assert registered_engines() == tuple(sorted((*ALL_ENGINES, "snowflake")))
     for name in ALL_ENGINES:
         assert engines_for(name).name == name
     # A name that is a real project type of this proxy but not a relational engine
@@ -265,7 +265,7 @@ def test_mysql_session_setup_rides_on_the_connect_args() -> None:
     assert engine("postgresql").timeout_hint(Config()) == ""
     assert mysql.timeout_hint(Config(options={"max_execution_time_ms": 0})) == ""
     assert mysql.read_only_statement() == "START TRANSACTION READ ONLY"
-    assert engine("postgresql").read_only_statement() is None
+    assert engine("postgresql").read_only_statement() == "SET TRANSACTION READ ONLY"
     assert engine("mssql").read_only_statement() is None
 
 def test_isolation_defaults_are_three_different_answers() -> None:
@@ -294,13 +294,28 @@ def test_postgres_refuses_read_uncommitted_instead_of_answering_a_lie() -> None:
     # MySQL genuinely has it, so the same request is not an error there.
     assert engine("mysql").isolation(Config(options={"isolation_level": "READ_UNCOMMITTED"}))
 
-def test_the_optional_dbapis_are_really_absent_here() -> None:
-    # The rest of this file's guarantees are only interesting if the extras are not
-    # installed, which is the state a source checkout and the CI image are in.
-    import importlib.util
+def test_engine_spellings_load_when_optional_dbapis_are_unavailable() -> None:
+    """Installing an optional driver must not invalidate the offline suite."""
+    code = textwrap.dedent('''
+        import importlib.abc
+        import sys
 
-    for name in sorted(DBAPI_NAMES - {"mysql.connector"}):
-        assert importlib.util.find_spec(name) is None, name
+        class NoDbapi(importlib.abc.MetaPathFinder):
+            def find_spec(self, fullname, path=None, target=None):
+                if fullname.split('.')[0] in {
+                    'pymssql', 'pyodbc', 'psycopg', 'psycopg2', 'pymysql', 'mysql', 'snowflake'
+                }:
+                    raise ModuleNotFoundError(fullname)
+
+        sys.meta_path.insert(0, NoDbapi())
+        from graphxr_database_proxy.drivers.relational.engine import engines_for
+        for name in ('mssql', 'postgresql', 'mysql', 'snowflake'):
+            assert engines_for(name).name == name
+    ''')
+    result = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=30
+    )
+    assert result.returncode == 0, result.stderr
 
 def test_no_module_here_creates_an_engine_or_imports_a_dbapi() -> None:
     """Checked on the syntax tree, so the prose in a docstring cannot break it."""
@@ -326,7 +341,7 @@ def test_importing_the_seam_needs_no_dbapi() -> None:
         """
         import sys
 
-        BLOCKED = {"pymssql", "psycopg", "psycopg2", "pymysql", "MySQLdb", "pyodbc"}
+        BLOCKED = {"pymssql", "psycopg", "psycopg2", "pymysql", "MySQLdb", "pyodbc", "snowflake"}
 
         class Guard:
             def find_spec(self, name, path=None, target=None):
@@ -343,7 +358,7 @@ def test_importing_the_seam_needs_no_dbapi() -> None:
             host = "db.internal"; port = None; database_id = "d"; username = "u"
             password = "sekret"; use_tls = True; options = {}; schema_name = None
 
-        assert [s.name for s in ENGINES] == ["mssql", "postgresql", "mysql"]
+        assert [s.name for s in ENGINES] == ["mssql", "postgresql", "mysql", "snowflake"]
         for spelling in ENGINES:
             url = spelling.url(C())
             assert "sekret" not in str(url) and "*" in str(url), str(url)

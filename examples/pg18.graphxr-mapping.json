@@ -1,0 +1,152 @@
+{
+  "version": 2,
+  "source": {
+    "schema": "public"
+  },
+  "nodes": [
+    {
+      "label": "Person",
+      "table": "person",
+      "key": "id",
+      "properties": {
+        "id": {
+          "column": "id",
+          "type": "INT64"
+        },
+        "name": {
+          "column": "name",
+          "type": "STRING"
+        },
+        "age": {
+          "column": "age",
+          "type": "INT64"
+        },
+        "first name": {
+          "column": "first name",
+          "type": "STRING"
+        },
+        "note": {
+          "column": "note",
+          "type": "STRING"
+        }
+      }
+    },
+    {
+      "label": "Company",
+      "table": "company",
+      "key": "id",
+      "properties": {
+        "id": {
+          "column": "id",
+          "type": "INT64"
+        },
+        "name": {
+          "column": "name",
+          "type": "STRING"
+        },
+        "country": {
+          "column": "country",
+          "type": "STRING"
+        },
+        "founded": {
+          "column": "founded",
+          "type": "INT64"
+        }
+      }
+    },
+    {
+      "label": "City",
+      "table": "city",
+      "key": "id",
+      "properties": {
+        "id": {
+          "column": "id",
+          "type": "INT64"
+        },
+        "name": {
+          "column": "name",
+          "type": "STRING"
+        },
+        "country": {
+          "column": "country",
+          "type": "STRING"
+        },
+        "order": {
+          "column": "order",
+          "type": "INT64"
+        }
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "type": "WORKS_AT",
+      "table": "works_at",
+      "key": "id",
+      "from": {
+        "label": "Person",
+        "column": "start_key"
+      },
+      "to": {
+        "label": "Company",
+        "column": "end_key"
+      },
+      "properties": {
+        "id": {
+          "column": "id",
+          "type": "INT64"
+        },
+        "since": {
+          "column": "since",
+          "type": "INT64"
+        },
+        "role": {
+          "column": "role",
+          "type": "STRING"
+        }
+      }
+    },
+    {
+      "type": "KNOWS",
+      "table": "knows",
+      "key": "id",
+      "from": {
+        "label": "Person",
+        "column": "start_key"
+      },
+      "to": {
+        "label": "Person",
+        "column": "end_key"
+      },
+      "properties": {
+        "id": {
+          "column": "id",
+          "type": "INT64"
+        },
+        "since": {
+          "column": "since",
+          "type": "INT64"
+        }
+      }
+    },
+    {
+      "type": "LOCATED_IN",
+      "table": "located_in",
+      "key": "id",
+      "from": {
+        "label": "Company",
+        "column": "start_key"
+      },
+      "to": {
+        "label": "City",
+        "column": "end_key"
+      },
+      "properties": {
+        "id": {
+          "column": "id",
+          "type": "INT64"
+        }
+      }
+    }
+  ]
+}

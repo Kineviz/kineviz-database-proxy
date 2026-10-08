@@ -16,7 +16,8 @@ npm run dev
 
 Repeat dependency installation after changing dependency files. Relational
 connections also need the relevant extra, e.g. `uv sync --extra dev --extra postgresql`;
-use `--extra relational` to install all three SQL drivers.
+use `--extra relational` to install all four SQL drivers, including Snowflake.
+For Snowflake alone, use `--extra snowflake`; see [Snowflake setup](SNOWFLAKE.md).
 
 The backend runs at http://localhost:9080 (API docs at `/docs`). The frontend
 uses `PORT` if set, otherwise webpack selects an available port; use the URL
@@ -73,6 +74,29 @@ installed frontend unit-test runner.
 
 Claude's `/verify` selects checks by the changed files and reports results.
 For documentation changes, check local links and existing English/Chinese pairs.
+
+### PostgreSQL 18 sample integration
+
+With the proxy running and GraphXRSupportDB's pg18 sample available, run:
+
+```sh
+uv sync --extra dev --extra postgresql --inexact
+uv run --no-sync python scripts/check_pg18_proxy.py --connection-file ../GraphXRSupportDB/connections/pg18.local.json
+```
+
+The script creates `pg18-supportdb` through the admin API if it is absent and
+reuses an existing project without replacing its configuration. It reads the
+sample database without resetting or modifying it. Fifteen checks compare HTTP
+results with direct SQL, covering schema discovery, counts, two-hop queries,
+Expand, category/relationship pulls, special characters and write rejection.
+Credentials stay out of its output. Use `--proxy-url` or `--project` to override
+the defaults, and `--mapping-out` to export a credential-free mapping such as
+[the pg18 example](../examples/pg18.graph-mapping.json).
+
+To import and check a specific JSON/YAML file, add `--mapping-file` with its path.
+This explicitly replaces the project's mapping through the admin API and also
+checks JSON/YAML download and re-import. The source-format example is
+[pg18.graphxr-mapping.json](../examples/pg18.graphxr-mapping.json).
 
 ## Further reading
 

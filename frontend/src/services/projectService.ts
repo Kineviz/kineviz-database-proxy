@@ -439,16 +439,16 @@ export class ProjectService {
    * `?format=yaml` answers the file itself (`text/yaml`), not the `{name, text}` the example
    * route answers, so it is wrapped here; its documented 404 for "never saved" is empty text.
    */
-  async getMappingText(project: string): Promise<MappingTextResponse> {
+  async getMappingText(project: string, format: 'json' | 'yaml' = 'yaml'): Promise<MappingTextResponse> {
     try {
       const response = await api.get<string>(
         `/api/relational/${encodeURIComponent(project)}/mapping`,
-        { params: { format: 'yaml' }, responseType: 'text' },
+        { params: { format }, responseType: 'text' },
       );
-      return { text: response.data ?? '', format: 'yaml' };
+      return { text: response.data ?? '', format };
     } catch (caught: unknown) {
       if (!isMissingOverride(caught)) throw caught;
-      return { text: null, format: 'yaml' };
+      return { text: null, format };
     }
   }
 

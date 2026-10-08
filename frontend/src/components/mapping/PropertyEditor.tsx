@@ -42,8 +42,10 @@ const PropertyEditor: React.FC<Props> = ({ project, list, name, entry, table, sc
   const structure = structural ?? [];
 
   const columns = result.columns.filter((column) => column.name && !structure.includes(column.name));
-  const mapped = columns.filter((column) => isMappedProperty(entry, column.name));
-  const unmapped = columns.filter((column) => !isMappedProperty(entry, column.name));
+  const graphName = (column: string) => propertyNames(entry.properties)
+    .find((name) => entry.property_columns?.[name] === column) ?? column;
+  const mapped = columns.filter((column) => isMappedProperty(entry, graphName(column.name)));
+  const unmapped = columns.filter((column) => !isMappedProperty(entry, graphName(column.name)));
   const unread = Math.max(0, result.total - result.loaded);
 
   if (!table) {
@@ -80,9 +82,10 @@ const PropertyEditor: React.FC<Props> = ({ project, list, name, entry, table, sc
     <div key={`${key}-${column.name}`} style={{ lineHeight: '22px' }}>
       <Checkbox
         checked={key === 'in'}
-        onChange={(event) => toggle(column.name, event.target.checked, column.type)}
+        onChange={(event) => toggle(graphName(column.name), event.target.checked, column.type)}
       >
-        <Text style={{ fontSize: 12 }}>{describeColumn(column)}</Text>
+        <Text style={{ fontSize: 12 }}>{graphName(column.name) !== column.name
+          ? `${graphName(column.name)} ? ${describeColumn(column)}` : describeColumn(column)}</Text>
       </Checkbox>
       {column.name === entry.show_as ? (
         <Tooltip title="The property a row of this record is labelled with">

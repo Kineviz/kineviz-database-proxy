@@ -349,7 +349,8 @@ def test_a_page_with_no_offset_is_a_top_and_needs_no_order():
     ],
 )
 def test_the_page_is_written_the_way_each_engine_reads_it(dialect, spelling, expected):
-    assert expected in sql("MATCH (p:Person) RETURN p LIMIT 25", spelling, dialect)
+    # PostgreSQL's optional INTEGER bind casts differ between SQLAlchemy 2.0/2.1.
+    assert expected.replace("::INTEGER", "") in sql("MATCH (p:Person) RETURN p LIMIT 25", spelling, dialect).replace("::INTEGER", "")
 
 
 def test_an_explicit_order_comes_first_and_the_keys_after():
@@ -367,6 +368,27 @@ def test_an_order_by_naming_a_variable_the_pattern_does_not_bind_is_refused():
 
 
 # -- values, aggregates and casts --
+
+
+@pytest.mark.parametrize("spelling,dialect", [
+    (MSSQLEngine(), MSSQL), (PostgreSQLEngine(), POSTGRESQL), (MySQLEngine(), MYSQL),
+])
+def test_relationship_counts_use_the_relationship_key(spelling, dialect):
+    rendered = sql(
+        "MATCH (p:Person)-[r:EMPLOYMENT]->(o:Organization) RETURN count(r)",
+        spelling, dialect,
+    )
+    assert "count(e0.employment_id)" in rendered
+
+
+def test_counting_a_keyless_relationship_counts_the_matched_rows():
+    rendered = sql("MATCH (p:Person)-[r:ENROLLS]->(m:Person) RETURN count(r)")
+    assert "count(*)" in rendered
+
+
+def test_distinct_keyless_relationship_count_is_refused():
+    with pytest.raises(query.RefusedQuery, match="DISTINCT inside an aggregate"):
+        sql("MATCH (p:Person)-[r:ENROLLS]->(m:Person) RETURN count(DISTINCT r)")
 
 
 def test_an_average_of_integers_is_cast_on_sql_server_and_nowhere_else():

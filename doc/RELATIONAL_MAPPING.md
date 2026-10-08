@@ -1,4 +1,4 @@
-# SQL Server, PostgreSQL and MySQL as a graph
+# SQL Server, PostgreSQL, MySQL and Snowflake as a graph
 
 You have a database of tables and columns, and you want GraphXR to show it as dots and
 lines. The proxy reads your catalog, proposes a reading of it, and lets you correct that
@@ -97,12 +97,29 @@ At the top level:
 
 | Field | Changes |
 |---|---|
-| `version` | document format; only `1` exists |
-| `schema` | which schema every table below lives in, unless an entry names its own. Falls back to the project's connection schema, then `dbo` (SQL Server), `public` (PostgreSQL), or the database itself (MySQL) |
+| `version` | proxy v1 or GraphXR v2; both can be written as JSON or YAML |
+| `schema` | which schema every table below lives in, unless an entry names its own. Falls back to the project's connection schema, then `dbo` (SQL Server), `public` (PostgreSQL), `PUBLIC` (Snowflake), or the database itself (MySQL) |
 | `include` | when non-empty, **only** the named records are in the graph |
 | `exclude` | the named records are out — the short form of an entry with `include: false` |
 | `nodes` / `edges` | the records and links, in the order you wrote them |
 | `tuning` | reserved for per-project query-layer overrides; the example names the keys, and each one is documented where it is read |
+
+GraphXR v2 JSON follows [the pg18 example](../examples/pg18.graphxr-mapping.json):
+`source.schema` selects the default schema, `relationships` declares links, and
+each link has `from` / `to` endpoints. Properties are named graph fields with
+`{"column": "physical_column", "type": "STRING"}` definitions. Property names
+may differ from physical columns; queries, results and samples use the graph
+names. Identity still uses the physical `key` column. In v2, execution reads the
+native types of the mapped columns in schema-specific pages; `INT64` and
+`STRING` are graph types and are never used as SQL parameter types.
+
+The editor accepts either version in `.json`, `.yaml` or `.yml` files. It offers
+JSON and YAML text tabs and downloads. JSON downloads use the v2 shape; YAML
+downloads use the canonical `schema` / `nodes` / `edges` shape. Both retain
+notes, exclusions, flips and property columns. Polymorphic pairs or pairs with
+row estimates retain `endpoints` in JSON so export never loses those decisions.
+The canonical document returned to the form also carries `property_columns`
+for graph fields whose physical column differs.
 
 A name in `include` / `exclude` matches a label or a table, case-insensitively, whichever
 one you happen to remember. When a schema was read to check against, a name that matches
@@ -216,13 +233,22 @@ there next time you open the page.
 ## Upload and edit are the same document
 
 The Graph Mapping page (in the navigation bar) lists your projects; only SQL Server,
-PostgreSQL and MySQL ones are selectable, and the rest are greyed with the reason — a graph
+PostgreSQL, MySQL and Snowflake ones are selectable, and the rest are greyed with the reason — a graph
 database already names its own nodes, so there is nothing to infer from tables. Picking a
 project puts it in the URL, so a link to it lands on the same review.
 
-Three tabs — **Records**, **Links**, **YAML** — are views of one draft, and Save is one call
-for the whole thing. Beside them: **Upload mapping**, **Download**, **Re-discover**,
-**Example**, **Reset to auto-discovery**, **Reload**, **Discard**, **Save mapping**.
+The default **Visual mapping** workspace has a searchable element list, an interactive
+schema diagram and a details panel. Select a node or relationship to edit its table,
+key, properties and endpoints. Drag cards or pan/zoom the canvas; these positions are
+presentation state and never change the saved document. Arrow direction includes `flip`;
+**Reverse** toggles it once while keeping the stored join columns intact. Multiple endpoint
+pairs and self-links are drawn separately. Excluded elements remain visible and muted.
+
+**Nodes**, **Relationships**, **JSON** and **YAML** provide other views of the same draft.
+Project identity has its own row above a wrapping action bar. **Import mapping**, **Export**,
+**Discover tables**, **Validate** and **Save mapping** are primary actions. Example, reload
+and reset live under **More**; schema and include/exclude lists live in **Mapping settings**.
+Switching projects or rediscovering asks before replacing an unsaved draft.
 
 The important part is that a file and a click are the same thing. **The browser never parses
 or emits YAML**: an upload is read as text in the page and handed to the proxy, which is the
@@ -237,16 +263,16 @@ What that means in practice:
   and your current mapping is unchanged; nothing is ever quietly truncated.
 - A file that reads cleanly lands in the **draft**, not in storage — Save still has to happen,
   and the card says `unsaved` until it does. Leaving the page with a draft asks you first.
-- **Download** writes the *stored* mapping, because the proxy renders what it holds; with an
+- **Export** writes the *stored* mapping, because the proxy renders what it holds; with an
   unsaved draft the page offers to save first.
-- **Re-discover** replaces the draft with what the catalog proposes now. Nothing is stored
+- **Discover tables** replaces the draft with what the catalog proposes now. Nothing is stored
   until you save.
 - A **mapping file can also be attached when you create the project**. A file that will not
   load then costs a warning after the project exists, never the project itself.
 - Saving changes what GraphXR reads: the schema cache is keyed on the mapping, so the next
   schema probe sees your version.
 
-The **YAML** tab shows the proxy's own rendering of the draft as you click, so you see what
+The **JSON** and **YAML** tabs show the proxy's own rendering of the draft as you click, so you see what
 your clicks describe before you save; pasting text there and applying it re-parses
 server-side and refreshes the other two tabs, and text with problems leaves them unchanged.
 Excluding a record drops the links that needed it, naming which record caused it, rather than
@@ -375,7 +401,11 @@ you are overriding.
 
 ## Creating the project
 
-Host, port, database, schema, username and password, plus TLS. The defaults are the engine's
+For Snowflake, enter an account identifier, database, schema (default `PUBLIC`),
+warehouse, optional role, username and password. HTTPS is always used. See the
+[Snowflake guide](SNOWFLAKE.md) for case-sensitive names and unenforced constraints.
+
+SQL Server, PostgreSQL and MySQL take host, port, database, schema, username and password, plus TLS. The defaults are the engine's
 own: `1433`, `5432`, `3306`, and `dbo` / `public` / the database itself for the schema — MySQL
 leaves the schema empty on purpose, because there the schema *is* the database. **A read-only
 login is enough**: the proxy only ever reads. Anything an engine takes that the form has not
@@ -394,7 +424,7 @@ database is refused in words instead of answered with an empty list. Such a draf
 | Parsing, the 1 MiB cap, the export | `drivers/relational/mapping_io.py` |
 | What is valid, and why not | `drivers/relational/mapping.py`, and the four `mapping_props.py` / `mapping_index.py` / `mapping_pairs.py` / `mapping_scope.py` the loader was split into |
 | What discovery reads and refuses, the caps | `drivers/relational/catalog.py`, `reflect.py` |
-| Which column-type names an engine can actually bind | `drivers/relational/engines/mssql.py`, `mysql.py`, `postgresql.py` — the `_COLUMN_TYPES` table each one looks a declared type up in |
+| Which column-type names an engine can actually bind | `drivers/relational/engines/mssql.py`, `mysql.py`, `postgresql.py`, `snowflake.py` |
 | The IR everything downstream is written against | `drivers/relational/schemas.py` |
 | The shipped example | `drivers/relational/data/mapping.example.yml` |
 | The editor | `frontend/src/pages/GraphMapping.tsx`, `frontend/src/components/mapping/` |

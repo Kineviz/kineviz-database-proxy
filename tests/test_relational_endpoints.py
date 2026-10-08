@@ -350,13 +350,14 @@ def test_a_mongodb_project_is_refused_by_name(client, projects, server):
     assert "neo4j" in answer.json()["detail"]
 
 
-def test_a_database_that_needs_a_package_answers_the_install_line(client, projects):
+def test_a_database_that_needs_a_package_answers_the_install_line(client, projects, monkeypatch):
     """
     No fake access here on purpose: this is the production pool meeting a missing DBAPI.
 
     The answer must be the engine's own install sentence at 400. It is a server-configuration
     fault a person can fix, and a 500 would bury the one word that tells them what to install.
     """
+    monkeypatch.setattr("importlib.util.find_spec", lambda module: None)
     answer = client.get("/api/relational/mapped/tables")
 
     assert answer.status_code == 400

@@ -109,12 +109,14 @@ export const makeSubmitHandler =
     }
 
     if (isRelationalType(database_type)) {
-      // `graph_mapping` and `options` come from the stored config rather than the form:
-      // editing a host must not drop a mapping the Graph Mapping page owns, and both are
-      // fields this card deliberately does not have.
+      // Keep the editor's mapping and unmodelled connection options when updating
+      // a project; Snowflake's warehouse and role are edited through this form.
       databaseConfig = {
         ...databaseConfig,
-        options: initialValues?.database_config?.options ?? {},
+        options: {
+          ...(initialValues?.database_config?.options ?? {}),
+          ...(database_type === "snowflake" ? dbConfigFields.options ?? {} : {}),
+        },
         graph_mapping: initialValues?.database_config?.graph_mapping ?? null,
         host: dbConfigFields.host,
         port: dbConfigFields.port,

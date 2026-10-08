@@ -111,8 +111,9 @@ def test_a_field_that_is_not_in_the_format_is_refused_rather_than_ignored() -> N
 
 
 def test_the_document_version_is_checked_at_the_door() -> None:
-    assert problems_of("version: 2\n")[0][0] == "version"
+    assert problems_of("version: 3\n")[0][0] == "version"
     assert parse("version: 1\n").version == 1
+    assert parse("version: 2\n").version == 2
 
 
 # --------------------------------------------------------------------- failures

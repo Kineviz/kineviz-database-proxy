@@ -424,7 +424,7 @@ def test_disposing_a_project_or_the_process_closes_every_engine() -> None:
     assert len(engines) == 2
 
 
-def test_a_missing_dbapi_says_what_to_install() -> None:
+def test_a_missing_dbapi_says_what_to_install(monkeypatch) -> None:
     """
     ``pymssql`` is not installed here, and that is the normal state of this venv.
 
@@ -432,6 +432,7 @@ def test_a_missing_dbapi_says_what_to_install() -> None:
     the engine's install sentence and not ``No module named 'sqlalchemy.dialects.mssql'``.
     """
     real = engines_for("mssql")
+    monkeypatch.setattr("importlib.util.find_spec", lambda module: None)
     with pytest.raises(DbapiMissing) as caught:
         EnginePool().engine(project("needs-driver"), real)
 

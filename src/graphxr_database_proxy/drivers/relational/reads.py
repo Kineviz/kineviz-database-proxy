@@ -101,7 +101,8 @@ def display_column(node: NodeSchema) -> str:
     ``show_as`` when the label has one, its key otherwise: a preview that printed two
     integers a person cannot recognise says nothing about whether the link is right.
     """
-    return node.show_as or node.key
+    shown = node.show_as or node.key
+    return node.property_columns.get(shown, shown)
 
 
 def table_of(
@@ -121,8 +122,10 @@ def table_of(
     return Table(
         name,
         meta,
-        *[SAColumn(str(column), spelling.declared_column_type(declared)) for column, declared in columns.items()],
+        *[SAColumn(str(column), spelling.declared_column_type(declared), quote=spelling.identifier_quote) for column, declared in columns.items()],
         schema=schema,
+        quote=spelling.identifier_quote,
+        quote_schema=spelling.identifier_quote,
     )
 
 
@@ -202,11 +205,14 @@ class RelationalReads:
         fetched in order to be thrown away, and the columns a sample shows are the columns
         GraphXR will be able to show for that node.
         """
-        columns: Dict[str, Optional[str]] = dict(node.all_props())
+        exposed: Dict[str, Optional[str]] = dict(node.all_props())
         if node.show_as:
-            columns.setdefault(node.show_as, node.props.get(node.show_as))
+            exposed.setdefault(node.show_as, node.props.get(node.show_as))
+        columns = {node.property_columns.get(name, name): declared for name, declared in exposed.items()}
         table = table_of(self.spelling, node.table, columns, node.schema or self.access.schema)
-        statement = select(*[table.c[name] for name in columns]).select_from(table).limit(limit)
+        statement = select(*[
+            table.c[node.property_columns.get(name, name)].label(name) for name in exposed
+        ]).select_from(table).limit(limit)
         return self._guarded(statement)
 
     def preview_statement(

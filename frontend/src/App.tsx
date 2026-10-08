@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, useLocation } from 'react-router-dom';
 import { Layout, Spin } from 'antd';
 import AppHeader from './components/AppHeader';
 import ProjectManagement from './pages/ProjectManagement';
@@ -18,6 +18,7 @@ interface AuthStatus {
 }
 
 const App: React.FC = () => {
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [authenticated, setAuthenticated] = useState(false);
   const [adminAuthEnabled, setAdminAuthEnabled] = useState(false);
@@ -111,10 +112,10 @@ const App: React.FC = () => {
   }
 
   return (
-    <Layout className="app-layout">
+    <Layout className={`app-layout${location.pathname === '/mapping' ? ' mapping-layout' : ''}`}>
       <AppHeader onLogout={adminAuthEnabled ? handleLogout : undefined} />
       <Content className="app-content">
-        <div className="content-wrapper">
+        <div className={`content-wrapper${location.pathname === '/mapping' ? ' mapping-content' : ''}`}>
           <Routes>
             <Route path="/" element={<ProjectManagement />} />
             <Route path="/listProjects" element={<ProjectManagement />} />

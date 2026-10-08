@@ -2,8 +2,9 @@
 
 `/api/relational` is the editing surface behind the Graph Mapping page: the routes that
 list a customer's tables, propose a mapping, check one, save one, and run one link both
-ways against real rows. It serves the three relational backends — `mssql`, `postgresql`
-and `mysql` — and refuses every other project type by name.
+ways against real rows. It serves the relational backends — `mssql`, `postgresql`,
+`mysql` and `snowflake` — and refuses every other project type by name.
+Snowflake connection and catalog behavior are described in [SNOWFLAKE](SNOWFLAKE.md).
 
 Three documents already own parts of this story, and none of them owns these routes:
 
@@ -112,14 +113,17 @@ On success:
 | `warnings` | mismatch with the live catalog, a keyless edge, a cap hit — reported, never a blocker |
 | `provenance` | per entry, where it came from |
 | `model` | the document as an object — what a form holds, or `null` |
-| `text` | the same document as YAML — what a file tab holds, or `null` |
+| `text` | the same document as canonical YAML, or `null` |
+| `json` | the same document as GraphXR v2 JSON, or `null` |
 
 `model` and `text` come from one parse, so the form and the text tab are two views of one
 answer and can never disagree.
 
 `?format=yaml` returns the file instead of the document: `text/yaml`, with
 `Content-Disposition: attachment; filename="<project>.mapping.yml"`. With no saved mapping
-that is a `404`, not an empty file, and it names the way to get one:
+that is a `404`, not an empty file, and it names the way to get one.
+`?format=json` downloads GraphXR v2 JSON with `application/json` and the filename
+`<project>.mapping.json`. JSON and YAML share the same missing-mapping behavior:
 
 ```
 project northwind has no saved mapping; POST /api/relational/northwind/discover and save
@@ -132,7 +136,7 @@ is what `/discover` answers, for a proposal nobody has accepted.
 ## PUT /api/relational/{project}/mapping
 
 Saves an override, or removes it. Send the mapping as the object **or** as the text —
-`{"model": …}` or `{"yaml": …}` — and **a `null` body removes the override**, returning the
+`{"model": …}`, `{"yaml": …}`, `{"text": …}` or `{"json": …}` — and **a `null` body removes the override**, returning the
 project to auto-discovery. That is the honest inverse of saving one, and the only way a
 person gets the machine's original answer back. For the document's own fields, see
 [RELATIONAL_MAPPING.md](RELATIONAL_MAPPING.md).
@@ -143,8 +147,13 @@ path-named problems and one rule about what an unknown key means. A body with ne
 refused rather than read as "empty mapping", which would silently delete someone's file:
 
 ```
-file: send the mapping as 'model' or as 'yaml', not neither
+file: send the mapping as 'model', 'yaml', 'json' or 'text'
 ```
+
+Send exactly one of these fields. `text` and `yaml` accept JSON or YAML text;
+`json` accepts JSON text or a JSON object. All accept proxy v1 and GraphXR v2
+documents; v2 uses `source`, `relationships`, `from` / `to` and `{column, type}`
+properties. The response's `model` is the canonical form used by the editor.
 
 The answer is the `GET` shape plus two flags: `saved: true`, and `removed: true` when the
 body was `null`.

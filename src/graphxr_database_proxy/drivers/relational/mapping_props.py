@@ -45,12 +45,13 @@ def _props(
     else:
         for name in list(source):
             stated = source[name]
-            actual = index.column_type(table, name)
+            column = record.property_columns.get(name, name)
+            actual = index.column_type(table, column)
             if actual is None:
                 if index.live and index.columns.get(table) and name not in drop and name not in excluded:
                     out.warnings.append(
                         "{}.properties: column {!r} is not a column of {!r} in this "
-                        "schema".format(path, name, table)
+                        "schema".format(path, column, table)
                     )
             elif not names_a_type(actual) and names_a_type(stated):
                 out.warnings.append(

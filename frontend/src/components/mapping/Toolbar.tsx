@@ -4,6 +4,7 @@ import {
   Button,
   Divider,
   Drawer,
+  Dropdown,
   Modal,
   Space,
   Tooltip,
@@ -18,6 +19,8 @@ import {
   ReloadOutlined,
   SaveOutlined,
   ScanOutlined,
+  MoreOutlined,
+  CheckCircleOutlined,
   UndoOutlined,
 } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
@@ -30,7 +33,7 @@ const { Text, Paragraph } = Typography;
 const MAX_MAPPING_BYTES = 1024 * 1024;
 
 /**
- * The file-shaped actions beside the three tabs.
+ * The file actions beside the structured and text tabs.
  *
  * Upload and paste both send text to the proxy and take a parsed document back; Download and
  * Example both carry served text. Nothing here turns a document into YAML or YAML into a
@@ -44,7 +47,9 @@ interface Props {
   dispatch: React.Dispatch<MappingAction>;
   actions: MappingActions;
   saving: boolean;
-  onSave: () => void;
+  checking: boolean;
+  onValidate: () => Promise<void>;
+  onSave: () => Promise<boolean>;
   onReload: () => void;
   onReset: () => void;
 }
@@ -78,7 +83,7 @@ const showProblems = (problems: string[], onApply: (() => void) | null): void =>
   });
 };
 
-const Toolbar: React.FC<Props> = ({ draft, dispatch, actions, saving, onSave, onReload, onReset }) => {
+const Toolbar: React.FC<Props> = ({ draft, dispatch, actions, saving, checking, onValidate, onSave, onReload, onReset }) => {
   const [busy, setBusy] = React.useState<string | null>(null);
   const [example, setExample] = React.useState<string | null>(null);
   const [exampleOpen, setExampleOpen] = React.useState(false);
@@ -121,20 +126,22 @@ const Toolbar: React.FC<Props> = ({ draft, dispatch, actions, saving, onSave, on
     return false;
   };
 
-  const download = async (): Promise<void> => {
+  const download = async (format: 'json' | 'yaml'): Promise<void> => {
     setBusy('download');
     try {
       const write = async (): Promise<void> => {
-        const answer = textOf(await actions.text());
+        const answer = textOf(await actions.text(format));
         if (!answer) {
           message.info('There is no override stored yet — this project is on pure auto-discovery');
           return;
         }
-        const blob = new Blob([answer], { type: 'application/x-yaml;charset=utf-8' });
+        const blob = new Blob([answer], {
+          type: format === 'json' ? 'application/json;charset=utf-8' : 'application/x-yaml;charset=utf-8',
+        });
         const url = URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'graph-mapping.yml';
+        link.download = `graph-mapping.${format === 'json' ? 'json' : 'yml'}`;
         link.click();
         URL.revokeObjectURL(url);
       };
@@ -151,8 +158,7 @@ const Toolbar: React.FC<Props> = ({ draft, dispatch, actions, saving, onSave, on
           okText: 'Save, then download',
           cancelText: 'Download what is stored',
           onOk: async () => {
-            onSave();
-            await write();
+            if (await onSave()) await write();
           },
           onCancel: () => {
             write();
@@ -201,58 +207,40 @@ const Toolbar: React.FC<Props> = ({ draft, dispatch, actions, saving, onSave, on
     }
   };
 
-  const problemCount = draft.problems.length;
+  const rediscover = () => {
+    if (!draft.dirty) { discover(); return; }
+    Modal.confirm({ title: 'Replace the unsaved draft?', content: 'Discovery will replace the edits on this page.',
+      okText: 'Discover and replace', onOk: discover });
+  };
 
   return (
     <>
-      <Space wrap size={8}>
-        <Tooltip title="Read a .yml, .yaml or .json file and put it in the draft. The proxy parses it; this page never does.">
+      <div className="mapping-toolbar">
+        <div className="mapping-toolbar-files">
           <Upload beforeUpload={readFile} showUploadList={false} accept=".yml,.yaml,.json" maxCount={1}>
-            <Button icon={<CloudUploadOutlined />} loading={busy === 'upload'}>
-              Upload mapping
-            </Button>
+            <Button icon={<CloudUploadOutlined />} loading={busy === 'upload'}>Import mapping</Button>
           </Upload>
-        </Tooltip>
-        <Tooltip title="Write the stored mapping out as YAML.">
-          <Button icon={<DownloadOutlined />} loading={busy === 'download'} onClick={download}>
-            Download
-          </Button>
-        </Tooltip>
-        <Tooltip title="Ask the catalog what it is, and review the proposal. Nothing is stored.">
-          <Button icon={<ScanOutlined />} loading={busy === 'discover'} onClick={discover}>
-            Re-discover
-          </Button>
-        </Tooltip>
-        <Tooltip title="The annotated file the proxy ships, from the package it runs out of.">
-          <Button icon={<ExperimentOutlined />} loading={busy === 'example'} onClick={openExample}>
-            Example
-          </Button>
-        </Tooltip>
-        <Divider type="vertical" />
-        <Tooltip title="Drop the override: the project goes back to reading the schema straight.">
-          <Button icon={<UndoOutlined />} danger onClick={onReset}>
-            Reset to auto-discovery
-          </Button>
-        </Tooltip>
-        <Divider type="vertical" />
-        <Button icon={<ReloadOutlined />} onClick={onReload}>
-          Reload
-        </Button>
-        {draft.dirty ? (
-          <Tooltip title="Throw away the draft and edit what is stored again.">
-            <Button onClick={() => dispatch({ kind: 'discard' })}>Discard</Button>
-          </Tooltip>
-        ) : null}
-        <Button type="primary" icon={<SaveOutlined />} loading={saving} disabled={!draft.dirty} onClick={onSave}>
-          {draft.dirty ? 'Save mapping' : 'Saved'}
-        </Button>
-        {problemCount ? (
-          <Text type="danger" style={{ fontSize: 12 }}>
-            {problemCount} {problemCount === 1 ? 'problem' : 'problems'} — the save stores them, and
-            GraphXR will not read this schema until they are fixed
-          </Text>
-        ) : null}
-      </Space>
+          <Dropdown menu={{ items: [
+            { key: 'json', label: 'Download JSON' }, { key: 'yaml', label: 'Download YAML' },
+          ], onClick: ({ key }) => { download(key as 'json' | 'yaml'); } }}>
+            <Button icon={<DownloadOutlined />} loading={busy === 'download'}>Export</Button>
+          </Dropdown>
+          <Button icon={<ScanOutlined />} loading={busy === 'discover'} onClick={rediscover}>Discover tables</Button>
+          <Dropdown trigger={['click']} menu={{ items: [
+            { key: 'example', label: 'View YAML example', icon: <ExperimentOutlined /> },
+            { key: 'reload', label: 'Reload saved mapping', icon: <ReloadOutlined /> },
+            { type: 'divider' },
+            { key: 'reset', label: 'Reset to auto-discovery', icon: <UndoOutlined />, danger: true },
+          ], onClick: ({ key }) => { if (key === 'example') openExample(); else if (key === 'reload') onReload(); else if (key === 'reset') onReset(); } }}>
+            <Button icon={<MoreOutlined />} aria-label="More mapping actions" />
+          </Dropdown>
+        </div>
+        <div className="mapping-toolbar-save">
+          {draft.dirty ? <Button type="text" onClick={() => dispatch({ kind: 'discard' })}>Discard</Button> : null}
+          <Button icon={<CheckCircleOutlined />} loading={checking} onClick={onValidate}>Validate</Button>
+          <Button type="primary" icon={<SaveOutlined />} loading={saving} disabled={!draft.dirty} onClick={onSave}>Save mapping</Button>
+        </div>
+      </div>
 
       <Drawer
         title="The example the proxy ships"

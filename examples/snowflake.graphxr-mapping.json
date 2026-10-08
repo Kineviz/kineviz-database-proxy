@@ -1,0 +1,31 @@
+{
+  "version": 2,
+  "source": {"schema": "PUBLIC"},
+  "nodes": [
+    {
+      "label": "Person", "table": "PERSON", "key": "ID",
+      "properties": {
+        "id": {"column": "ID", "type": "INT64"},
+        "name": {"column": "NAME", "type": "STRING"}
+      }
+    },
+    {
+      "label": "Company", "table": "COMPANY", "key": "ID",
+      "properties": {
+        "id": {"column": "ID", "type": "INT64"},
+        "name": {"column": "NAME", "type": "STRING"}
+      }
+    }
+  ],
+  "relationships": [
+    {
+      "type": "WORKS_AT", "table": "WORKS_AT", "key": "ID",
+      "from": {"label": "Person", "column": "PERSON_ID"},
+      "to": {"label": "Company", "column": "COMPANY_ID"},
+      "properties": {
+        "id": {"column": "ID", "type": "INT64"},
+        "since": {"column": "SINCE", "type": "DATE"}
+      }
+    }
+  ]
+}
