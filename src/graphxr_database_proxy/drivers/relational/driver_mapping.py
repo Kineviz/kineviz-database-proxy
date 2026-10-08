@@ -23,7 +23,7 @@ from typing import Any, Dict, Mapping, Optional
 from ...models.graph_mapping import GraphMapping
 from .catalog import propose
 from .mapping import EffectiveMapping, from_document
-from .schema_surface import UNKNOWN_TYPE
+from .mapping_index import names_a_type
 
 
 class RelationalMappingSurface:
@@ -154,8 +154,15 @@ def _key_unnamed(key_type: str) -> bool:
     the honest reading of it is "nobody looked": the extra check costs one bounded catalog
     read and rules out the alternative reading, "this key really is text", being taken for
     the whole schema.
+
+    ``NULL`` joins the placeholder set for the same reason the property path puts it there:
+    it is what every engine's reflection resolver writes for a ``sqltypes.NULLTYPE`` after
+    warning "Did not recognize type", and reading it as a declaration hands a non-name to
+    ``spelling.column_type`` — which returns ``None`` for every engine — and the label is
+    refused at every statement that reaches it. ``names_a_type`` is the property path's
+    test, and the two predicates have to agree, so the key path follows it.
     """
-    return not key_type or key_type.strip().upper() == UNKNOWN_TYPE
+    return not names_a_type(key_type)
 
 
 def _declared_key(tables: Mapping[str, Any], table: str, key: str) -> Optional[str]:
