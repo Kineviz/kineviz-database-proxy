@@ -193,8 +193,10 @@ messages:
   column's own type; a seed could not be re-selected, so the lookup is refused rather than
   answered with an empty result.*
 
-Both messages end with the same remedy: **key the label on a column whose type the schema
-can name, or remove the record from the graph** (exclude it, or clear it from `include`).
+Both messages end with the same exit: *or remove the record from the graph* (exclude it, or
+clear it from `include`). The first half of the remedy differs: the marker case says *key
+the label on a column whose type the schema can name*; the real-name case says *key the
+label on a column this engine can name*.
 Declaring a type for a key is not an option — there is no `keyType` field, and a key column
 never becomes a property (`mapping.py:319-320` reads the table's column types before your
 file, and `mapping_props.py:62-66` drops the key).

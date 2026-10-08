@@ -178,8 +178,9 @@ OrderItem   <- OrderItem   notes: not a node: its primary key is ['order_id', 'l
   could not be re-selected, so the lookup is refused rather than answered with an empty
   result.*
 
-两种消息都以同一句出路收尾：**把这个标签的 key 换到 schema 能叫出名字的一列，或者把这条
-记录从图里挪走**（`exclude` 掉，或从 `include` 里清掉）。给 key 声明一个类型不在这条出
+两种消息共用后半句收尾：*或把这条记录从图里挪走*（`exclude` 掉，或从 `include` 里清掉）。
+前半句不同：标记类说*把这个标签的 key 换到 schema 能叫出名字的一列*；真实名字类说*把这
+个标签的 key 换到本引擎能叫出名字的一列*。给 key 声明一个类型不在这条出
 路里——文档里没有 `keyType` 字段，key 列也不会变成属性（`mapping.py:319-320` 读的是表的
 列类型先于你的文件，`mapping_props.py:62-66` 把 key 丢掉）。
 
