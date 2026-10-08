@@ -37,6 +37,7 @@ from . import expression
 from .engine import EngineSpelling, ServerInfo, UnbindableType
 from .expression import BoundVariable, PredicateScope
 from .ir import BoundEdge, ConcretePlan, MatchPlan
+from .mapping_index import NO_TYPE
 from .predicate import split_name, unquote
 from .schemas import NodeSchema, Pair, RelSchema
 from .translate import AggItem, ReturnSpec
@@ -681,17 +682,14 @@ def _require_bindable_key(
     )
 
 
-#: What a reader writes down when it has **no** type at all, as distinct from a type the engine
-#: has no binding for. Mirrors :data:`mapping_index.NO_TYPE`: blank, ``STRING`` (this project's
-#: own placeholder ``UNKNOWN_TYPE``), and ``NULL`` (what ``reflect.type_name`` renders for the
-#: ``NullType`` row every dialect hands back after "Did not recognize type"). The two cases
-#: reach the same refusal but cost the user different fixes, so the message names which.
-_NO_TYPE_MARKERS = frozenset({"", "STRING", "NULL"})
-
-
 def _is_no_type_marker(declared: str) -> bool:
-    """Whether the declared type is a reader admitting it has none, not a real name."""
-    return str(declared or "").strip().upper() in _NO_TYPE_MARKERS
+    """Whether the declared type is a reader admitting it has none, not a real name.
+
+    The set itself lives in :mod:`mapping_index` (``NO_TYPE``); the key-refusal path and the
+    property-path both go through it, and a second copy here would let the two drift apart
+    the next time the public set grows. ``tests/test_relational_compile.py`` pins that.
+    """
+    return str(declared or "").strip().upper() in NO_TYPE
 
 
 def edge_columns(schema: RelSchema, pair: Pair) -> Dict[str, str]:

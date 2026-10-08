@@ -475,3 +475,34 @@ def test_a_statement_that_needs_no_fan_out_is_one_statement():
 
 def _ids(count: int) -> str:
     return ", ".join(str(index) for index in range(count))
+
+
+def test_no_type_marker_set_lives_only_in_mapping_index() -> None:
+    """
+    Pin: ``compile._is_no_type_marker`` must read from ``mapping_index.NO_TYPE``.
+
+    The key-refusal path (here) and the property-path (``mapping_props`` via
+    ``mapping_index.names_a_type``) both depend on the same set. A private copy in
+    ``compile.py`` would let the two drift the next time the public set grows, and no
+    other test would notice, because the equality is invisible to the test layer. So
+    we pin it both ways: the symbol must not be reintroduced, and the function must
+    agree with the public set on every member and on a few non-members.
+    """
+    import inspect
+
+    from graphxr_database_proxy.drivers.relational import compile as compile_module
+    from graphxr_database_proxy.drivers.relational import mapping_index
+
+    compile_source = inspect.getsource(compile_module)
+    assert "_NO_TYPE_MARKERS" not in compile_source, (
+        "compile.py must not redefine NO_TYPE; use mapping_index.NO_TYPE"
+    )
+
+    for marker in mapping_index.NO_TYPE:
+        assert compile_module._is_no_type_marker(marker), (
+            "compile._is_no_type_marker disagrees with mapping_index.NO_TYPE on %r" % (marker,)
+        )
+    for non_marker in ("INTEGER", "VARCHAR(50)", "BIGINT", "TEXT", "NUMERIC"):
+        assert not compile_module._is_no_type_marker(non_marker), (
+            "compile._is_no_type_marker should not recognise %r" % (non_marker,)
+        )
