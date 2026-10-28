@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kineviz-database-proxy"
-version = "1.1.3"
+version = "1.1.4"
 description = "Kineviz Database Proxy - Secure middleware for connecting GraphXR to databases"
 authors = [{name="Sean Li", email="sean@kineviz.com"}, {name = "Kineviz", email = "support@kineviz.com"}]
 license = "MIT"

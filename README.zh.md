@@ -1,5 +1,9 @@
 # Kineviz 数据库代理
 
+> 本项目已替代 `graphxr-database-proxy`。请安装
+> [kineviz-database-proxy](https://pypi.org/project/kineviz-database-proxy/)，
+> 并使用[新代码库](https://github.com/Kineviz/kineviz-database-proxy)。
+
 [English](README.md) | [中文](README.zh.md)
 
 基于 FastAPI 的中间件，通过 REST API 将 [GraphXR](https://www.kineviz.com/graphxr)

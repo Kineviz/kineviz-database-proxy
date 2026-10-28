@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "graphxr-database-proxy"
+version = "1.1.4"
+description = "Deprecated: use kineviz-database-proxy and github.com/Kineviz/kineviz-database-proxy instead."
+readme = "README.md"
+requires-python = ">=3.9"
+license = "MIT"
+authors = [{name = "Kineviz", email = "support@kineviz.com"}]
+classifiers = [
+    "Development Status :: 7 - Inactive",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+]
+dependencies = ["kineviz-database-proxy>=1.1.4"]
+
+[project.optional-dependencies]
+ui = ["kineviz-database-proxy[ui]>=1.1.4"]
+mssql = ["kineviz-database-proxy[mssql]>=1.1.4"]
+postgresql = ["kineviz-database-proxy[postgresql]>=1.1.4"]
+mysql = ["kineviz-database-proxy[mysql]>=1.1.4"]
+snowflake = ["kineviz-database-proxy[snowflake]>=1.1.4"]
+relational = ["kineviz-database-proxy[relational]>=1.1.4"]
+dev = ["kineviz-database-proxy[dev]>=1.1.4"]
+all = ["kineviz-database-proxy[all]>=1.1.4"]
+
+[project.urls]
+"Replacement package" = "https://pypi.org/project/kineviz-database-proxy/"
+Homepage = "https://github.com/Kineviz/kineviz-database-proxy"
+Repository = "https://github.com/Kineviz/kineviz-database-proxy"
+"Bug Tracker" = "https://github.com/Kineviz/kineviz-database-proxy/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]

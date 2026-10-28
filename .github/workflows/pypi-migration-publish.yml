@@ -1,0 +1,89 @@
+name: Publish renamed package and migration package
+
+on:
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Packages to publish (publish the replacement first)
+        required: true
+        default: both
+        type: choice
+        options:
+          - both
+          - replacement
+          - legacy
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Build and check the admin UI
+        run: |
+          npm run install:frontend
+          npm run typecheck
+          python scripts/build_frontend.py
+      - name: Build and validate both packages
+        run: |
+          python -m pip install --upgrade build twine
+          python - <<'PY'
+          from pathlib import Path
+          import tomllib
+          current = tomllib.loads(Path('pyproject.toml').read_text())['project']
+          legacy = tomllib.loads(Path('legacy/graphxr-database-proxy/pyproject.toml').read_text())['project']
+          assert current['name'] == 'kineviz-database-proxy'
+          assert legacy['name'] == 'graphxr-database-proxy'
+          assert current['version'] == legacy['version']
+          PY
+          python -m build --outdir dist/replacement
+          python -m build legacy/graphxr-database-proxy --outdir dist/legacy
+          python -m twine check dist/replacement/* dist/legacy/*
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pypi-migration-distributions
+          path: |
+            dist/replacement/*
+            dist/legacy/*
+      - name: Publish the replacement package
+        if: inputs.package != 'legacy'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: python -m twine upload --non-interactive --skip-existing dist/replacement/*
+      - name: Verify the replacement and publish the migration package
+        if: inputs.package != 'replacement'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          import time
+          import tomllib
+          from urllib.error import HTTPError
+          from urllib.request import urlopen
+          version = tomllib.loads(Path('pyproject.toml').read_text())['project']['version']
+          for attempt in range(10):
+              try:
+                  with urlopen(f'https://pypi.org/pypi/kineviz-database-proxy/{version}/json', timeout=30) as response:
+                      release = json.load(response)
+                  break
+              except HTTPError as error:
+                  if error.code != 404 or attempt == 9:
+                      raise
+                  time.sleep(2)
+          assert release['info']['name'] == 'kineviz-database-proxy'
+          assert release['info']['version'] == version
+          assert release['urls'], 'The replacement must be downloadable before publishing the migration package'
+          PY
+          python -m twine upload --non-interactive --skip-existing dist/legacy/*

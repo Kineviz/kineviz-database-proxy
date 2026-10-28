@@ -1,5 +1,9 @@
 # Kineviz Database Proxy
 
+> This project replaces `graphxr-database-proxy`. Install
+> [kineviz-database-proxy](https://pypi.org/project/kineviz-database-proxy/)
+> and use the [new repository](https://github.com/Kineviz/kineviz-database-proxy).
+
 [English](README.md) | [中文](README.zh.md)
 
 FastAPI middleware that connects [GraphXR](https://www.kineviz.com/graphxr) to
