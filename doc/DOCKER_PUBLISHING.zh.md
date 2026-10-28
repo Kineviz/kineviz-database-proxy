@@ -28,7 +28,26 @@ docker run --rm -i --entrypoint python kineviz/kineviz-database-proxy:latest - <
 
 ## 构建 Docker 镜像并发布
 
+[Docker 发布工作流](../.github/workflows/docker-publish.yml) 先运行 CI，再构建
+Linux amd64 和 arm64 镜像。`vVERSION` 或 `docker-vVERSION` 标签必须与
+`pyproject.toml` 版本一致。稳定版本同时发布 `VERSION` 和 `latest`；预发布版本
+和 `develop` 分支不覆盖 `latest`。手动运行可选择 Docker Hub、阿里云或两者。
+
+完成校验后，可从仓库根目录执行本地发布：
+
 ```bash
-# 包含了源代码构建，docker 镜像构建和发布的自动化脚本
-./docker/publish release
+npm run install:frontend
+npm run typecheck
+npm run build
+docker buildx build -f docker/Dockerfile --platform linux/amd64,linux/arm64 \
+  -t kineviz/kineviz-database-proxy:1.1.4 \
+  -t kineviz/kineviz-database-proxy:latest --push .
 ```
+
+版本标签使用 `pyproject.toml` 中的版本号；发布预发布版本时省略 `latest`。
+仅在本地构建而不上传时，将 `--push` 替换为
+`--output type=oci,dest=dist/docker-image.tar`。
+
+原 `kineviz/graphxr-database-proxy` 仓库已弃用。请将 Docker 和 Compose 的镜像引用
+改为 `kineviz/kineviz-database-proxy`，保留现有配置和卷挂载。旧标签保留用于兼容，
+后续版本只发布到新仓库。

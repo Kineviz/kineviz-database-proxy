@@ -75,6 +75,29 @@ installed frontend unit-test runner.
 Claude's `/verify` selects checks by the changed files and reports results.
 For documentation changes, check local links and existing English/Chinese pairs.
 
+### GitHub Actions
+
+[CI](../.github/workflows/ci.yml) checks workflow syntax and Bash scripts,
+runs the offline backend suite on Python 3.11 and 3.14, checks frontend types,
+builds both Python packages, validates their metadata and packaged runtime assets,
+and checks the Dockerfile. It runs for branch pushes and pull requests; all
+three publishing workflows also require it to pass before publishing.
+
+To reproduce the packaging checks locally after building the frontend:
+
+```bash
+uv run --with build --with twine python -m build --outdir dist/replacement
+uv run --with build python -m build legacy/graphxr-database-proxy --outdir dist/legacy
+uv run --with twine python -m twine check --strict dist/replacement/* dist/legacy/*
+uv run --no-sync python scripts/check_distributions.py dist/replacement
+docker build --check -f docker/Dockerfile .
+```
+
+Run [actionlint](https://github.com/rhysd/actionlint) with ShellCheck available
+to validate the workflows locally. Workflow routing tests require Bash; on
+Windows, set `BASH_EXECUTABLE` to the installed Bash executable before running
+pytest. The checks never upload packages or images.
+
 ### PostgreSQL 18 sample integration
 
 With the proxy running and GraphXRSupportDB's pg18 sample available, run:

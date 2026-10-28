@@ -3,146 +3,123 @@ name: Build and Publish to PyPI
 on:
   push:
     tags:
-      - 'v*'  # When pushing a version tag (e.g., v1.0.0)
-  
-  workflow_dispatch:  #allow manual trigger
+      - 'v*'
+  workflow_dispatch:
     inputs:
       target:
-        description: 'Publish target'
+        description: Publish target
         required: true
-        default: 'testpypi'
+        default: testpypi
         type: choice
         options:
-        - testpypi
-        - pypi
+          - testpypi
+          - pypi
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pypi-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+
   publish:
+    needs: validate
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Python
-      uses: actions/setup-python@v4
-      with:
-        python-version: '3.9'
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22'
+      - name: Validate release version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          test "$GITHUB_REF_NAME" = "v$VERSION"
 
-    - name: Build frontend
-      run: |
-        npm run install:frontend
-        npm run typecheck
-        python scripts/build_frontend.py
-
-    - name: Validate release version
-      if: startsWith(github.ref, 'refs/tags/v')
-      run: |
-        VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' pyproject.toml)
-        test "$GITHUB_REF_NAME" = "v$VERSION"
-    
-    - name: Install dependencies
-      run: |
-        python -m pip install --upgrade pip
-        pip install build twine
-    
-    - name: Build package
-      run: |
-        echo "🔄 Building package..."
-        python -m build
-        echo "✅ Package built successfully"
-    
-    - name: Check package
-      run: |
-        echo "🔍 Checking package..."
-        twine check dist/*
-        echo "✅ Package check passed"
-    
-    - name: List built files
-      run: |
-        echo "📦 Built files:"
-        ls -la dist/
-    
-    # Validate secrets are configured
-    - name: Validate secrets
-      run: |
-        echo "🔐 Validating secrets configuration..."
-        if [ "${{ github.event.inputs.target }}" == "testpypi" ] || [ "${{ contains(github.ref, 'alpha') }}" == "true" ]; then
-          if [ -z "${{ secrets.TEST_PYPI_API_TOKEN }}" ]; then
-            echo "❌ ERROR: TEST_PYPI_API_TOKEN secret is not configured"
-            exit 1
+      - name: Select publish target
+        id: target
+        env:
+          REQUESTED_TARGET: ${{ inputs.target }}
+        run: |
+          if [[ "$GITHUB_EVENT_NAME" == workflow_dispatch ]]; then
+            TARGET="$REQUESTED_TARGET"
+          elif [[ "$GITHUB_REF_NAME" == *alpha* ]]; then
+            TARGET=testpypi
+          else
+            TARGET=pypi
           fi
-          echo "✅ TEST_PYPI_API_TOKEN is configured"
-        else
-          if [ -z "${{ secrets.PYPI_API_TOKEN }}" ]; then
-            echo "❌ ERROR: PYPI_API_TOKEN secret is not configured"
-            exit 1
+          echo "repository=$TARGET" >> "$GITHUB_OUTPUT"
+
+      - name: Build frontend
+        run: |
+          npm run install:frontend
+          npm run typecheck
+          python scripts/build_frontend.py
+
+      - name: Build and check package
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check --strict dist/*
+          python scripts/check_distributions.py dist
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: pypi-distributions
+          path: dist/*
+          if-no-files-found: error
+
+      - name: Publish to TestPyPI
+        if: steps.target.outputs.repository == 'testpypi'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
+          TWINE_REPOSITORY: testpypi
+        run: python scripts/upload_pypi.py dist
+
+      - name: Publish to PyPI
+        if: steps.target.outputs.repository == 'pypi'
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+          TWINE_REPOSITORY: pypi
+        run: python scripts/upload_pypi.py dist
+
+      - name: Create Release
+        if: startsWith(github.ref, 'refs/tags/v') && steps.target.outputs.repository == 'pypi'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=${GITHUB_REF_NAME#v}
+          cat > release-notes.md <<EOF
+          Kineviz Database Proxy $VERSION includes the admin Web UI.
+
+          Install: pip install kineviz-database-proxy==$VERSION
+
+          Start: kineviz-proxy
+
+          Python imports now use kineviz_database_proxy. The graphxr-proxy command remains supported.
+
+          PyPI: https://pypi.org/project/kineviz-database-proxy/$VERSION/
+          EOF
+          PRERELEASE=()
+          if [[ "$VERSION" == *alpha* || "$VERSION" == *beta* || "$VERSION" == *rc* ]]; then
+            PRERELEASE=(--prerelease)
           fi
-          echo "✅ PYPI_API_TOKEN is configured"
-        fi
-    
-    # Publish to TestPyPI (manual trigger or dev branch)
-    - name: Publish to TestPyPI
-      if: ${{ github.event.inputs.target == 'testpypi' || (github.event_name == 'push' && contains(github.ref, 'alpha')) }}
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.TEST_PYPI_API_TOKEN }}
-      run: |
-        echo "🧪 Publishing to TestPyPI..."
-        if [ -z "$TWINE_PASSWORD" ]; then
-          echo "❌ ERROR: TEST_PYPI_API_TOKEN is empty or not set"
-          echo "Please configure TEST_PYPI_API_TOKEN in repository secrets"
-          exit 1
-        fi
-        echo "Token length: ${#TWINE_PASSWORD} characters"
-        twine upload --repository testpypi dist/* --verbose
-        echo "✅ Published to TestPyPI successfully"
-    
-    # Publish to production PyPI (tag release)
-    - name: Publish to PyPI
-      if: ${{ github.event.inputs.target == 'pypi' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v') && !contains(github.ref, 'alpha')) }}
-      env:
-        TWINE_USERNAME: __token__
-        TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-      run: |
-        echo "🚀 Publishing to PyPI..."
-        if [ -z "$TWINE_PASSWORD" ]; then
-          echo "❌ ERROR: PYPI_API_TOKEN is empty or not set"
-          echo "Please configure PYPI_API_TOKEN in repository secrets"
-          exit 1
-        fi
-        echo "Token length: ${#TWINE_PASSWORD} characters"
-        twine upload dist/* --verbose
-        echo "✅ Published to PyPI successfully"
-    
-    - name: Create Release
-      if: startsWith(github.ref, 'refs/tags/v')
-      env:
-        GH_TOKEN: ${{ github.token }}
-      run: |
-        VERSION=${GITHUB_REF_NAME#v}
-        cat > release-notes.md <<EOF
-        Kineviz Database Proxy $VERSION includes the admin Web UI.
-
-        Install: pip install kineviz-database-proxy==$VERSION
-
-        Start: kineviz-proxy
-
-        Python imports now use kineviz_database_proxy. The graphxr-proxy command remains supported.
-
-        PyPI: https://pypi.org/project/kineviz-database-proxy/$VERSION/
-        EOF
-        PRERELEASE=()
-        if [[ "$VERSION" == *alpha* || "$VERSION" == *beta* || "$VERSION" == *rc* ]]; then
-          PRERELEASE=(--prerelease)
-        fi
-        gh release create "$GITHUB_REF_NAME" dist/* --verify-tag \
-          --title "Kineviz Database Proxy $GITHUB_REF_NAME" \
-          --notes-file release-notes.md "${PRERELEASE[@]}"
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/* --verify-tag \
+              --title "Kineviz Database Proxy $GITHUB_REF_NAME" \
+              --notes-file release-notes.md "${PRERELEASE[@]}"
+          fi

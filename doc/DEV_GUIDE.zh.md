@@ -71,6 +71,27 @@ npm run dev
 Claude 的 `/verify` 会根据变更文件选择检查并报告结果。
 文档变更应检查本地链接，并同步已有的中英文版本。
 
+### GitHub Actions
+
+[CI](../.github/workflows/ci.yml) 检查工作流语法和 Bash 脚本，在 Python 3.11
+和 3.14 上运行离线后端测试，检查前端类型，构建新旧 Python 包并校验元数据和
+运行所需资源，同时检查 Dockerfile。分支推送和拉取请求都会触发 CI；三个发布
+工作流也必须先通过 CI，才能执行发布。
+
+构建前端后，可在本地复现打包检查：
+
+```bash
+uv run --with build --with twine python -m build --outdir dist/replacement
+uv run --with build python -m build legacy/graphxr-database-proxy --outdir dist/legacy
+uv run --with twine python -m twine check --strict dist/replacement/* dist/legacy/*
+uv run --no-sync python scripts/check_distributions.py dist/replacement
+docker build --check -f docker/Dockerfile .
+```
+
+安装 ShellCheck 后运行 [actionlint](https://github.com/rhysd/actionlint)，可在本地
+检查工作流。发布条件测试需要 Bash；Windows 下运行 pytest 前，将
+`BASH_EXECUTABLE` 设置为已安装的 Bash 可执行文件路径。这些检查不会上传包或镜像。
+
 ### PostgreSQL 18 示例集成测试
 
 启动代理和 GraphXRSupportDB 的 pg18 示例后，在仓库根目录运行：

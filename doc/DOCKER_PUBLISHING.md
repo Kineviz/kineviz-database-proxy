@@ -25,7 +25,28 @@ docker run --rm -i --entrypoint python kineviz/kineviz-database-proxy:latest - <
 
 ## Build and Publish Docker Image
 
+The [Docker publishing workflow](../.github/workflows/docker-publish.yml) runs CI
+before building Linux amd64 and arm64 images. A `vVERSION` or `docker-vVERSION`
+tag must match `pyproject.toml`. Stable versions publish both `VERSION` and `latest`;
+prereleases and the `develop` branch do not replace `latest`. Manual runs select
+Docker Hub, Aliyun, or both registries.
+
+To publish locally after verification, run from the repository root:
+
 ```bash
-# Automated script that includes source code build, docker image build and publish
-./docker/publish release
+npm run install:frontend
+npm run typecheck
+npm run build
+docker buildx build -f docker/Dockerfile --platform linux/amd64,linux/arm64 \
+  -t kineviz/kineviz-database-proxy:1.1.4 \
+  -t kineviz/kineviz-database-proxy:latest --push .
 ```
+
+Use the version from `pyproject.toml` for the version tag. Omit `latest` when
+publishing a prerelease. For a local build without uploading, replace `--push`
+with `--output type=oci,dest=dist/docker-image.tar`.
+
+The former `kineviz/graphxr-database-proxy` repository is deprecated. Update
+Docker and Compose image references to `kineviz/kineviz-database-proxy` and retain
+existing configuration and volume mounts. Existing old tags remain available
+for compatibility; future releases use the new repository.

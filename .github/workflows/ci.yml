@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '**'
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  workflows:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check GitHub Actions workflows
+        uses: docker://rhysd/actionlint:1.7.12
+        with:
+          args: -color
+
+  backend:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ['3.11', '3.14']
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          version: '0.10.4'
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+      - name: Install backend dependencies
+        run: uv sync --locked --extra dev --extra relational
+      - name: Run backend tests
+        env:
+          GRAPHXR_PROXY_ENGINE_TESTS: '0'
+        run: uv run --no-sync python -m pytest -q
+
+  distributions:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: Build and check frontend
+        run: |
+          npm run install:frontend
+          npm run typecheck
+          python scripts/build_frontend.py
+      - name: Build and check distributions
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build --outdir dist/replacement
+          python -m build legacy/graphxr-database-proxy --outdir dist/legacy
+          python -m twine check --strict dist/replacement/* dist/legacy/*
+          python scripts/check_distributions.py dist/replacement
+      - name: Check Dockerfile
+        run: docker build --check -f docker/Dockerfile .

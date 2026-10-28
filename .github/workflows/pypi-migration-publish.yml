@@ -16,15 +16,23 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: pypi-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+
   publish:
+    needs: validate
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
         with:
           python-version: '3.11'
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: '22'
       - name: Build and check the admin UI
@@ -46,10 +54,12 @@ jobs:
           PY
           python -m build --outdir dist/replacement
           python -m build legacy/graphxr-database-proxy --outdir dist/legacy
-          python -m twine check dist/replacement/* dist/legacy/*
-      - uses: actions/upload-artifact@v4
+          python -m twine check --strict dist/replacement/* dist/legacy/*
+          python scripts/check_distributions.py dist/replacement
+      - uses: actions/upload-artifact@v7
         with:
           name: pypi-migration-distributions
+          if-no-files-found: error
           path: |
             dist/replacement/*
             dist/legacy/*

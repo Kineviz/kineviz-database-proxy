@@ -3,149 +3,129 @@ name: Build and Publish Docker Image
 on:
   push:
     tags:
-      - 'v*'  # Trigger on docker version tags (e.g., docker-v1.0.4)
-  
-  workflow_dispatch:  # Allow manual trigger
+      - 'v*'
+      - 'docker-v*'
+  workflow_dispatch:
     inputs:
       registry:
-        description: 'Docker registry to push to'
+        description: Docker registry to push to
         required: true
-        default: 'dockerhub'
+        default: dockerhub
         type: choice
         options:
-        - dockerhub
-        - aliyun
-        - both
+          - dockerhub
+          - aliyun
+          - both
+
+permissions:
+  contents: read
+
+concurrency:
+  group: docker-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
+  validate:
+    uses: ./.github/workflows/ci.yml
+
   build-and-push:
+    needs: validate
     runs-on: ubuntu-latest
-    
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-    
-    - name: Set up Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '22'
-    
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-    
-    - name: Login to Docker Hub
-      if: ${{ github.event.inputs.registry != 'aliyun' || github.event_name != 'workflow_dispatch' }}
-      uses: docker/login-action@v3
-      with:
-        username: ${{ secrets.DOCKER_USERNAME_PUBLIC_REPO }}
-        password: ${{ secrets.DOCKER_PASSWORD_PUBLIC_REPO }}
-    
-    - name: Login to Aliyun Container Registry
-      if: ${{ github.event.inputs.registry == 'aliyun' || github.event.inputs.registry == 'both' }}
-      uses: docker/login-action@v3
-      with:
-        registry: registry.cn-hangzhou.aliyuncs.com
-        username: ${{ secrets.ALIYUN_DOCKER_USERNAME_PUBLIC_REPO }}
-        password: ${{ secrets.ALIYUN_DOCKER_PASSWORD_PUBLIC_REPO }}
-    
-    - name: Get version tag
-      id: version
-      run: |
-        if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
-          VERSION=${GITHUB_REF_NAME#v}
-          PACKAGE_VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' pyproject.toml)
-          test "$VERSION" = "$PACKAGE_VERSION"
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tags=latest,$VERSION" >> $GITHUB_OUTPUT
-        elif [[ "${{ github.ref }}" == refs/tags/docker-v* ]]; then
-          VERSION=${GITHUB_REF#refs/tags/docker-v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "tags=latest,$VERSION" >> $GITHUB_OUTPUT
-        elif [[ "${{ github.ref }}" == refs/heads/develop ]]; then
-          echo "version=develop" >> $GITHUB_OUTPUT
-          echo "tags=develop" >> $GITHUB_OUTPUT
-        else
-          echo "version=latest" >> $GITHUB_OUTPUT
-          echo "tags=latest" >> $GITHUB_OUTPUT
-        fi
-        echo "Version: $(cat $GITHUB_OUTPUT)"
-    
-    - name: Cache npm dependencies
-      uses: actions/cache@v3
-      with:
-        path: frontend/node_modules
-        key: ${{ runner.os }}-npm-${{ hashFiles('frontend/package-lock.json') }}
-        restore-keys: |
-          ${{ runner.os }}-npm-
-    
-    - name: Install frontend dependencies
-      run: |
-        echo "📦 Installing frontend dependencies..."
-        cd frontend
-        npm install
-        cd ..
-    
-    - name: Build frontend
-      run: |
-        echo "🏗️ Building frontend..."
-        cd frontend
-        npm run build
-        cd ..
-        echo "✅ Frontend build completed"
-    
-    - name: Verify frontend build
-      run: |
-        if [ -d "frontend/dist" ]; then
-          echo "✅ Frontend dist directory exists"
-          ls -la frontend/dist
-        else
-          echo "❌ Frontend dist directory not found"
-          exit 1
-        fi
-    
-    - name: Build and push Docker image to Docker Hub
-      if: ${{ github.event.inputs.registry != 'aliyun' || github.event_name != 'workflow_dispatch' }}
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./docker/Dockerfile
-        push: true
-        tags: |
-          kineviz/kineviz-database-proxy:latest
-          ${{ steps.version.outputs.version != 'latest' && format('kineviz/kineviz-database-proxy:{0}', steps.version.outputs.version) || '' }}
-        cache-from: type=gha,scope=dockerhub
-        cache-to: type=gha,mode=max,scope=dockerhub
-        platforms: linux/amd64,linux/arm64
-    
-    - name: Build and push Docker image to Aliyun
-      if: ${{ github.event.inputs.registry == 'aliyun' || github.event.inputs.registry == 'both' }}
-      uses: docker/build-push-action@v5
-      with:
-        context: .
-        file: ./docker/Dockerfile
-        push: true
-        tags: |
-          registry.cn-hangzhou.aliyuncs.com/kineviz/kineviz-database-proxy:latest
-          ${{ steps.version.outputs.version != 'latest' && format('registry.cn-hangzhou.aliyuncs.com/kineviz/kineviz-database-proxy:{0}', steps.version.outputs.version) || '' }}
-        cache-from: type=gha,scope=aliyun
-        cache-to: type=gha,mode=max,scope=aliyun
-        platforms: linux/amd64,linux/arm64
-    
-    - name: Image digest
-      run: echo "Image built and pushed successfully! 🎉"
-    
-    - name: Create release notes
-      if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/docker-v')
-      run: |
-        echo "## 🐳 Docker Image Released!" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Pull the image:" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-        echo "docker pull kineviz/kineviz-database-proxy:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-        echo "docker pull kineviz/kineviz-database-proxy:latest" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "### Run the container:" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
-        echo "docker run -p 9080:9080 kineviz/kineviz-database-proxy:${{ steps.version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.11'
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      - name: Get image tags
+        id: version
+        env:
+          REQUESTED_REGISTRY: ${{ inputs.registry }}
+        run: |
+          PACKAGE_VERSION=$(python -c "import tomllib; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'])")
+          if [[ "$GITHUB_REF" == refs/tags/docker-v* ]]; then
+            VERSION=${GITHUB_REF_NAME#docker-v}
+            test "$VERSION" = "$PACKAGE_VERSION"
+          elif [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION=${GITHUB_REF_NAME#v}
+            test "$VERSION" = "$PACKAGE_VERSION"
+          elif [[ "$GITHUB_REF" == refs/heads/develop ]]; then
+            VERSION=develop
+          else
+            VERSION=latest
+          fi
+          REGISTRY=${REQUESTED_REGISTRY:-dockerhub}
+          {
+            echo "registry=$REGISTRY"
+            echo "version=$VERSION"
+            echo 'tags<<IMAGE_TAGS'
+            for REPOSITORY in kineviz/kineviz-database-proxy registry.cn-hangzhou.aliyuncs.com/kineviz/kineviz-database-proxy; do
+              if [[ "$REPOSITORY" == registry.cn-hangzhou.aliyuncs.com/* && "$REGISTRY" == dockerhub ]]; then
+                continue
+              fi
+              if [[ "$REPOSITORY" == kineviz/* && "$REGISTRY" == aliyun ]]; then
+                continue
+              fi
+              echo "$REPOSITORY:$VERSION"
+              if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+                echo "$REPOSITORY:latest"
+              fi
+            done
+            echo IMAGE_TAGS
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and check frontend
+        run: |
+          npm run install:frontend
+          npm run typecheck
+          npm run build
+          test -s frontend/dist/index.html
+
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+      - uses: docker/setup-buildx-action@v4
+
+      - name: Login to Docker Hub
+        if: steps.version.outputs.registry != 'aliyun'
+        uses: docker/login-action@v4
+        with:
+          username: ${{ secrets.DOCKER_USERNAME_PUBLIC_REPO }}
+          password: ${{ secrets.DOCKER_PASSWORD_PUBLIC_REPO }}
+
+      - name: Login to Aliyun Container Registry
+        if: steps.version.outputs.registry != 'dockerhub'
+        uses: docker/login-action@v4
+        with:
+          registry: registry.cn-hangzhou.aliyuncs.com
+          username: ${{ secrets.ALIYUN_DOCKER_USERNAME_PUBLIC_REPO }}
+          password: ${{ secrets.ALIYUN_DOCKER_PASSWORD_PUBLIC_REPO }}
+
+      - name: Build and push Docker image
+        id: build
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./docker/Dockerfile
+          push: true
+          tags: ${{ steps.version.outputs.tags }}
+          cache-from: type=gha,scope=docker
+          cache-to: type=gha,mode=max,scope=docker
+          platforms: linux/amd64,linux/arm64
+
+      - name: Image summary
+        env:
+          IMAGE_TAGS: ${{ steps.version.outputs.tags }}
+          IMAGE_DIGEST: ${{ steps.build.outputs.digest }}
+        run: |
+          {
+            echo '## Published Docker images'
+            echo
+            echo "Digest: $IMAGE_DIGEST"
+            while IFS= read -r TAG; do
+              echo "docker pull $TAG"
+            done <<< "$IMAGE_TAGS"
+          } >> "$GITHUB_STEP_SUMMARY"

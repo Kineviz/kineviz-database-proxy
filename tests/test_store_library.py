@@ -176,10 +176,11 @@ def test_an_unreadable_file_is_still_listed(tmp_path):
 
 def test_usage_matches_the_same_file_spelled_differently(tmp_path):
     path = write_store(tmp_path, "graph.kz")
-    index = store_library.usage_index([make_project("live", str(path).replace("/", "\\"))])
+    for spelling in (str(path), path.as_posix(), f"{path.parent}/./{path.name}"):
+        index = store_library.usage_index([make_project("live", spelling)])
 
-    assert store_library.used_by(index, str(path)) == ["live"]
-    assert store_library.used_by(index, str(tmp_path / "other.kz")) == []
+        assert store_library.used_by(index, str(path)) == ["live"]
+        assert store_library.used_by(index, str(tmp_path / "other.kz")) == []
 
 
 def test_external_paths_are_the_ones_outside_the_library(tmp_path):
