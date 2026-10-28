@@ -58,7 +58,7 @@ jobs:
         env:
           TWINE_USERNAME: __token__
           TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
-        run: python -m twine upload --non-interactive --skip-existing dist/replacement/*
+        run: python scripts/upload_pypi.py dist/replacement
       - name: Verify the replacement and publish the migration package
         if: inputs.package != 'replacement'
         env:
@@ -86,4 +86,4 @@ jobs:
           assert release['info']['version'] == version
           assert release['urls'], 'The replacement must be downloadable before publishing the migration package'
           PY
-          python -m twine upload --non-interactive --skip-existing dist/legacy/*
+          python scripts/upload_pypi.py dist/legacy
