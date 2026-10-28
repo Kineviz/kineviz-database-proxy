@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from graphxr_database_proxy.drivers.embedded.kuzu_mapping import (
+from kineviz_database_proxy.drivers.embedded.kuzu_mapping import (
     is_node,
     is_relationship,
     node_id,

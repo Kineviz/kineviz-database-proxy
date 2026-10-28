@@ -23,18 +23,18 @@ from typing import Any, Dict, Tuple
 import pytest
 from fastapi.testclient import TestClient
 
-from graphxr_database_proxy.api import database as database_module
-from graphxr_database_proxy.drivers.dialect import (
+from kineviz_database_proxy.api import database as database_module
+from kineviz_database_proxy.drivers.dialect import (
     DIALECTS,
     NodeRef,
     build_expand,
     build_pull_category,
 )
-from graphxr_database_proxy.drivers.intents import split_label_key_id
-from graphxr_database_proxy.drivers.relational import query as query_layer
-from graphxr_database_proxy.drivers.relational.catalog import propose
-from graphxr_database_proxy.main import app
-from graphxr_database_proxy.models.project import Project
+from kineviz_database_proxy.drivers.intents import split_label_key_id
+from kineviz_database_proxy.drivers.relational import query as query_layer
+from kineviz_database_proxy.drivers.relational.catalog import propose
+from kineviz_database_proxy.main import app
+from kineviz_database_proxy.models.project import Project
 from tests.test_relational_capability_record import RELATIONAL_BACKENDS, relational_project
 from tests.test_relational_dialect_record import CLIENT_GOLDEN_ONE_HOP
 from tests.test_relational_endpoints import ScriptedProjects

@@ -22,19 +22,19 @@ from typing import Any, Dict, List
 import pytest
 from fastapi.testclient import TestClient
 
-from graphxr_database_proxy.api import database as database_module
-from graphxr_database_proxy.contract.capabilities import CONTRACT_VERSION
-from graphxr_database_proxy.drivers.factory import DriverFactory
-from graphxr_database_proxy.drivers.graph_support import (
+from kineviz_database_proxy.api import database as database_module
+from kineviz_database_proxy.contract.capabilities import CONTRACT_VERSION
+from kineviz_database_proxy.drivers.factory import DriverFactory
+from kineviz_database_proxy.drivers.graph_support import (
     MSSQL_CAPABILITIES,
     MYSQL_CAPABILITIES,
     SNOWFLAKE_CAPABILITIES,
     POSTGRESQL_CAPABILITIES,
 )
-from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
-from graphxr_database_proxy.drivers.relational.engine import PROPERTY_TYPES
-from graphxr_database_proxy.main import app
-from graphxr_database_proxy.models.project import DatabaseType, Project
+from kineviz_database_proxy.drivers.relational.driver import RelationalDriver
+from kineviz_database_proxy.drivers.relational.engine import PROPERTY_TYPES
+from kineviz_database_proxy.main import app
+from kineviz_database_proxy.models.project import DatabaseType, Project
 from tests.test_relational_endpoints import ScriptedProjects
 from tests.test_relational_pool import FakeEngine, access_for, config, draft_document
 from tests.test_relational_reflect import SPEC, FakeInspector
@@ -332,7 +332,7 @@ async def test_graph_key_types_names_every_category_in_the_shared_vocabulary(bac
     labels = {category.name for category in schema.data.categories}
     assert set(key_types) == labels
     for category in schema.data.categories:
-        from graphxr_database_proxy.drivers.relational.engine import PROPERTY_TYPES
+        from kineviz_database_proxy.drivers.relational.engine import PROPERTY_TYPES
 
         declared = key_types[category.name]
         assert declared in PROPERTY_TYPES, category.name

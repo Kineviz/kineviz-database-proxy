@@ -17,7 +17,7 @@ from __future__ import annotations
 
 from typing import Dict, List, Optional, Tuple
 
-from graphxr_database_proxy.drivers.relational.mapping import (
+from kineviz_database_proxy.drivers.relational.mapping import (
     COMPOSITE_KEY_REASON,
     PROVENANCE_ADDED,
     PROVENANCE_AUTO,
@@ -25,7 +25,7 @@ from graphxr_database_proxy.drivers.relational.mapping import (
     EffectiveMapping,
     from_document,
 )
-from graphxr_database_proxy.models.graph_mapping import (
+from kineviz_database_proxy.models.graph_mapping import (
     GraphMapping,
     MappingEdge,
     MappingEndpoint,

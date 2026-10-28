@@ -14,7 +14,7 @@
 2. **Start the Service**:
    ```bash
    # Start backend service
-   python -m uvicorn src.graphxr_database_proxy.main:app --reload --port 9080
+   python -m uvicorn src.kineviz_database_proxy.main:app --reload --port 9080
 
    # Start frontend development server
    cd frontend && npm start
@@ -170,7 +170,7 @@ Set the `API_KEY` environment variable to enable authentication:
 export API_KEY=your-secure-api-key-here
 
 # Start the server
-python -m uvicorn src.graphxr_database_proxy.main:app --port 9080
+python -m uvicorn src.kineviz_database_proxy.main:app --port 9080
 ```
 
 Or in a `.env` file:
@@ -197,15 +197,15 @@ curl -X POST \
 
 #### Protected vs Public Endpoints
 
-Two independent auth layers are wired in `src/graphxr_database_proxy/api/auth.py`:
+Two independent auth layers are wired in `src/kineviz_database_proxy/api/auth.py`:
 
 - **Admin session** — `X-Admin-Token` header issued by `POST /api/admin/login`, gated by
   `ADMIN_PASSWORD`. Required for every `/api/admin`, `/api/project`, `/api/embedded`,
   `/api/relational`, `/api/settings` and `/api/google` route.
 - **API key** — `X-API-Key` header, from `API_KEY` or the settings file
-  (`src/graphxr_database_proxy/api/auth.py:192`). Required for the generic
+  (`src/kineviz_database_proxy/api/auth.py:192`). Required for the generic
   `/api/{db_type}/{project}/*` data routes; the admin token is also accepted there
-  (`verify_api_key_or_admin`, `src/graphxr_database_proxy/api/auth.py:249`).
+  (`verify_api_key_or_admin`, `src/kineviz_database_proxy/api/auth.py:249`).
 
 When `ADMIN_PASSWORD` / `API_KEY` is unset, both layers are off and the routes answer without
 a credential. The table below mirrors what `verify_admin_token` and `verify_api_key_or_admin`
@@ -277,7 +277,7 @@ To disable API key authentication, simply leave the `API_KEY` environment variab
 ```
 kineviz-database-proxy/
 ├── src/
-│   └── graphxr_database_proxy/
+│   └── kineviz_database_proxy/
 │       ├── main.py          # FastAPI application
 │       ├── api/             # API routes
 │       ├── drivers/         # Database drivers
@@ -318,7 +318,7 @@ kineviz-database-proxy/
 
 ### Production Deployment
 1. Build frontend: `cd frontend && npm run build`
-2. Start server: `python -m uvicorn src.graphxr_database_proxy.main:app --host 0.0.0.0 --port 9080`
+2. Start server: `python -m uvicorn src.kineviz_database_proxy.main:app --host 0.0.0.0 --port 9080`
 3. Configure reverse proxy (e.g., Nginx)
 
 ### Docker Deployment
@@ -347,5 +347,5 @@ Or Script:
 ### Log Viewing
 ```bash
 # View server logs
-python -m uvicorn src.graphxr_database_proxy.main:app --log-level debug
+python -m uvicorn src.kineviz_database_proxy.main:app --log-level debug
 ```

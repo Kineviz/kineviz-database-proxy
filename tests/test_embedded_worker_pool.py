@@ -16,14 +16,14 @@ from pathlib import Path
 
 import pytest
 
-from graphxr_database_proxy.drivers.embedded import pool as pool_module
-from graphxr_database_proxy.drivers.embedded.pool import (
+from kineviz_database_proxy.drivers.embedded import pool as pool_module
+from kineviz_database_proxy.drivers.embedded.pool import (
     EngineWorker,
     EngineWorkerError,
     WorkerPool,
 )
-from graphxr_database_proxy.drivers.embedded.runtime import EngineRuntime
-from graphxr_database_proxy.drivers.embedded.worker import (
+from kineviz_database_proxy.drivers.embedded.runtime import EngineRuntime
+from kineviz_database_proxy.drivers.embedded.worker import (
     EngineSession,
     LatticeSession,
     _to_json_value,

@@ -78,8 +78,8 @@ all = [
 ]
 
 [project.scripts]
-kineviz-proxy = "graphxr_database_proxy.launcher:main"
-graphxr-proxy = "graphxr_database_proxy.launcher:main"
+kineviz-proxy = "kineviz_database_proxy.launcher:main"
+graphxr-proxy = "kineviz_database_proxy.launcher:main"
 
 [project.urls]
 Homepage = "https://github.com/Kineviz/kineviz-database-proxy"
@@ -91,7 +91,8 @@ Repository = "https://github.com/Kineviz/kineviz-database-proxy"
 where = ["src"]
 
 [tool.setuptools.package-data]
-"graphxr_database_proxy" = [
+"kineviz_database_proxy" = [
+    "contract/*.json",
     "static/*",
     "static/**/*",
     # The annotated mapping example the UI shows and a person can upload.

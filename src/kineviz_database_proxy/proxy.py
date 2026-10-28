@@ -522,7 +522,7 @@ class DatabaseProxy:
         # Run the server
         try:
             uvicorn.run(
-                "graphxr_database_proxy.main:app",
+                "kineviz_database_proxy.main:app",
                 host=host,
                 port=port,
                 reload=dev,

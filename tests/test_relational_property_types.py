@@ -37,14 +37,14 @@ from sqlalchemy.dialects import mysql as mysql_dialect
 from sqlalchemy.dialects import postgresql as postgresql_dialect
 from sqlalchemy.sql import visitors
 
-from graphxr_database_proxy.drivers.relational import catalog, compile, mapping, plan, query
-from graphxr_database_proxy.drivers.relational.engine_spelling import UnbindableType
-from graphxr_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
-from graphxr_database_proxy.drivers.relational.engines.mysql import MySQLEngine
-from graphxr_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
-from graphxr_database_proxy.drivers.relational.mapping_index import names_a_type
-from graphxr_database_proxy.drivers.relational.reflect import type_name
-from graphxr_database_proxy.models.graph_mapping import GraphMapping
+from kineviz_database_proxy.drivers.relational import catalog, compile, mapping, plan, query
+from kineviz_database_proxy.drivers.relational.engine_spelling import UnbindableType
+from kineviz_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
+from kineviz_database_proxy.drivers.relational.engines.mysql import MySQLEngine
+from kineviz_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
+from kineviz_database_proxy.drivers.relational.mapping_index import names_a_type
+from kineviz_database_proxy.drivers.relational.reflect import type_name
+from kineviz_database_proxy.models.graph_mapping import GraphMapping
 from tests.test_relational_reflect import FakeInspector
 
 

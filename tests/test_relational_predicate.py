@@ -21,8 +21,8 @@ from typing import List
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational import predicate, translate
-from graphxr_database_proxy.drivers.relational.predicate import (
+from kineviz_database_proxy.drivers.relational import predicate, translate
+from kineviz_database_proxy.drivers.relational.predicate import (
     And,
     BoolProp,
     Cmp,

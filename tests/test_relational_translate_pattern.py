@@ -8,7 +8,7 @@ builders depend on, not the private helpers' own signatures.
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational.translate import translate as plan_of
+from kineviz_database_proxy.drivers.relational.translate import translate as plan_of
 
 
 @pytest.mark.parametrize(

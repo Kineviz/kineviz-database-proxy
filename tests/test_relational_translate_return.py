@@ -6,7 +6,7 @@ statement plans against — graph, scalar or aggregate — because the answer's 
 is decided here and nowhere else.
 """
 
-from graphxr_database_proxy.drivers.relational.translate import (
+from kineviz_database_proxy.drivers.relational.translate import (
     PropItem,
     parse_return,
     translate as plan_of,

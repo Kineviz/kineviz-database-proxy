@@ -16,12 +16,12 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import mssql, mysql, postgresql
 from sqlalchemy.sql import visitors
 
-from graphxr_database_proxy.drivers.relational import expression, predicate
-from graphxr_database_proxy.drivers.relational.engine import ServerInfo
-from graphxr_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
-from graphxr_database_proxy.drivers.relational.engines.mysql import MySQLEngine
-from graphxr_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
-from graphxr_database_proxy.drivers.relational.expression import (
+from kineviz_database_proxy.drivers.relational import expression, predicate
+from kineviz_database_proxy.drivers.relational.engine import ServerInfo
+from kineviz_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
+from kineviz_database_proxy.drivers.relational.engines.mysql import MySQLEngine
+from kineviz_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
+from kineviz_database_proxy.drivers.relational.expression import (
     BoundVariable,
     FanoutRequired,
     PredicateScope,

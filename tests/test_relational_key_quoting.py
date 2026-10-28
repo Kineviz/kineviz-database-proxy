@@ -15,10 +15,10 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from graphxr_database_proxy.contract.intents import ExpandRequest
-from graphxr_database_proxy.drivers.dialect import MSSQL_DIALECT, NodeRef, build_expand
-from graphxr_database_proxy.drivers.relational import translate
-from graphxr_database_proxy.drivers.relational.catalog import propose
+from kineviz_database_proxy.contract.intents import ExpandRequest
+from kineviz_database_proxy.drivers.dialect import MSSQL_DIALECT, NodeRef, build_expand
+from kineviz_database_proxy.drivers.relational import translate
+from kineviz_database_proxy.drivers.relational.catalog import propose
 from tests.test_relational_pool import FakeInspector, driver_for, graph_rows, project
 from tests.test_relational_reflect import table
 

@@ -16,8 +16,8 @@ pip install "kineviz-database-proxy[ui]"
 kineviz-proxy --ui
 ```
 
-为兼容已有调用和配置，Python 导入名仍为 `graphxr_database_proxy`，
-并继续支持 `graphxr-proxy` 命令、`GRAPHXR_PROXY_*` 环境变量和现有存储路径。
+Python 包名和源码目录均为 `kineviz_database_proxy`，已有 Python 导入需改用此名称。
+继续兼容 `graphxr-proxy` 命令、`GRAPHXR_PROXY_*` 环境变量和现有存储路径。
 
 打开 http://localhost:9080/admin，创建项目，将其 API URL 复制到 GraphXR 的
 **Database Proxy** 连接中。例如：`http://localhost:9080/api/spanner/Test`。

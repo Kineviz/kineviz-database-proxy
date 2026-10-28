@@ -1,8 +1,8 @@
 """Integration tests for RocketGraphDriver (URL building, api info, schema/sample_data stubs)."""
 import pytest
 
-from graphxr_database_proxy.drivers.rocketgraph import RocketGraphDriver
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.drivers.rocketgraph import RocketGraphDriver
+from kineviz_database_proxy.models.project import (
     AuthType,
     DatabaseConfig,
     DatabaseType,

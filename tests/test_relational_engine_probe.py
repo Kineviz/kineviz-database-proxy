@@ -12,8 +12,8 @@ from __future__ import annotations
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational.engine import ServerInfo, engines_for
-from graphxr_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
+from kineviz_database_proxy.drivers.relational.engine import ServerInfo, engines_for
+from kineviz_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
 from tests.test_relational_engine import ALL_ENGINES, FakeConnection, engine
 
 def test_mssql_id_list_ladder_is_engine_and_compatibility_level_together() -> None:
@@ -104,7 +104,7 @@ def test_probe_without_a_row_says_so() -> None:
         engine("mssql").probe_server(FakeConnection([]))
 
 def test_a_probed_server_resolves_back_to_the_engine_that_probed_it() -> None:
-    from graphxr_database_proxy.models.project import DatabaseType
+    from kineviz_database_proxy.models.project import DatabaseType
 
     # The compiler reaches the spelling through ``engines_for(info.engine)``, so a probe
     # that answered "sql server" or "PostgreSQL" instead of the registry key would raise

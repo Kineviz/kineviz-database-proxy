@@ -8,7 +8,7 @@ it out with it, as a warning the file still loads under.
 
 from __future__ import annotations
 
-from graphxr_database_proxy.drivers.relational.mapping import (
+from kineviz_database_proxy.drivers.relational.mapping import (
     PROVENANCE_EXCLUDED,
     from_document,
 )

@@ -1,7 +1,7 @@
 """Tests for RocketGraph SchemaMapper."""
 import pytest
-from graphxr_database_proxy.drivers.rocketgraph import SchemaMapper
-from graphxr_database_proxy.models.project import GraphSchema, Category, Relationship
+from kineviz_database_proxy.drivers.rocketgraph import SchemaMapper
+from kineviz_database_proxy.models.project import GraphSchema, Category, Relationship
 
 
 def test_maps_simple_node_type():

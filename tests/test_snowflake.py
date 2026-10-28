@@ -8,15 +8,15 @@ from types import SimpleNamespace
 import pytest
 import sqlalchemy as sa
 
-from graphxr_database_proxy.api.relational import _Page, _relational_driver, _tables_answer
-from graphxr_database_proxy.drivers.factory import DriverFactory
-from graphxr_database_proxy.drivers.relational import ids, mapping_io, plan, query
-from graphxr_database_proxy.drivers.relational.compile import compile_statements
-from graphxr_database_proxy.drivers.relational.engine import UnbindableType, engines_for
-from graphxr_database_proxy.drivers.relational.schemas import NodeSchema
-from graphxr_database_proxy.drivers.relational.snowflake_catalog import SnowflakeInspector
-from graphxr_database_proxy.drivers.snowflake import SnowflakeDriver
-from graphxr_database_proxy.models.project import DatabaseConfig, DatabaseType, Project
+from kineviz_database_proxy.api.relational import _Page, _relational_driver, _tables_answer
+from kineviz_database_proxy.drivers.factory import DriverFactory
+from kineviz_database_proxy.drivers.relational import ids, mapping_io, plan, query
+from kineviz_database_proxy.drivers.relational.compile import compile_statements
+from kineviz_database_proxy.drivers.relational.engine import UnbindableType, engines_for
+from kineviz_database_proxy.drivers.relational.schemas import NodeSchema
+from kineviz_database_proxy.drivers.relational.snowflake_catalog import SnowflakeInspector
+from kineviz_database_proxy.drivers.snowflake import SnowflakeDriver
+from kineviz_database_proxy.models.project import DatabaseConfig, DatabaseType, Project
 from tests.test_relational_compile import compile_one
 
 

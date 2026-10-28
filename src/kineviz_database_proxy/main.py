@@ -21,11 +21,13 @@ os.environ["SPANNER_ENABLE_METRICS"] = "false"
 os.environ["GOOGLE_CLOUD_DISABLE_METRICS"] = "true"
 
 import uvicorn
+from inspect import signature
 from pathlib import Path
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
+from . import __version__
 from .api.private_network import PrivateNetworkAccessMiddleware
 from fastapi.responses import FileResponse
 
@@ -41,24 +43,30 @@ from .api.admin import router as admin_router
 app = FastAPI(
     title="Kineviz Database Proxy",
     description="Secure middleware for connecting GraphXR to databases",
-    version="1.0.0",
+    version=__version__,
     docs_url="/docs",
     redoc_url="/redoc"
 )
 
 # Add CORS middleware
+cors_private_network_options = {}
+if "allow_private_network" in signature(CORSMiddleware).parameters:
+    # Newer Starlette rejects private-network preflights unless explicitly enabled.
+    cors_private_network_options["allow_private_network"] = True
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure this for production
+    # Echo the requesting origin so credentialed requests work across origins.
+    allow_origin_regex=".*",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    **cors_private_network_options,
 )
 
 # GraphXR calls this proxy directly from the browser, so Chrome's Private Network
-# Access preflight has to be answered as well — CORSMiddleware does not emit that
-# header. Added after CORSMiddleware so it wraps it and can set the header on the
-# preflight response.
+# Access preflight has to be answered as well. Keep the header fallback for older
+# Starlette versions, wrapping CORS so it can update the preflight response.
 app.add_middleware(PrivateNetworkAccessMiddleware)
 
 # Include API routers
@@ -81,7 +89,7 @@ async def health_check():
     return {
         "status": "healthy", 
         "message": "Kineviz Database Proxy is running",
-        "version": "1.0.0",
+        "version": __version__,
         "environment": "development",
         "auto_reload": "enabled"
     }
@@ -135,7 +143,7 @@ def main():
     
     # Run the server
     uvicorn.run(
-        "src.graphxr_database_proxy.main:app",
+        "kineviz_database_proxy.main:app",
         host=args.host,
         port=args.port,
         reload=args.dev,

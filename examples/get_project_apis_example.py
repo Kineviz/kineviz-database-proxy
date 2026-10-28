@@ -7,7 +7,7 @@ finding projects by both project_id and project_name.
 """
 
 import os
-from graphxr_database_proxy import DatabaseProxy
+from kineviz_database_proxy import DatabaseProxy
 
 
 def demonstrate_get_project_apis():

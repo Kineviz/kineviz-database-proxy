@@ -13,8 +13,8 @@ import asyncio
 
 import pytest
 
-from graphxr_database_proxy.drivers.base import BaseDatabaseDriver
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.drivers.base import BaseDatabaseDriver
+from kineviz_database_proxy.models.project import (
     Category,
     DatabaseConfig,
     DatabaseType,
@@ -22,8 +22,8 @@ from graphxr_database_proxy.models.project import (
     GraphSchemaResponse,
     Project,
 )
-from graphxr_database_proxy.services import graph_schema_cache as module
-from graphxr_database_proxy.services.graph_schema_cache import (
+from kineviz_database_proxy.services import graph_schema_cache as module
+from kineviz_database_proxy.services.graph_schema_cache import (
     GRAPH_SCHEMA_CACHE,
     GraphSchemaCache,
     cache_key,

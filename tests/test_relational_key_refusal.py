@@ -24,10 +24,10 @@ from typing import Tuple
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational import compile
-from graphxr_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
-from graphxr_database_proxy.drivers.relational.engines.mysql import MySQLEngine
-from graphxr_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
+from kineviz_database_proxy.drivers.relational import compile
+from kineviz_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
+from kineviz_database_proxy.drivers.relational.engines.mysql import MySQLEngine
+from kineviz_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
 
 #: Every engine behind this seam has a different vocabulary, so each refused example
 #: is taken from that engine's own unbindable set. ``geometry`` is the one real-name

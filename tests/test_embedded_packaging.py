@@ -17,15 +17,15 @@ from pathlib import Path
 
 import pytest
 
-from graphxr_database_proxy.drivers.embedded import runtime as runtime_module
-from graphxr_database_proxy.drivers.embedded.pypi import (
+from kineviz_database_proxy.drivers.embedded import runtime as runtime_module
+from kineviz_database_proxy.drivers.embedded.pypi import (
     PackageIndex,
     has_compatible_wheel,
     interpreters_with_a_wheel,
     parse_simple_index,
     supported_tags,
 )
-from graphxr_database_proxy.drivers.embedded.runtime import (
+from kineviz_database_proxy.drivers.embedded.runtime import (
     EngineRuntime,
     installed_runtime,
     remove_runtime,

@@ -15,14 +15,14 @@ from pathlib import Path
 
 import pytest
 
-from graphxr_database_proxy.contract.intents import ExpandRequest, PullCategoryRequest
-from graphxr_database_proxy.drivers import kuzu as kuzu_module
-from graphxr_database_proxy.drivers.embedded.runtime import EngineRuntime
-from graphxr_database_proxy.drivers.factory import DriverFactory
-from graphxr_database_proxy.drivers.kuzu import KuzuDriver
-from graphxr_database_proxy.drivers.ladybug import LadybugDriver
-from graphxr_database_proxy.models.project import DatabaseConfig, DatabaseType, Project
-from graphxr_database_proxy.services.graph_schema_cache import GRAPH_SCHEMA_CACHE
+from kineviz_database_proxy.contract.intents import ExpandRequest, PullCategoryRequest
+from kineviz_database_proxy.drivers import kuzu as kuzu_module
+from kineviz_database_proxy.drivers.embedded.runtime import EngineRuntime
+from kineviz_database_proxy.drivers.factory import DriverFactory
+from kineviz_database_proxy.drivers.kuzu import KuzuDriver
+from kineviz_database_proxy.drivers.ladybug import LadybugDriver
+from kineviz_database_proxy.models.project import DatabaseConfig, DatabaseType, Project
+from kineviz_database_proxy.services.graph_schema_cache import GRAPH_SCHEMA_CACHE
 
 KUZU_HEADER = b"KUZU" + (39).to_bytes(8, "little")
 LADYBUG_HEADER = b"LBUG" + (43).to_bytes(8, "little")

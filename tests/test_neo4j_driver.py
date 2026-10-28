@@ -13,11 +13,11 @@ import socket
 
 import pytest
 
-from graphxr_database_proxy.contract.intents import FulltextSearchRequest
-from graphxr_database_proxy.drivers.bolt_schema import load_memgraph_schema, load_neo4j_schema
-from graphxr_database_proxy.drivers.dialect import MEMGRAPH_DIALECT, NEO4J_DIALECT
-from graphxr_database_proxy.drivers.memgraph import MemgraphDriver
-from graphxr_database_proxy.drivers.neo4j import (
+from kineviz_database_proxy.contract.intents import FulltextSearchRequest
+from kineviz_database_proxy.drivers.bolt_schema import load_memgraph_schema, load_neo4j_schema
+from kineviz_database_proxy.drivers.dialect import MEMGRAPH_DIALECT, NEO4J_DIALECT
+from kineviz_database_proxy.drivers.memgraph import MemgraphDriver
+from kineviz_database_proxy.drivers.neo4j import (
     CONNECTION_ACQUISITION_TIMEOUT_SECONDS,
     CONNECTION_TIMEOUT_SECONDS,
     prefer_ipv4,
@@ -30,7 +30,7 @@ from graphxr_database_proxy.drivers.neo4j import (
     build_search_statement,
     enforce_limit,
 )
-from graphxr_database_proxy.models.project import DatabaseConfig, DatabaseType, Project
+from kineviz_database_proxy.models.project import DatabaseConfig, DatabaseType, Project
 
 
 def project(database_type: DatabaseType, **config) -> Project:
@@ -307,7 +307,7 @@ def host_name_of(resolved) -> str:
 
 
 def fake_getaddrinfo(monkeypatch, infos):
-    from graphxr_database_proxy.drivers import neo4j as module
+    from kineviz_database_proxy.drivers import neo4j as module
 
     monkeypatch.setattr(module.socket, "getaddrinfo", lambda *args, **kwargs: infos)
 
@@ -339,7 +339,7 @@ def test_a_scoped_ipv6_address_is_dropped(monkeypatch):
 
 
 def test_a_host_that_does_not_resolve_is_handed_back_untouched(monkeypatch):
-    from graphxr_database_proxy.drivers import neo4j as module
+    from kineviz_database_proxy.drivers import neo4j as module
 
     def boom(*args, **kwargs):
         raise OSError("Name or service not known")

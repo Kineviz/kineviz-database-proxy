@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from graphxr_database_proxy.drivers.dialect import (
+from kineviz_database_proxy.drivers.dialect import (
     BIGQUERY_DIALECT,
     KUZU_DIALECT,
     LADYBUG_DIALECT,

@@ -6,7 +6,7 @@ Kineviz Database Proxy - 未来数据库支持示例
 准备扩展接口。当前支持 Spanner，未来可以支持 Neo4j、PostgreSQL 等。
 """
 
-from graphxr_database_proxy import DatabaseProxy
+from kineviz_database_proxy import DatabaseProxy
 
 
 def current_spanner_support():

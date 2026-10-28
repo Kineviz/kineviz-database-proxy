@@ -10,7 +10,7 @@ Supports two Service Account authentication methods:
 2. JSON String: Pass the Service Account JSON content directly
 """
 
-from graphxr_database_proxy import DatabaseProxy
+from kineviz_database_proxy import DatabaseProxy
 
 
 def quick_start_with_service_account_file():

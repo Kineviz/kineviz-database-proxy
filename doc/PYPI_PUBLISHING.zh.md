@@ -133,7 +133,7 @@ twine upload --repository testpypi dist/*
 pip install --index-url https://test.pypi.org/simple/ kineviz-database-proxy
 
 # 测试基本功能
-python -c "from graphxr_database_proxy import DatabaseProxy; print('✅ 导入成功')"
+python -c "from kineviz_database_proxy import DatabaseProxy; print('✅ 导入成功')"
 ```
 
 ### 步骤 6: 正式发布到 PyPI
@@ -191,7 +191,7 @@ set TWINE_PASSWORD=pypi-your-api-token-here
 
 ### 版本号规范
 
-> You should modify the version in package.json , pyproject.toml , src/graphxr_database_proxy/__init__.py
+> You should modify the version in package.json , pyproject.toml , src/kineviz_database_proxy/__init__.py
 > Use **python scripts/update_version.py <new_version>** to update all files at once.
 
 遵循 [语义化版本](https://semver.org/lang/zh-CN/):

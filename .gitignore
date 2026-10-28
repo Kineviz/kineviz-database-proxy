@@ -366,7 +366,7 @@ frontend/.env.development.local
 frontend/.env.test.local
 frontend/.env.production.local
 
-src/graphxr_database_proxy/static/
+src/kineviz_database_proxy/static/
 .pypirc.template
 config/*.json
 

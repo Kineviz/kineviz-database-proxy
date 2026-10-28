@@ -19,6 +19,8 @@ on:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     
     steps:
     - name: Checkout code
@@ -28,6 +30,23 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '22'
+
+    - name: Build frontend
+      run: |
+        npm run install:frontend
+        npm run typecheck
+        python scripts/build_frontend.py
+
+    - name: Validate release version
+      if: startsWith(github.ref, 'refs/tags/v')
+      run: |
+        VERSION=$(sed -n 's/^version = "\([^"]*\)"/\1/p' pyproject.toml)
+        test "$GITHUB_REF_NAME" = "v$VERSION"
     
     - name: Install dependencies
       run: |
@@ -105,39 +124,25 @@ jobs:
     
     - name: Create Release
       if: startsWith(github.ref, 'refs/tags/v')
-      uses: actions/create-release@v1
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        tag_name: ${{ github.ref }}
-        release_name: Release ${{ github.ref }}
-        body: |
-          🎉 Kineviz Database Proxy ${{ github.ref }} Released!
-          
-          ## 📦 Installation
-          ```bash
-          pip install kineviz-database-proxy==${{ github.ref_name }}
-          ```
-          
-          ## 🔗 Links
-          - [PyPI Package](https://pypi.org/project/kineviz-database-proxy/${{ github.ref_name }}/)
-          - [Documentation](https://docs.kineviz.com/kineviz-database-proxy)
-          - [Changelog](https://github.com/Kineviz/kineviz-database-proxy/blob/main/CHANGELOG.md)
-          
-          ## 🚀 Quick Start
-          ```python
-          from graphxr_database_proxy import DatabaseProxy
-          
-          proxy = DatabaseProxy()
-          project_id = proxy.add_project(
-              project_name="MyProject",
-              database_type="spanner",
-              project_id="your-gcp-project-id",
-              instance_id="your-spanner-instance-id",
-              database_id="your-database-id",
-              credentials="./service-account.json"
-          )
-          proxy.start()
-          ```
-        draft: false
-        prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        VERSION=${GITHUB_REF_NAME#v}
+        cat > release-notes.md <<EOF
+        Kineviz Database Proxy $VERSION includes the admin Web UI.
+
+        Install: pip install kineviz-database-proxy==$VERSION
+
+        Start: kineviz-proxy
+
+        Python imports now use kineviz_database_proxy. The graphxr-proxy command remains supported.
+
+        PyPI: https://pypi.org/project/kineviz-database-proxy/$VERSION/
+        EOF
+        PRERELEASE=()
+        if [[ "$VERSION" == *alpha* || "$VERSION" == *beta* || "$VERSION" == *rc* ]]; then
+          PRERELEASE=(--prerelease)
+        fi
+        gh release create "$GITHUB_REF_NAME" dist/* --verify-tag \
+          --title "Kineviz Database Proxy $GITHUB_REF_NAME" \
+          --notes-file release-notes.md "${PRERELEASE[@]}"

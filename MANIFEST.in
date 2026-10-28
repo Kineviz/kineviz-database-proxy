@@ -1,5 +1,5 @@
 # 包含静态文件
-recursive-include src/graphxr_database_proxy/static *
+recursive-include src/kineviz_database_proxy/static *
 
 # 包含文档文件
 include README.md
@@ -11,7 +11,8 @@ include pyproject.toml
 include requirements.txt
 
 # Shipped package data: the relational mapping example the UI serves
-recursive-include src/graphxr_database_proxy/drivers/relational/data *.yml
+recursive-include src/kineviz_database_proxy/drivers/relational/data *.yml
+recursive-include src/kineviz_database_proxy/contract *.json
 
 # 包含示例和文档
 recursive-include examples *.py

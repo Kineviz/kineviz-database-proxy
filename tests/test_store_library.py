@@ -15,13 +15,13 @@ from pathlib import Path
 
 import pytest
 
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.models.project import (
     AuthType,
     DatabaseConfig,
     DatabaseType,
     Project,
 )
-from graphxr_database_proxy.services import store_library
+from kineviz_database_proxy.services import store_library
 
 KUZU_HEADER = b"KUZU" + (39).to_bytes(8, "little")
 LADYBUG_HEADER = b"LBUG" + (43).to_bytes(8, "little")

@@ -14,7 +14,7 @@ based on your deployment environment and security requirements.
 import os
 import json
 from pathlib import Path
-from graphxr_database_proxy import DatabaseProxy
+from kineviz_database_proxy import DatabaseProxy
 
 
 def example_with_file_path():

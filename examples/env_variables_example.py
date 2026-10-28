@@ -17,7 +17,7 @@ Environment Variables Supported:
 
 import os
 from pathlib import Path
-from graphxr_database_proxy import DatabaseProxy
+from kineviz_database_proxy import DatabaseProxy
 
 
 def example_with_environment_variables():

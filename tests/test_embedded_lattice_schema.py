@@ -10,7 +10,7 @@ and the rows are what it answered.
 
 from __future__ import annotations
 
-from graphxr_database_proxy.drivers.embedded.lattice_schema import (
+from kineviz_database_proxy.drivers.embedded.lattice_schema import (
     build_category,
     category_names,
     distinct_labels_statement,

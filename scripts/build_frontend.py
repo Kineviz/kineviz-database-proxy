@@ -64,7 +64,7 @@ def build_frontend():
 def copy_frontend_dist():
     """Copy frontend build files to Python package directory"""
     frontend_dist = Path("frontend/dist")
-    static_dir = Path("src/graphxr_database_proxy/static")
+    static_dir = Path("src/kineviz_database_proxy/static")
     
     if not frontend_dist.exists():
         print("❌ frontend/dist directory does not exist, please build frontend first")
@@ -96,7 +96,7 @@ def copy_frontend_dist():
 
 def list_static_files():
     """List static files"""
-    static_dir = Path("src/graphxr_database_proxy/static")
+    static_dir = Path("src/kineviz_database_proxy/static")
     
     if not static_dir.exists():
         print("❌ Static files directory does not exist")

@@ -7,11 +7,11 @@ from __future__ import annotations
 
 from typing import List, Optional
 
-from graphxr_database_proxy.drivers.relational.mapping import (
+from kineviz_database_proxy.drivers.relational.mapping import (
     PROVENANCE_FLIPPED,
     from_document,
 )
-from graphxr_database_proxy.models.graph_mapping import MappingPair
+from kineviz_database_proxy.models.graph_mapping import MappingPair
 from tests.test_relational_mapping import (
     catalog,
     document,

@@ -16,9 +16,10 @@ pip install "kineviz-database-proxy[ui]"
 kineviz-proxy --ui
 ```
 
-The Python import name remains `graphxr_database_proxy`; the `graphxr-proxy`
-command, `GRAPHXR_PROXY_*` environment variables and existing storage paths
-remain supported for compatibility.
+The Python package and source directory are named `kineviz_database_proxy`.
+Update existing Python imports to use this name. The `graphxr-proxy` command,
+`GRAPHXR_PROXY_*` environment variables and existing storage paths remain
+supported for compatibility.
 
 Open http://localhost:9080/admin, create a project and copy its API URL into
 GraphXR's **Database Proxy** connection. For example:

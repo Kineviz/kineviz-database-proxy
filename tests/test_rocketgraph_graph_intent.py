@@ -2,7 +2,7 @@
 classifier and rewriter that decides whether RocketGraph should return a
 graph or a table.
 """
-from graphxr_database_proxy.drivers.rocketgraph import _rewrite_for_graph_intent
+from kineviz_database_proxy.drivers.rocketgraph import _rewrite_for_graph_intent
 
 
 # ---------------------------------------------------------------------------

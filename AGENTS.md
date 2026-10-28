@@ -31,13 +31,13 @@ runs. Async pytest tests need no decorator (`asyncio_mode = "auto"`).
 
 ## Where to work
 
-- `src/graphxr_database_proxy/api/`: FastAPI routes.
-- `src/graphxr_database_proxy/drivers/`: database drivers, shared dialects and intents.
-- `src/graphxr_database_proxy/drivers/relational/`: mapping, Cypher-to-SQL pipeline,
+- `src/kineviz_database_proxy/api/`: FastAPI routes.
+- `src/kineviz_database_proxy/drivers/`: database drivers, shared dialects and intents.
+- `src/kineviz_database_proxy/drivers/relational/`: mapping, Cypher-to-SQL pipeline,
   catalog and engine spellings for SQL Server, PostgreSQL and MySQL.
-- `src/graphxr_database_proxy/drivers/embedded/`: isolated engine workers and stores.
-- `src/graphxr_database_proxy/models/`, `services/`: models and JSON persistence.
-- `src/graphxr_database_proxy/contract/`: vendored GraphXR contract schema.
+- `src/kineviz_database_proxy/drivers/embedded/`: isolated engine workers and stores.
+- `src/kineviz_database_proxy/models/`, `services/`: models and JSON persistence.
+- `src/kineviz_database_proxy/contract/`: vendored GraphXR contract schema.
 - `frontend/src/`: TypeScript UI; `tests/`: backend tests; `examples/`: Python usage.
 
 Read [architecture notes](doc/ARCHITECTURE.md) when changing drivers, graph identity,

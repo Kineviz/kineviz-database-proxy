@@ -18,20 +18,20 @@ from sqlalchemy.dialects import mssql, mysql, postgresql
 from sqlalchemy.exc import CompileError as SACompileError
 from sqlalchemy.sql import visitors
 
-from graphxr_database_proxy.drivers.relational import compile as compile_module
-from graphxr_database_proxy.drivers.relational import plan, query
-from graphxr_database_proxy.drivers.relational.compile import (
+from kineviz_database_proxy.drivers.relational import compile as compile_module
+from kineviz_database_proxy.drivers.relational import plan, query
+from kineviz_database_proxy.drivers.relational.compile import (
     CompileError,
     RepeatedRelationshipVariable,
     compile_statement,
     compile_statements,
     edge_columns,
 )
-from graphxr_database_proxy.drivers.relational.engine import ServerInfo
-from graphxr_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
-from graphxr_database_proxy.drivers.relational.engines.mysql import MySQLEngine
-from graphxr_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
-from graphxr_database_proxy.drivers.relational.schemas import Endpoint, NodeSchema, Pair, RelSchema
+from kineviz_database_proxy.drivers.relational.engine import ServerInfo
+from kineviz_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
+from kineviz_database_proxy.drivers.relational.engines.mysql import MySQLEngine
+from kineviz_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
+from kineviz_database_proxy.drivers.relational.schemas import Endpoint, NodeSchema, Pair, RelSchema
 
 PERSON_PROPS = {
     "person_id": "bigint",
@@ -512,8 +512,8 @@ def test_no_type_marker_set_lives_only_in_mapping_index() -> None:
     """
     import inspect
 
-    from graphxr_database_proxy.drivers.relational import compile as compile_module
-    from graphxr_database_proxy.drivers.relational import mapping_index
+    from kineviz_database_proxy.drivers.relational import compile as compile_module
+    from kineviz_database_proxy.drivers.relational import mapping_index
 
     compile_source = inspect.getsource(compile_module)
     assert "_NO_TYPE_MARKERS" not in compile_source, (

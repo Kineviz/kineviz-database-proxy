@@ -21,10 +21,10 @@ end-to-end route so the gap is closed rather than left in a report.
 
 from __future__ import annotations
 
-from graphxr_database_proxy.drivers.relational.driver_mapping import _key_unnamed
-from graphxr_database_proxy.drivers.relational.mapping import from_document
-from graphxr_database_proxy.drivers.relational.mapping_index import names_a_type
-from graphxr_database_proxy.models.graph_mapping import (
+from kineviz_database_proxy.drivers.relational.driver_mapping import _key_unnamed
+from kineviz_database_proxy.drivers.relational.mapping import from_document
+from kineviz_database_proxy.drivers.relational.mapping_index import names_a_type
+from kineviz_database_proxy.models.graph_mapping import (
     UNKNOWN_TYPE,
     GraphMapping,
     MappingEdge,
@@ -244,7 +244,7 @@ def test_a_catalog_that_records_an_endpoint_as_null_writes_null_into_the_index()
     then reads it — is the test above. Pinning the index write here closes the
     gap from the other side.
     """
-    from graphxr_database_proxy.drivers.relational.mapping_index import _CatalogIndex
+    from kineviz_database_proxy.drivers.relational.mapping_index import _CatalogIndex
 
     doc = _both_record_on_same_table_doc()
     index = _CatalogIndex.of(doc)
@@ -325,7 +325,7 @@ def test_declared_key_hands_back_null_when_the_catalog_also_could_not_name_it() 
     """
     from types import SimpleNamespace
 
-    from graphxr_database_proxy.drivers.relational.driver_mapping import _declared_key
+    from kineviz_database_proxy.drivers.relational.driver_mapping import _declared_key
 
     null_entry = SimpleNamespace(columns={"person_id": "NULL"})
     assert _declared_key({"Employment": null_entry}, "Employment", "person_id") == "NULL"
@@ -352,7 +352,7 @@ def test_key_unnamed_reads_the_canonical_no_type_set() -> None:
     fails. That is the contract that keeps the property path and the key
     path on the same side of the line.
     """
-    from graphxr_database_proxy.drivers.relational.mapping_index import NO_TYPE
+    from kineviz_database_proxy.drivers.relational.mapping_index import NO_TYPE
 
     for value in NO_TYPE:
         # ``None`` is not a member of a ``frozenset`` of strings; the

@@ -73,7 +73,7 @@ For more information:
 
 import os
 import socket
-from graphxr_database_proxy import DatabaseProxy
+from kineviz_database_proxy import DatabaseProxy
 
 
 def find_available_port(start=3002, max_attempts=100):

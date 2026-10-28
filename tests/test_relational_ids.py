@@ -13,8 +13,8 @@ import decimal
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational import ids
-from graphxr_database_proxy.drivers.relational.ids import coerce_key, coerce_value, decode, key_text, mint
+from kineviz_database_proxy.drivers.relational import ids
+from kineviz_database_proxy.drivers.relational.ids import coerce_key, coerce_value, decode, key_text, mint
 
 
 def test_a_minted_id_splits_back_into_the_label_and_the_key_it_came_from():

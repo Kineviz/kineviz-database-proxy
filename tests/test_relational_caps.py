@@ -9,14 +9,14 @@ on it.
 
 from __future__ import annotations
 
-from graphxr_database_proxy.drivers.relational.catalog import (
+from kineviz_database_proxy.drivers.relational.catalog import (
     MAX_EDGES,
     MAX_LABELS,
     MAX_PROPS,
 )
-from graphxr_database_proxy.drivers.relational.mapping_io import MAX_MAPPING_BYTES
-from graphxr_database_proxy.drivers.relational.reads import PREVIEW_ROWS_MAX
-from graphxr_database_proxy.services.graph_schema_cache import (
+from kineviz_database_proxy.drivers.relational.mapping_io import MAX_MAPPING_BYTES
+from kineviz_database_proxy.drivers.relational.reads import PREVIEW_ROWS_MAX
+from kineviz_database_proxy.services.graph_schema_cache import (
     DEFAULT_TTL_SECONDS,
     MAX_ENTRIES,
 )

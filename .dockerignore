@@ -169,3 +169,7 @@ requirements-test.txt
 
 
 docker/data/*
+
+# Required metadata when installing the local Python package.
+!README.md
+!LICENSE

@@ -29,7 +29,7 @@ def exists_oauth_config() -> bool:
 def get_default_oauth_config() -> dict:
     """Get default OAuth config from config/default.google.localhost.oauth.json"""
     try:
-        # Get the project root directory (assuming this file is in src/graphxr_database_proxy/api/)
+        # Get the project root directory (assuming this file is in src/kineviz_database_proxy/api/)
         current_dir = os.path.dirname(os.path.abspath(__file__))
         project_root = os.path.join(current_dir, '..', '..', '..')
         config_path = os.path.join(project_root, 'config', 'default.google.localhost.oauth.json')

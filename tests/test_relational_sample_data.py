@@ -30,14 +30,14 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from graphxr_database_proxy.api import database as database_module
-from graphxr_database_proxy.drivers.relational import convert
-from graphxr_database_proxy.drivers.relational import reads as reads_module
-from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
-from graphxr_database_proxy.drivers.factory import DriverFactory
-from graphxr_database_proxy.drivers.relational.driver_schema import SAMPLE_ROWS
-from graphxr_database_proxy.main import app
-from graphxr_database_proxy.models.project import DatabaseType, Project
+from kineviz_database_proxy.api import database as database_module
+from kineviz_database_proxy.drivers.relational import convert
+from kineviz_database_proxy.drivers.relational import reads as reads_module
+from kineviz_database_proxy.drivers.relational.driver import RelationalDriver
+from kineviz_database_proxy.drivers.factory import DriverFactory
+from kineviz_database_proxy.drivers.relational.driver_schema import SAMPLE_ROWS
+from kineviz_database_proxy.main import app
+from kineviz_database_proxy.models.project import DatabaseType, Project
 from tests.test_relational_capability_record import RELATIONAL_BACKENDS, relational_project
 from tests.test_relational_endpoints import FakeServer, ScriptedProjects
 from tests.test_relational_pipeline import ENGINES

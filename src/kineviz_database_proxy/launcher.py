@@ -57,7 +57,7 @@ def main():
     except ImportError:
         # If running this file directly
         sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
-        from src.graphxr_database_proxy.main import main as app_main
+        from src.kineviz_database_proxy.main import main as app_main
         app_main()
 
 if __name__ == "__main__":

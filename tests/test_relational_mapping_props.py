@@ -8,7 +8,7 @@ structure rather than properties.
 
 from __future__ import annotations
 
-from graphxr_database_proxy.drivers.relational.mapping import from_document
+from kineviz_database_proxy.drivers.relational.mapping import from_document
 from tests.test_relational_mapping import (
     catalog,
     document,

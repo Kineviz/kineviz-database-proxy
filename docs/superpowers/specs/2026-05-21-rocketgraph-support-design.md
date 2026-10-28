@@ -113,7 +113,7 @@ base_url = f"{scheme}://{config.host}:{config.port}{base_path}"
 
 ## 5. RocketGraphDriver 实现
 
-文件路径：`src/graphxr_database_proxy/drivers/rocketgraph.py`
+文件路径：`src/kineviz_database_proxy/drivers/rocketgraph.py`
 
 ### 5.1 HTTP 客户端
 

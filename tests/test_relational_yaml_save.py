@@ -20,9 +20,9 @@ from unittest.mock import patch
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational import mapping_io
-from graphxr_database_proxy.models.graph_mapping import GraphMapping, MappingNode
-from graphxr_database_proxy.services.graph_schema_cache import (
+from kineviz_database_proxy.drivers.relational import mapping_io
+from kineviz_database_proxy.models.graph_mapping import GraphMapping, MappingNode
+from kineviz_database_proxy.services.graph_schema_cache import (
     GRAPH_SCHEMA_CACHE,
     cache_key,
 )
@@ -125,7 +125,7 @@ def test_an_unparseable_yaml_body_returns_422_and_does_not_invalidate_or_poison(
     """
     from fastapi.testclient import TestClient
 
-    from graphxr_database_proxy.main import app as fastapi_app
+    from kineviz_database_proxy.main import app as fastapi_app
 
     project = projects.by_name["mapped"]
     key = cache_key(project)

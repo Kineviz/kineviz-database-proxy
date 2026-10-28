@@ -24,7 +24,7 @@ single-column, else a single-column `NOT NULL` unique, else the table is not a n
 is not a shortcut — the graph contract carries one key pair per seed node, and a table
 keyed by `(order_id, line_no)` cannot be expanded at all. Narrowing it to one of the two
 columns is worse than refusing: it would return plausible-looking wrong rows. See
-[`drivers/relational/mapping.py`](../src/graphxr_database_proxy/drivers/relational/mapping.py).
+[`drivers/relational/mapping.py`](../src/kineviz_database_proxy/drivers/relational/mapping.py).
 Everything below that mentions "single column" is this rule.
 
 The comma that splits the two has no escape: a column genuinely named `unit, cost` is read as
@@ -79,7 +79,7 @@ Each is reported with its reason, so a table that is missing is missing on purpo
 | Views, engine-internal schemas, temp and system tables | never considered, counted in one warning | they are not your data; if a view *is*, materialise it or map the base tables |
 
 The caps are the same refusal at the other end: **200 labels**, **400 edges**, **200
-properties** per record ([`catalog.py`](../src/graphxr_database_proxy/drivers/relational/catalog.py)).
+properties** per record ([`catalog.py`](../src/kineviz_database_proxy/drivers/relational/catalog.py)).
 Past a cap the biggest records are kept — a table nobody counted ranks above one counted at
 zero, because nobody proved it small — and the rest are dropped with `not mapped: the labels
 cap is 200` in their `notes`, while the page warns "Discovery stopped at a cap". A 3 000-table
@@ -90,7 +90,7 @@ across all of it. Name what you want with `include`, or what you do not with `ex
 
 One file per project. Everything in it is optional: what you write is what the proxy stops
 guessing. The annotated copy the proxy ships is
-[`drivers/relational/data/mapping.example.yml`](../src/graphxr_database_proxy/drivers/relational/data/mapping.example.yml)
+[`drivers/relational/data/mapping.example.yml`](../src/kineviz_database_proxy/drivers/relational/data/mapping.example.yml)
 — the **Example** button on the page shows it, and it parses and loads clean, so copy from it.
 
 At the top level:

@@ -8,19 +8,19 @@ is checked as a wire contract rather than as a label.
 
 import pytest
 
-from graphxr_database_proxy.drivers.factory import DriverFactory
-from graphxr_database_proxy.drivers.mssql import MssqlDriver
-from graphxr_database_proxy.drivers.mysql import MysqlDriver
-from graphxr_database_proxy.drivers.postgresql import PostgresqlDriver
-from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.drivers.factory import DriverFactory
+from kineviz_database_proxy.drivers.mssql import MssqlDriver
+from kineviz_database_proxy.drivers.mysql import MysqlDriver
+from kineviz_database_proxy.drivers.postgresql import PostgresqlDriver
+from kineviz_database_proxy.drivers.relational.driver import RelationalDriver
+from kineviz_database_proxy.models.project import (
     AuthType,
     DatabaseConfig,
     DatabaseType,
     Project,
     ProjectCreate,
 )
-from graphxr_database_proxy.services.project_service import ProjectService
+from kineviz_database_proxy.services.project_service import ProjectService
 
 
 def _make_config(**overrides) -> DatabaseConfig:

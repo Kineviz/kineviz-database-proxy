@@ -15,21 +15,21 @@ from pathlib import Path
 
 import pytest
 
-from graphxr_database_proxy.drivers.embedded import engine_service as service_module
-from graphxr_database_proxy.drivers.embedded.engine_service import (
+from kineviz_database_proxy.drivers.embedded import engine_service as service_module
+from kineviz_database_proxy.drivers.embedded.engine_service import (
     STATUS_FAILED,
     STATUS_INSTALLING,
     STATUS_READY,
     EngineResolutionError,
     EngineService,
 )
-from graphxr_database_proxy.drivers.embedded.pool import EngineWorkerError
-from graphxr_database_proxy.drivers.embedded.runtime import EngineInstallError, EngineRuntime
-from graphxr_database_proxy.drivers.embedded.store_probe import (
+from kineviz_database_proxy.drivers.embedded.pool import EngineWorkerError
+from kineviz_database_proxy.drivers.embedded.runtime import EngineInstallError, EngineRuntime
+from kineviz_database_proxy.drivers.embedded.store_probe import (
     LAYOUT_FILE,
     StoreFingerprint,
 )
-from graphxr_database_proxy.drivers.embedded.version_map import VersionMap
+from kineviz_database_proxy.drivers.embedded.version_map import VersionMap
 
 
 def fingerprint(engine="ladybug", storage_version=43, path=Path("/tmp/graph.kz")):

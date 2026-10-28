@@ -15,10 +15,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from graphxr_database_proxy.api import embedded as embedded_module
-from graphxr_database_proxy.api.embedded import get_project_service, safe_name
-from graphxr_database_proxy.main import app
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.api import embedded as embedded_module
+from kineviz_database_proxy.api.embedded import get_project_service, safe_name
+from kineviz_database_proxy.main import app
+from kineviz_database_proxy.models.project import (
     AuthType,
     DatabaseConfig,
     DatabaseType,
@@ -34,7 +34,7 @@ class ScriptedEngineService:
 
     def __init__(self):
         self.installs = []
-        from graphxr_database_proxy.drivers.embedded.version_map import VersionMap
+        from kineviz_database_proxy.drivers.embedded.version_map import VersionMap
 
         self.version_map = VersionMap()
 
@@ -44,7 +44,7 @@ class ScriptedEngineService:
         return self.version_map.candidates(engine, storage_version)
 
     def status(self, engine, version):
-        from graphxr_database_proxy.drivers.embedded.engine_service import EngineStatus
+        from kineviz_database_proxy.drivers.embedded.engine_service import EngineStatus
 
         return EngineStatus(engine=engine, version=version, status="absent")
 
@@ -52,7 +52,7 @@ class ScriptedEngineService:
         return []
 
     def start_install(self, engine, version):
-        from graphxr_database_proxy.drivers.embedded.engine_service import EngineStatus
+        from kineviz_database_proxy.drivers.embedded.engine_service import EngineStatus
 
         self.installs.append((engine, version))
         return EngineStatus(engine=engine, version=version, status="installing", detail="queued")

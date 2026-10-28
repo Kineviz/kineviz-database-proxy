@@ -26,16 +26,16 @@ import textwrap
 
 import pytest
 
-from graphxr_database_proxy.contract.intents import ExpandRequest
-from graphxr_database_proxy.drivers.embedded.pool import WORKER_POOL
-from graphxr_database_proxy.drivers.embedded.runtime import installed_runtime
-from graphxr_database_proxy.drivers.embedded.store_probe import probe_store
-from graphxr_database_proxy.drivers.embedded.wheelhouse import wheel_for, wheelhouse_dir
-from graphxr_database_proxy.drivers.kuzu import KuzuDriver
-from graphxr_database_proxy.drivers.ladybug import LadybugDriver
-from graphxr_database_proxy.drivers.latticedb import LatticeDbDriver
-from graphxr_database_proxy.models.project import DatabaseConfig, DatabaseType, Project
-from graphxr_database_proxy.services.graph_schema_cache import GRAPH_SCHEMA_CACHE
+from kineviz_database_proxy.contract.intents import ExpandRequest
+from kineviz_database_proxy.drivers.embedded.pool import WORKER_POOL
+from kineviz_database_proxy.drivers.embedded.runtime import installed_runtime
+from kineviz_database_proxy.drivers.embedded.store_probe import probe_store
+from kineviz_database_proxy.drivers.embedded.wheelhouse import wheel_for, wheelhouse_dir
+from kineviz_database_proxy.drivers.kuzu import KuzuDriver
+from kineviz_database_proxy.drivers.ladybug import LadybugDriver
+from kineviz_database_proxy.drivers.latticedb import LatticeDbDriver
+from kineviz_database_proxy.models.project import DatabaseConfig, DatabaseType, Project
+from kineviz_database_proxy.services.graph_schema_cache import GRAPH_SCHEMA_CACHE
 
 pytestmark = pytest.mark.skipif(
     os.getenv("GRAPHXR_PROXY_ENGINE_TESTS") != "1",
@@ -93,8 +93,8 @@ def clean_schema_cache():
 
 async def build_store(engine, version, path):
     """Create a small graph with the real engine, through the real worker."""
-    from graphxr_database_proxy.drivers.embedded.engine_service import ENGINE_SERVICE
-    from graphxr_database_proxy.drivers.embedded.pool import EngineWorker
+    from kineviz_database_proxy.drivers.embedded.engine_service import ENGINE_SERVICE
+    from kineviz_database_proxy.drivers.embedded.pool import EngineWorker
 
     runtime = await ENGINE_SERVICE.ensure(engine, version)
     worker = EngineWorker(runtime, str(path), read_only=False)
@@ -225,7 +225,7 @@ BUILD_LATTICE_STORE = """
 
 async def build_lattice_store(path):
     """Create a small graph with the real engine, in the interpreter it was installed for."""
-    from graphxr_database_proxy.drivers.embedded.engine_service import ENGINE_SERVICE
+    from kineviz_database_proxy.drivers.embedded.engine_service import ENGINE_SERVICE
 
     runtime = await ENGINE_SERVICE.ensure("latticedb", LATTICEDB_VERSION)
     subprocess.run(

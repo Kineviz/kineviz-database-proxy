@@ -14,18 +14,12 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies
-COPY requirements.txt .
-COPY pyproject.toml .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt
-
-# Copy source code
+# Install the local package so optional drivers follow pyproject.toml.
+COPY pyproject.toml README.md LICENSE ./
 COPY src/ ./src/
-COPY config/ ./config/
-
-# Copy frontend build (if exists)
-COPY frontend/dist/ ./frontend/dist/
+COPY frontend/dist/ ./src/kineviz_database_proxy/static/
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir ".[relational]"
 
 # Create projects.json if it doesn't exist
 RUN touch projects.json && \
@@ -39,4 +33,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:9080/health || exit 1
 
 # Run the application
-CMD ["python", "-m", "uvicorn", "src.graphxr_database_proxy.main:app", "--host", "0.0.0.0", "--port", "9080"]
+CMD ["python", "-m", "uvicorn", "kineviz_database_proxy.main:app", "--host", "0.0.0.0", "--port", "9080"]

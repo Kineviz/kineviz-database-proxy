@@ -28,20 +28,20 @@ from typing import Any, Dict
 import pytest
 from sqlalchemy.dialects import mssql, mysql, postgresql
 
-from graphxr_database_proxy.drivers.relational import compile as compile_module
-from graphxr_database_proxy.drivers.relational import plan, query
-from graphxr_database_proxy.drivers.relational.catalog import propose
-from graphxr_database_proxy.drivers.relational.engine import ServerInfo
-from graphxr_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
-from graphxr_database_proxy.drivers.relational.engines.mysql import MySQLEngine
-from graphxr_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
-from graphxr_database_proxy.drivers.relational.mapping import (
+from kineviz_database_proxy.drivers.relational import compile as compile_module
+from kineviz_database_proxy.drivers.relational import plan, query
+from kineviz_database_proxy.drivers.relational.catalog import propose
+from kineviz_database_proxy.drivers.relational.engine import ServerInfo
+from kineviz_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
+from kineviz_database_proxy.drivers.relational.engines.mysql import MySQLEngine
+from kineviz_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
+from kineviz_database_proxy.drivers.relational.mapping import (
     COMPOSITE_KEY_REASON,
     SAFE_IDENT,
     EffectiveMapping,
     from_document,
 )
-from graphxr_database_proxy.drivers.relational.schemas import Endpoint, NodeSchema, Pair, RelSchema
+from kineviz_database_proxy.drivers.relational.schemas import Endpoint, NodeSchema, Pair, RelSchema
 from tests.test_relational_mapping import (
     catalog,
     document,

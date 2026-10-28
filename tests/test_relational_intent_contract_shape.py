@@ -17,8 +17,8 @@ from typing import Any, Dict, List
 
 import pytest
 
-from graphxr_database_proxy.contract import load_contract_schema
-from graphxr_database_proxy.models.project import GraphData, Node, RelationshipData
+from kineviz_database_proxy.contract import load_contract_schema
+from kineviz_database_proxy.models.project import GraphData, Node, RelationshipData
 from tests.test_contract import declared_properties, model_fields
 # ``client`` and ``server`` are the fixtures the routes-in-intent-mode file installs: the
 # scripted projects, the credential override and the fake access every answer here runs

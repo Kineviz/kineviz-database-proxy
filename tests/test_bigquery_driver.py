@@ -13,7 +13,7 @@ import decimal
 
 import pytest
 
-from graphxr_database_proxy.drivers.bigquery import (
+from kineviz_database_proxy.drivers.bigquery import (
     InvalidIdentifierError,
     as_graph_elements,
     json_safe,
@@ -24,7 +24,7 @@ from graphxr_database_proxy.drivers.bigquery import (
     rewrite_graph_query,
     validate_identifier,
 )
-from graphxr_database_proxy.drivers.dialect import BIGQUERY_DIALECT, NodeRef, build_expand, build_pull_category
+from kineviz_database_proxy.drivers.dialect import BIGQUERY_DIALECT, NodeRef, build_expand, build_pull_category
 
 
 class Row(dict):

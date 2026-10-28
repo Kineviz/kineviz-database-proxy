@@ -13,8 +13,8 @@ from sqlalchemy import (
     inspect,
 )
 
-from graphxr_database_proxy.drivers.relational.catalog import discover
-from graphxr_database_proxy.drivers.relational.reflect import _bare_keys
+from kineviz_database_proxy.drivers.relational.catalog import discover
+from kineviz_database_proxy.drivers.relational.reflect import _bare_keys
 
 
 @pytest.fixture

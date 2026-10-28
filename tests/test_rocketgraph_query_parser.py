@@ -5,10 +5,10 @@ query rewriter) — it doesn't re-derive the format from the response. These
 tests cover the parser given that flag for both TABLE and GRAPH inputs.
 
 Response shapes are based on actual RocketGraph output documented in
-src/graphxr_database_proxy/drivers/recketGraphReturn.md.
+src/kineviz_database_proxy/drivers/recketGraphReturn.md.
 """
-from graphxr_database_proxy.drivers.rocketgraph import QueryParser
-from graphxr_database_proxy.models.project import GraphData, QueryData
+from kineviz_database_proxy.drivers.rocketgraph import QueryParser
+from kineviz_database_proxy.models.project import GraphData, QueryData
 
 
 def _node(node_id, name, key, properties):

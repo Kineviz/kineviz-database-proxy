@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import json
 
-from graphxr_database_proxy.drivers.embedded.version_map import (
+from kineviz_database_proxy.drivers.embedded.version_map import (
     SEED_RELEASES,
     VersionMap,
     is_release,

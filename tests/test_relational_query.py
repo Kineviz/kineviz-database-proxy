@@ -14,10 +14,10 @@ from __future__ import annotations
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational import query, translate
-from graphxr_database_proxy.drivers.relational.ir import MatchPlan
-from graphxr_database_proxy.drivers.relational.predicate import Prop
-from graphxr_database_proxy.drivers.relational.query import DEFAULT_LIMIT, MAX_QUERY_LENGTH
+from kineviz_database_proxy.drivers.relational import query, translate
+from kineviz_database_proxy.drivers.relational.ir import MatchPlan
+from kineviz_database_proxy.drivers.relational.predicate import Prop
+from kineviz_database_proxy.drivers.relational.query import DEFAULT_LIMIT, MAX_QUERY_LENGTH
 
 SIMPLE = "MATCH (n:`Person`) RETURN *"
 
@@ -153,7 +153,7 @@ def test_prepare_normalises_the_statement_it_reports():
 
 
 def test_every_generated_intent_statement_prepares_as_a_graph():
-    from graphxr_database_proxy.drivers.dialect import NodeRef, StatementDialect, build_expand, build_pull_relationship
+    from kineviz_database_proxy.drivers.dialect import NodeRef, StatementDialect, build_expand, build_pull_relationship
 
     relational = StatementDialect(
         name="relational",

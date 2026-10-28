@@ -6,7 +6,7 @@ the same table.
 
 from __future__ import annotations
 
-from graphxr_database_proxy.drivers.relational.mapping import (
+from kineviz_database_proxy.drivers.relational.mapping import (
     PROVENANCE_KINDS,
     PROVENANCE_RENAMED,
     from_document,

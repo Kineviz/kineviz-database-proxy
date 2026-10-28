@@ -35,14 +35,14 @@ frontend/
 ├── dist/          # 前端构建输出
 └── package.json
 
-src/graphxr_database_proxy/
+src/kineviz_database_proxy/
 ├── static/        # 复制的前端文件（构建时生成）
 └── main.py        # FastAPI 应用
 ```
 
 ### 发布后
 ```
-graphxr_database_proxy/
+kineviz_database_proxy/
 ├── static/        # 打包的前端文件
 │   ├── index.html
 │   ├── main.js
@@ -56,8 +56,8 @@ graphxr_database_proxy/
 ### 作为包使用
 
 ```python
-from graphxr_database_proxy import DatabaseProxy
-from graphxr_database_proxy.main import app
+from kineviz_database_proxy import DatabaseProxy
+from kineviz_database_proxy.main import app
 
 # 创建代理
 proxy = DatabaseProxy()
@@ -121,13 +121,13 @@ python scripts/test_package.py
 ### pyproject.toml
 ```toml
 [tool.setuptools.package-data]
-"graphxr_database_proxy" = ["static/*", "static/**/*"]
+"kineviz_database_proxy" = ["static/*", "static/**/*"]
 ```
 
 ### MANIFEST.in
 ```
 # 包含静态文件
-recursive-include src/graphxr_database_proxy/static *
+recursive-include src/kineviz_database_proxy/static *
 ```
 
 ## 🔄 开发工作流

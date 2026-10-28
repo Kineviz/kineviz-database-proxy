@@ -20,16 +20,16 @@ from unittest.mock import patch
 
 import pytest
 
-from graphxr_database_proxy.api import database as database_module
-from graphxr_database_proxy.api.auth import verify_admin_token
-from graphxr_database_proxy.api.projects import (
+from kineviz_database_proxy.api import database as database_module
+from kineviz_database_proxy.api.auth import verify_admin_token
+from kineviz_database_proxy.api.projects import (
     get_project_service as projects_get_project_service,
 )
-from graphxr_database_proxy.api.relational import (
+from kineviz_database_proxy.api.relational import (
     get_project_service as relational_get_project_service,
 )
-from graphxr_database_proxy.main import app
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.main import app
+from kineviz_database_proxy.models.project import (
     AuthType,
     DatabaseConfig,
     DatabaseType,
@@ -37,7 +37,7 @@ from graphxr_database_proxy.models.project import (
     ProjectCreate,
     ProjectUpdate,
 )
-from graphxr_database_proxy.services.graph_schema_cache import (
+from kineviz_database_proxy.services.graph_schema_cache import (
     GRAPH_SCHEMA_CACHE,
     cache_key,
 )

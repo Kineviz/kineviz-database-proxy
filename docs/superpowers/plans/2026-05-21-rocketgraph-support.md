@@ -18,15 +18,15 @@
 ## File Map
 
 **New files:**
-- `src/graphxr_database_proxy/drivers/rocketgraph.py` — Driver implementation (AuthClient, QueryParser, SchemaMapper, RocketGraphDriver)
+- `src/kineviz_database_proxy/drivers/rocketgraph.py` — Driver implementation (AuthClient, QueryParser, SchemaMapper, RocketGraphDriver)
 - `tests/__init__.py` — Empty package marker (tests dir doesn't exist yet)
 - `tests/test_rocketgraph_query_parser.py` — Unit tests for QueryParser
 - `tests/test_rocketgraph_schema_mapper.py` — Unit tests for SchemaMapper
 - `tests/test_rocketgraph_auth_client.py` — Unit tests for AuthClient
 
 **Modified files:**
-- `src/graphxr_database_proxy/models/project.py` — Add `ROCKETGRAPH`, `BEARER_TOKEN` enum values; add `use_tls`/`deployment_mode`/`api_base_path` fields
-- `src/graphxr_database_proxy/drivers/factory.py` — Register `RocketGraphDriver`
+- `src/kineviz_database_proxy/models/project.py` — Add `ROCKETGRAPH`, `BEARER_TOKEN` enum values; add `use_tls`/`deployment_mode`/`api_base_path` fields
+- `src/kineviz_database_proxy/drivers/factory.py` — Register `RocketGraphDriver`
 - `requirements.txt` — Add `httpx>=0.25.0`
 - `pyproject.toml` — Add `httpx>=0.25.0` to dependencies
 - `frontend/src/types/project.ts` — Add `'rocketgraph'`, `'bearer_token'`, new config fields
@@ -37,11 +37,11 @@
 ## Task 1: Backend Model Extensions
 
 **Files:**
-- Modify: `src/graphxr_database_proxy/models/project.py`
+- Modify: `src/kineviz_database_proxy/models/project.py`
 
 - [ ] **Step 1: Add ROCKETGRAPH to DatabaseType enum**
 
-Edit `src/graphxr_database_proxy/models/project.py` lines 14-23:
+Edit `src/kineviz_database_proxy/models/project.py` lines 14-23:
 
 ```python
 class DatabaseType(str, Enum):
@@ -59,7 +59,7 @@ class DatabaseType(str, Enum):
 
 - [ ] **Step 2: Add BEARER_TOKEN to AuthType enum**
 
-Edit `src/graphxr_database_proxy/models/project.py` lines 26-38:
+Edit `src/kineviz_database_proxy/models/project.py` lines 26-38:
 
 ```python
 class AuthType(str, Enum):
@@ -81,7 +81,7 @@ class AuthType(str, Enum):
 
 - [ ] **Step 3: Add RocketGraph fields to DatabaseConfig**
 
-Edit `src/graphxr_database_proxy/models/project.py`. In the `DatabaseConfig` class (around line 69-89), add fields before `options: Dict[str, Any] = ...`:
+Edit `src/kineviz_database_proxy/models/project.py`. In the `DatabaseConfig` class (around line 69-89), add fields before `options: Dict[str, Any] = ...`:
 
 ```python
     # RocketGraph specific
@@ -94,7 +94,7 @@ Edit `src/graphxr_database_proxy/models/project.py`. In the `DatabaseConfig` cla
 
 Run:
 ```bash
-cd e:/projects/graphxr-database-proxy && python -c "from src.graphxr_database_proxy.models.project import DatabaseType, AuthType, DatabaseConfig; print(DatabaseType.ROCKETGRAPH, AuthType.BEARER_TOKEN); print(DatabaseConfig(type='rocketgraph', use_tls=True, deployment_mode='standalone'))"
+cd e:/projects/graphxr-database-proxy && python -c "from src.kineviz_database_proxy.models.project import DatabaseType, AuthType, DatabaseConfig; print(DatabaseType.ROCKETGRAPH, AuthType.BEARER_TOKEN); print(DatabaseConfig(type='rocketgraph', use_tls=True, deployment_mode='standalone'))"
 ```
 
 Expected output:
@@ -106,7 +106,7 @@ type=<DatabaseType.ROCKETGRAPH: 'rocketgraph'> ... use_tls=True deployment_mode=
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/graphxr_database_proxy/models/project.py
+git add src/kineviz_database_proxy/models/project.py
 git commit -m "feat(rocketgraph): extend models with ROCKETGRAPH type and config fields
 
 - Add DatabaseType.ROCKETGRAPH
@@ -205,7 +205,7 @@ git commit -m "test: add pytest infrastructure (conftest, tests/ package)"
 
 **Files:**
 - Test: `tests/test_rocketgraph_schema_mapper.py`
-- Create: `src/graphxr_database_proxy/drivers/rocketgraph.py` (partial — SchemaMapper only)
+- Create: `src/kineviz_database_proxy/drivers/rocketgraph.py` (partial — SchemaMapper only)
 
 - [ ] **Step 1: Write failing tests for SchemaMapper**
 
@@ -214,8 +214,8 @@ Create `tests/test_rocketgraph_schema_mapper.py`:
 ```python
 """Tests for RocketGraph SchemaMapper."""
 import pytest
-from graphxr_database_proxy.drivers.rocketgraph import SchemaMapper
-from graphxr_database_proxy.models.project import GraphSchema, Category, Relationship
+from kineviz_database_proxy.drivers.rocketgraph import SchemaMapper
+from kineviz_database_proxy.models.project import GraphSchema, Category, Relationship
 
 
 def test_maps_simple_node_type():
@@ -345,7 +345,7 @@ Expected: FAIL with `ModuleNotFoundError` or `ImportError: cannot import name 'S
 
 - [ ] **Step 3: Create rocketgraph.py with SchemaMapper**
 
-Create `src/graphxr_database_proxy/drivers/rocketgraph.py`:
+Create `src/kineviz_database_proxy/drivers/rocketgraph.py`:
 
 ```python
 # -*- coding: utf-8 -*-
@@ -445,7 +445,7 @@ Expected: All 6 tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/graphxr_database_proxy/drivers/rocketgraph.py tests/test_rocketgraph_schema_mapper.py
+git add src/kineviz_database_proxy/drivers/rocketgraph.py tests/test_rocketgraph_schema_mapper.py
 git commit -m "feat(rocketgraph): implement SchemaMapper with unit tests"
 ```
 
@@ -455,7 +455,7 @@ git commit -m "feat(rocketgraph): implement SchemaMapper with unit tests"
 
 **Files:**
 - Test: `tests/test_rocketgraph_query_parser.py`
-- Modify: `src/graphxr_database_proxy/drivers/rocketgraph.py` (add QueryParser)
+- Modify: `src/kineviz_database_proxy/drivers/rocketgraph.py` (add QueryParser)
 
 - [ ] **Step 1: Write failing tests for QueryParser**
 
@@ -464,8 +464,8 @@ Create `tests/test_rocketgraph_query_parser.py`:
 ```python
 """Tests for RocketGraph QueryParser (TABLE/GRAPH detection)."""
 import pytest
-from graphxr_database_proxy.drivers.rocketgraph import QueryParser
-from graphxr_database_proxy.models.project import QueryData, GraphData, Node, RelationshipData
+from kineviz_database_proxy.drivers.rocketgraph import QueryParser
+from kineviz_database_proxy.models.project import QueryData, GraphData, Node, RelationshipData
 
 
 def test_all_scalars_returns_table():
@@ -652,7 +652,7 @@ Expected: FAIL with `ImportError: cannot import name 'QueryParser'`.
 
 - [ ] **Step 3: Add QueryParser to rocketgraph.py**
 
-Append to `src/graphxr_database_proxy/drivers/rocketgraph.py` (after SchemaMapper class):
+Append to `src/kineviz_database_proxy/drivers/rocketgraph.py` (after SchemaMapper class):
 
 ```python
 from ..models.project import (
@@ -793,7 +793,7 @@ Expected: All 10 tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/graphxr_database_proxy/drivers/rocketgraph.py tests/test_rocketgraph_query_parser.py
+git add src/kineviz_database_proxy/drivers/rocketgraph.py tests/test_rocketgraph_query_parser.py
 git commit -m "feat(rocketgraph): implement QueryParser with TABLE/GRAPH detection"
 ```
 
@@ -803,7 +803,7 @@ git commit -m "feat(rocketgraph): implement QueryParser with TABLE/GRAPH detecti
 
 **Files:**
 - Test: `tests/test_rocketgraph_auth_client.py`
-- Modify: `src/graphxr_database_proxy/drivers/rocketgraph.py`
+- Modify: `src/kineviz_database_proxy/drivers/rocketgraph.py`
 
 - [ ] **Step 1: Write failing tests for AuthClient**
 
@@ -815,8 +815,8 @@ import time
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from graphxr_database_proxy.drivers.rocketgraph import AuthClient
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.drivers.rocketgraph import AuthClient
+from kineviz_database_proxy.models.project import (
     AuthType,
     DatabaseConfig,
     DatabaseType,
@@ -884,7 +884,7 @@ async def test_username_password_login_when_no_token():
     mock_project_service.update_project_token = AsyncMock()
 
     with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_response)):
-        with patch("graphxr_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
+        with patch("kineviz_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
             token = await client.get_token()
 
     assert token == "new-jwt-token"
@@ -935,7 +935,7 @@ async def test_expired_token_triggers_relogin():
     mock_project_service.update_project_token = AsyncMock()
 
     with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_response)):
-        with patch("graphxr_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
+        with patch("kineviz_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
             token = await client.get_token()
 
     assert token == "fresh-token"
@@ -957,7 +957,7 @@ async def test_username_password_calls_correct_endpoint():
     mock_project_service.update_project_token = AsyncMock()
 
     with patch("httpx.AsyncClient.post", new=mock_post):
-        with patch("graphxr_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
+        with patch("kineviz_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
             await client.get_token()
 
     # First positional arg is URL
@@ -989,7 +989,7 @@ async def test_invalidate_forces_refresh():
     client.invalidate()
 
     with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_response)):
-        with patch("graphxr_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
+        with patch("kineviz_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
             token = await client.get_token()
 
     assert token == "after-invalidate"
@@ -1005,7 +1005,7 @@ Expected: FAIL with `ImportError: cannot import name 'AuthClient'`.
 
 - [ ] **Step 3: Add AuthClient to rocketgraph.py**
 
-Append to `src/graphxr_database_proxy/drivers/rocketgraph.py`:
+Append to `src/kineviz_database_proxy/drivers/rocketgraph.py`:
 
 ```python
 import time
@@ -1108,7 +1108,7 @@ Expected: All 7 tests PASS.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/graphxr_database_proxy/drivers/rocketgraph.py tests/test_rocketgraph_auth_client.py
+git add src/kineviz_database_proxy/drivers/rocketgraph.py tests/test_rocketgraph_auth_client.py
 git commit -m "feat(rocketgraph): implement AuthClient with token caching and refresh"
 ```
 
@@ -1117,11 +1117,11 @@ git commit -m "feat(rocketgraph): implement AuthClient with token caching and re
 ## Task 7: RocketGraphDriver Main Class
 
 **Files:**
-- Modify: `src/graphxr_database_proxy/drivers/rocketgraph.py`
+- Modify: `src/kineviz_database_proxy/drivers/rocketgraph.py`
 
 - [ ] **Step 1: Add RocketGraphDriver class to rocketgraph.py**
 
-Append to `src/graphxr_database_proxy/drivers/rocketgraph.py`:
+Append to `src/kineviz_database_proxy/drivers/rocketgraph.py`:
 
 ```python
 from .base import BaseDatabaseDriver
@@ -1323,7 +1323,7 @@ class RocketGraphDriver(BaseDatabaseDriver):
 - [ ] **Step 2: Smoke-test the import**
 
 ```bash
-python -c "from graphxr_database_proxy.drivers.rocketgraph import RocketGraphDriver, SchemaMapper, QueryParser, AuthClient; print('ok')"
+python -c "from kineviz_database_proxy.drivers.rocketgraph import RocketGraphDriver, SchemaMapper, QueryParser, AuthClient; print('ok')"
 ```
 
 Expected: `ok`
@@ -1339,7 +1339,7 @@ Expected: All previously-passing tests still pass (SchemaMapper, QueryParser, Au
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/graphxr_database_proxy/drivers/rocketgraph.py
+git add src/kineviz_database_proxy/drivers/rocketgraph.py
 git commit -m "feat(rocketgraph): implement RocketGraphDriver (connect/query/schema)"
 ```
 
@@ -1348,11 +1348,11 @@ git commit -m "feat(rocketgraph): implement RocketGraphDriver (connect/query/sch
 ## Task 8: Register Driver in Factory
 
 **Files:**
-- Modify: `src/graphxr_database_proxy/drivers/factory.py`
+- Modify: `src/kineviz_database_proxy/drivers/factory.py`
 
 - [ ] **Step 1: Update factory.py to register RocketGraphDriver**
 
-Replace contents of `src/graphxr_database_proxy/drivers/factory.py`:
+Replace contents of `src/kineviz_database_proxy/drivers/factory.py`:
 
 ```python
 """
@@ -1399,8 +1399,8 @@ class DriverFactory:
 
 ```bash
 python -c "
-from graphxr_database_proxy.drivers.factory import DriverFactory
-from graphxr_database_proxy.models.project import Project, DatabaseConfig, DatabaseType, AuthType
+from kineviz_database_proxy.drivers.factory import DriverFactory
+from kineviz_database_proxy.models.project import Project, DatabaseConfig, DatabaseType, AuthType
 p = Project(id='x', name='t', database_type=DatabaseType.ROCKETGRAPH,
             database_config=DatabaseConfig(type=DatabaseType.ROCKETGRAPH, host='h', port=4368,
                                             graph_name='g', auth_type=AuthType.BEARER_TOKEN))
@@ -1419,7 +1419,7 @@ RocketGraphDriver
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/graphxr_database_proxy/drivers/factory.py
+git add src/kineviz_database_proxy/drivers/factory.py
 git commit -m "feat(rocketgraph): register RocketGraphDriver in DriverFactory"
 ```
 
@@ -1438,8 +1438,8 @@ Create `tests/test_rocketgraph_driver.py`:
 """Integration tests for RocketGraphDriver (URL building, api info, schema/sample_data stubs)."""
 import pytest
 
-from graphxr_database_proxy.drivers.rocketgraph import RocketGraphDriver
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.drivers.rocketgraph import RocketGraphDriver
+from kineviz_database_proxy.models.project import (
     AuthType,
     DatabaseConfig,
     DatabaseType,

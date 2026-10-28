@@ -15,7 +15,7 @@
     "*.tmp",
     "config/*.json"
   ],
-  "exec": "uv run python -m uvicorn src.graphxr_database_proxy.main:app --host 0.0.0.0 --port 9080",
+  "exec": "uv run python -m uvicorn src.kineviz_database_proxy.main:app --host 0.0.0.0 --port 9080",
   "env": {
     "PYTHONPATH": ".",
     "PYTHONUNBUFFERED": "1"

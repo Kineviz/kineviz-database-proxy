@@ -11,15 +11,15 @@ from __future__ import annotations
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational import query, translate
-from graphxr_database_proxy.drivers.relational.plan import (
+from kineviz_database_proxy.drivers.relational import query, translate
+from kineviz_database_proxy.drivers.relational.plan import (
     DEFAULT_MAX_BRANCHES,
     BranchLimitExceeded,
     PatternNotInMapping,
     concrete_plans,
     describe,
 )
-from graphxr_database_proxy.drivers.relational.schemas import Endpoint, NodeSchema, Pair, RelSchema
+from kineviz_database_proxy.drivers.relational.schemas import Endpoint, NodeSchema, Pair, RelSchema
 
 
 def node(label, table, key="id", key_type="bigint", **props):

@@ -33,14 +33,14 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import mssql, mysql, postgresql
 from sqlalchemy.sql import visitors
 
-from graphxr_database_proxy.drivers.relational import compile, mapping, plan, query
-from graphxr_database_proxy.drivers.relational.compile import compile_statement
-from graphxr_database_proxy.drivers.relational.engine import EngineSpelling
-from graphxr_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
-from graphxr_database_proxy.drivers.relational.engines.mysql import MySQLEngine
-from graphxr_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
-from graphxr_database_proxy.drivers.relational.schemas import NodeSchema
-from graphxr_database_proxy.models.graph_mapping import GraphMapping
+from kineviz_database_proxy.drivers.relational import compile, mapping, plan, query
+from kineviz_database_proxy.drivers.relational.compile import compile_statement
+from kineviz_database_proxy.drivers.relational.engine import EngineSpelling
+from kineviz_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
+from kineviz_database_proxy.drivers.relational.engines.mysql import MySQLEngine
+from kineviz_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
+from kineviz_database_proxy.drivers.relational.schemas import NodeSchema
+from kineviz_database_proxy.models.graph_mapping import GraphMapping
 
 #: The three engines, each with the declared type names *it* spells for the four key
 #: shapes a seed can arrive as. ``timestamp`` is the one the engines genuinely disagree

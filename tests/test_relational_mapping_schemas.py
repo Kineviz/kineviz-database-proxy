@@ -7,14 +7,14 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.pool import StaticPool
 
-from graphxr_database_proxy.contract.intents import ExpandRequest
-from graphxr_database_proxy.drivers.factory import DriverFactory
-from graphxr_database_proxy.drivers.relational.catalog import Catalog, SchemaTable
-from graphxr_database_proxy.drivers.relational.engine import ServerInfo
-from graphxr_database_proxy.drivers.relational.mapping import from_document
-from graphxr_database_proxy.drivers.relational.schemas import RelSchema
-from graphxr_database_proxy.models.graph_mapping import GraphMapping
-from graphxr_database_proxy.models.project import DatabaseType
+from kineviz_database_proxy.contract.intents import ExpandRequest
+from kineviz_database_proxy.drivers.factory import DriverFactory
+from kineviz_database_proxy.drivers.relational.catalog import Catalog, SchemaTable
+from kineviz_database_proxy.drivers.relational.engine import ServerInfo
+from kineviz_database_proxy.drivers.relational.mapping import from_document
+from kineviz_database_proxy.drivers.relational.schemas import RelSchema
+from kineviz_database_proxy.models.graph_mapping import GraphMapping
+from kineviz_database_proxy.models.project import DatabaseType
 from tests.test_relational_pool import project
 
 

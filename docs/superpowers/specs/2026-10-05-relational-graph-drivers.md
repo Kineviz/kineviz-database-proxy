@@ -80,7 +80,7 @@ connection and review what the tables mean as nodes and links.
 ### Layout (new code)
 
 ```
-src/graphxr_database_proxy/drivers/relational/
+src/kineviz_database_proxy/drivers/relational/
   __init__.py   docstring only — no imports, no `__all__`: several lanes own sibling modules,
                 and a re-export file would be a merge point every one of them has to touch
   schemas.py    NodeSchema / Endpoint / Pair / RelSchema  (the mapping IR; from backend.py,

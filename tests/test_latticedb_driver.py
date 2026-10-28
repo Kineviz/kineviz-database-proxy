@@ -15,13 +15,13 @@ from pathlib import Path
 
 import pytest
 
-from graphxr_database_proxy.contract.intents import ExpandRequest, PullCategoryRequest
-from graphxr_database_proxy.drivers import latticedb as latticedb_module
-from graphxr_database_proxy.drivers.embedded.runtime import EngineRuntime
-from graphxr_database_proxy.drivers.factory import DriverFactory
-from graphxr_database_proxy.drivers.latticedb import LatticeDbDriver
-from graphxr_database_proxy.models.project import DatabaseConfig, DatabaseType, Project
-from graphxr_database_proxy.services.graph_schema_cache import GRAPH_SCHEMA_CACHE
+from kineviz_database_proxy.contract.intents import ExpandRequest, PullCategoryRequest
+from kineviz_database_proxy.drivers import latticedb as latticedb_module
+from kineviz_database_proxy.drivers.embedded.runtime import EngineRuntime
+from kineviz_database_proxy.drivers.factory import DriverFactory
+from kineviz_database_proxy.drivers.latticedb import LatticeDbDriver
+from kineviz_database_proxy.models.project import DatabaseConfig, DatabaseType, Project
+from kineviz_database_proxy.services.graph_schema_cache import GRAPH_SCHEMA_CACHE
 
 #: A LatticeDB header: BDTL, then the format as a uint16, written twice.
 LATTICE_HEADER = b"BDTL" + (3).to_bytes(2, "little") + (3).to_bytes(2, "little") + bytes(8)

@@ -27,12 +27,12 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from graphxr_database_proxy.api.auth import verify_admin_token
-from graphxr_database_proxy.api.relational import get_project_service
-from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
-from graphxr_database_proxy.drivers.relational.reads import PREVIEW_ROWS_MAX, VERDICTS
-from graphxr_database_proxy.main import app
-from graphxr_database_proxy.models.project import DatabaseType, Project
+from kineviz_database_proxy.api.auth import verify_admin_token
+from kineviz_database_proxy.api.relational import get_project_service
+from kineviz_database_proxy.drivers.relational.driver import RelationalDriver
+from kineviz_database_proxy.drivers.relational.reads import PREVIEW_ROWS_MAX, VERDICTS
+from kineviz_database_proxy.main import app
+from kineviz_database_proxy.models.project import DatabaseType, Project
 from tests.test_relational_capability_record import RELATIONAL_BACKENDS, relational_project
 from tests.test_relational_endpoints import (  # noqa: F401  (fixtures, used by the moved cases)
     ScriptedProjects,

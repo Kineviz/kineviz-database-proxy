@@ -27,13 +27,13 @@ import yaml
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational.mapping_io import (
+from kineviz_database_proxy.drivers.relational.mapping_io import (
     FILE_PATH,
     MappingFileError,
     parse,
     to_yaml,
 )
-from graphxr_database_proxy.models.graph_mapping import (
+from kineviz_database_proxy.models.graph_mapping import (
     GraphMapping,
     MappingEdge,
     MappingEndpoint,

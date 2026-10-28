@@ -9,7 +9,7 @@
 #### 后端 API 服务器
 ```bash
 # 在项目根目录
-python -m uvicorn src.graphxr_database_proxy.main:app --reload --port 9080
+python -m uvicorn src.kineviz_database_proxy.main:app --reload --port 9080
 ```
 服务器运行在: http://localhost:9080
 
@@ -184,7 +184,7 @@ SELECT * FROM users LIMIT 10
 export API_KEY=your-secure-api-key-here
 
 # 启动服务器
-python -m uvicorn src.graphxr_database_proxy.main:app --port 9080
+python -m uvicorn src.kineviz_database_proxy.main:app --port 9080
 ```
 
 或者写在 `.env` 文件里：
@@ -211,15 +211,15 @@ curl -X POST \
 
 #### 受保护与公开端点
 
-`src/graphxr_database_proxy/api/auth.py` 里挂了两套独立的认证：
+`src/kineviz_database_proxy/api/auth.py` 里挂了两套独立的认证：
 
 - **管理员会话** —— `X-Admin-Token` 请求头，由 `POST /api/admin/login` 颁发，触发条件是
   `ADMIN_PASSWORD` 已设置。`/api/admin`、`/api/project`、`/api/embedded`、
   `/api/relational`、`/api/settings` 和 `/api/google` 下的所有路由都要求它。
 - **API 密钥** —— `X-API-Key` 请求头，来源是 `API_KEY` 环境变量或 settings 文件
-  （`src/graphxr_database_proxy/api/auth.py:192`）。通用数据路由
+  （`src/kineviz_database_proxy/api/auth.py:192`）。通用数据路由
   `/api/{db_type}/{project}/*` 需要它；那条路由也接受管理员 token
-  （`verify_api_key_or_admin`，见 `src/graphxr_database_proxy/api/auth.py:249`）。
+  （`verify_api_key_or_admin`，见 `src/kineviz_database_proxy/api/auth.py:249`）。
 
 `ADMIN_PASSWORD` / `API_KEY` 没设时，两层都关掉，路由不要凭据就答。下表反映了
 `verify_admin_token` 和 `verify_api_key_or_admin` 实际强制的内容。
@@ -289,7 +289,7 @@ curl -X POST \
 ```
 kineviz-database-proxy/
 ├── src/
-│   └── graphxr_database_proxy/
+│   └── kineviz_database_proxy/
 │       ├── main.py          # FastAPI 应用
 │       ├── api/             # API 路由
 │       ├── drivers/         # 数据库驱动
@@ -330,7 +330,7 @@ kineviz-database-proxy/
 
 ### 生产部署
 1. 构建前端: `cd frontend && npm run build`
-2. 启动服务器: `python -m uvicorn src.graphxr_database_proxy.main:app --host 0.0.0.0 --port 9080`
+2. 启动服务器: `python -m uvicorn src.kineviz_database_proxy.main:app --host 0.0.0.0 --port 9080`
 3. 配置反向代理（如 Nginx）
 
 ### Docker 部署
@@ -359,5 +359,5 @@ docker run -p 9080:9080 \
 ### 日志查看
 ```bash
 # 查看服务器日志
-python -m uvicorn src.graphxr_database_proxy.main:app --log-level debug
+python -m uvicorn src.kineviz_database_proxy.main:app --log-level debug
 ```

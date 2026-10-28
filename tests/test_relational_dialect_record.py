@@ -23,7 +23,7 @@ from typing import Any, Dict, Sequence, Tuple
 
 import pytest
 
-from graphxr_database_proxy.drivers.dialect import (
+from kineviz_database_proxy.drivers.dialect import (
     DIALECTS,
     MSSQL_DIALECT,
     MYSQL_DIALECT,
@@ -34,13 +34,13 @@ from graphxr_database_proxy.drivers.dialect import (
     build_pull_category,
     dialect_for,
 )
-from graphxr_database_proxy.drivers.graph_support import (
+from kineviz_database_proxy.drivers.graph_support import (
     MSSQL_CAPABILITIES,
     MYSQL_CAPABILITIES,
     POSTGRESQL_CAPABILITIES,
 )
-from graphxr_database_proxy.drivers.intents import split_label_key_id
-from graphxr_database_proxy.drivers.relational.translate import TranslateError, translate
+from kineviz_database_proxy.drivers.intents import split_label_key_id
+from kineviz_database_proxy.drivers.relational.translate import TranslateError, translate
 from tests.test_relational_capability_record import RELATIONAL_BACKENDS
 
 # -- the client's copy, transcribed ------------------------------------------------------
@@ -279,7 +279,7 @@ def test_the_key_literal_rule_is_one_rule_in_two_languages(value: Any, key_type:
 def test_the_numeric_key_type_table_is_the_same_table_on_both_sides() -> None:
     """The set behind both rules, compared rather than trusted: a type in the client's table
     and not the proxy's quotes a seed the client expects bare — the same bug, one column wide."""
-    from graphxr_database_proxy.drivers.dialect import _NUMERIC_KEY_TYPES
+    from kineviz_database_proxy.drivers.dialect import _NUMERIC_KEY_TYPES
 
     assert {name.lower() for name in _NUMERIC_KEY_TYPES} == CLIENT_NUMERIC_KEY_TYPES
 
@@ -299,7 +299,7 @@ def test_the_flags_the_profile_declares_are_decided_by_these_tokens_and_records(
         "postgresql": POSTGRESQL_CAPABILITIES,
         "mysql": MYSQL_CAPABILITIES,
     }
-    from graphxr_database_proxy.drivers.graph_support import SNOWFLAKE_CAPABILITIES
+    from kineviz_database_proxy.drivers.graph_support import SNOWFLAKE_CAPABILITIES
     records["snowflake"] = SNOWFLAKE_CAPABILITIES
     record = records[dialect.name]
     assert record.expand.internalRelationships is CLIENT_PROFILE["supportsInternalRelationships"]

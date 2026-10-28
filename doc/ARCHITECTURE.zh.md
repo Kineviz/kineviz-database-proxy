@@ -6,7 +6,7 @@
 
 ## 应用与契约
 
-`src/graphxr_database_proxy/main.py` 组装 FastAPI。存在 `frontend/dist` 时使用其中的
+`src/kineviz_database_proxy/main.py` 组装 FastAPI。存在 `frontend/dist` 时使用其中的
 前端资源，否则使用包内静态资源。以下顺序必须保留：
 
 - 在导入 Google Cloud 库前设置 `OTEL_*` / `SPANNER_*` 环境变量。

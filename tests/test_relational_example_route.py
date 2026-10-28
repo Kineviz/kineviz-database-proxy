@@ -18,9 +18,9 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from graphxr_database_proxy.api.auth import verify_admin_token
-from graphxr_database_proxy.drivers.relational import mapping_io
-from graphxr_database_proxy.main import app
+from kineviz_database_proxy.api.auth import verify_admin_token
+from kineviz_database_proxy.drivers.relational import mapping_io
+from kineviz_database_proxy.main import app
 
 #: The one URL the Example button asks for.
 EXAMPLE_URL = "/api/relational/mapping/example"

@@ -17,10 +17,10 @@ from typing import Any
 import httpx
 from sqlalchemy import text
 
-from graphxr_database_proxy.drivers.factory import DriverFactory
-from graphxr_database_proxy.drivers.relational import mapping_io
-from graphxr_database_proxy.drivers.relational.pool import POOL
-from graphxr_database_proxy.models.project import DatabaseConfig, Project
+from kineviz_database_proxy.drivers.factory import DriverFactory
+from kineviz_database_proxy.drivers.relational import mapping_io
+from kineviz_database_proxy.drivers.relational.pool import POOL
+from kineviz_database_proxy.models.project import DatabaseConfig, Project
 
 
 class Checks:

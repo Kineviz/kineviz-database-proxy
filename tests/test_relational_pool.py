@@ -19,19 +19,19 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple
 import pytest
 from sqlalchemy import create_engine
 
-from graphxr_database_proxy.drivers.relational import pool as pool_module
-from graphxr_database_proxy.drivers.relational.compile import COLUMN_PREFIX
-from graphxr_database_proxy.drivers.relational.engine import ServerInfo, engines_for
-from graphxr_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
-from graphxr_database_proxy.drivers.relational.pool import (
+from kineviz_database_proxy.drivers.relational import pool as pool_module
+from kineviz_database_proxy.drivers.relational.compile import COLUMN_PREFIX
+from kineviz_database_proxy.drivers.relational.engine import ServerInfo, engines_for
+from kineviz_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
+from kineviz_database_proxy.drivers.relational.pool import (
     DEFAULT_NAME_PAGE,
     DbapiMissing,
     EnginePool,
     RelationalAccess,
     config_digest,
 )
-from graphxr_database_proxy.drivers.relational.catalog import propose
-from graphxr_database_proxy.models.project import AuthType, DatabaseConfig, DatabaseType, Project
+from kineviz_database_proxy.drivers.relational.catalog import propose
+from kineviz_database_proxy.models.project import AuthType, DatabaseConfig, DatabaseType, Project
 from tests.test_relational_reflect import SPEC, FakeInspector
 
 # ---------------------------------------------------------------------------
@@ -323,7 +323,7 @@ def driver_for(
     transport is not. That is what lets these tests assert what GraphXR would receive from a
     ``/expand`` rather than what a stand-in would have answered.
     """
-    from graphxr_database_proxy.drivers.factory import DriverFactory
+    from kineviz_database_proxy.drivers.factory import DriverFactory
 
     made = DriverFactory.create_driver(target)
     spelling = FakeSpelling(backend, supports_regex=supports_regex)

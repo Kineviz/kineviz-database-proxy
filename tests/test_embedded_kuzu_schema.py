@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import pytest
 
-from graphxr_database_proxy.drivers.embedded.kuzu_schema import (
+from kineviz_database_proxy.drivers.embedded.kuzu_schema import (
     build_graph_schema,
     build_table_schema,
     load_kuzu_schema,
@@ -19,7 +19,7 @@ from graphxr_database_proxy.drivers.embedded.kuzu_schema import (
     quote_literal,
     split_tables,
 )
-from graphxr_database_proxy.models.project import QueryData
+from kineviz_database_proxy.models.project import QueryData
 
 SHOW_TABLES = [
     {"id": 0, "name": "Person", "type": "NODE", "database name": "local(kuzu)", "comment": ""},

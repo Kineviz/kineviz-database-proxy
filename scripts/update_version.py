@@ -5,7 +5,7 @@ Version Update Script
 Updates version numbers across all project files:
 - package.json
 - pyproject.toml
-- src/graphxr_database_proxy/__init__.py
+- src/kineviz_database_proxy/__init__.py
 
 Usage:
     python scripts/update_version.py <new_version>
@@ -74,8 +74,8 @@ def update_pyproject_toml(version: str) -> bool:
 
 
 def update_init_py(version: str) -> bool:
-    """Update version in src/graphxr_database_proxy/__init__.py"""
-    file_path = Path("src/graphxr_database_proxy/__init__.py")
+    """Update version in src/kineviz_database_proxy/__init__.py"""
+    file_path = Path("src/kineviz_database_proxy/__init__.py")
     
     try:
         with open(file_path, 'r', encoding='utf-8') as f:

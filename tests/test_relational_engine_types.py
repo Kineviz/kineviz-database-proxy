@@ -19,9 +19,9 @@ from sqlalchemy.dialects import mssql as MSSQL
 from sqlalchemy.dialects import mysql as MYSQL
 from sqlalchemy.dialects import postgresql as POSTGRESQL
 
-from graphxr_database_proxy.drivers.dialect import is_numeric_key_type
-from graphxr_database_proxy.drivers.relational import expression
-from graphxr_database_proxy.drivers.relational.engine import (
+from kineviz_database_proxy.drivers.dialect import is_numeric_key_type
+from kineviz_database_proxy.drivers.relational import expression
+from kineviz_database_proxy.drivers.relational.engine import (
     NUMERIC_PROPERTY_TYPES,
     PROPERTY_TYPES,
     cast_sqlalchemy_type,

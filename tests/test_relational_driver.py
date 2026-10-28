@@ -18,11 +18,11 @@ from typing import Any, Dict, List
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational import sql_pipeline
-from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
-from graphxr_database_proxy.drivers.relational.pool import DbapiMissing
-from graphxr_database_proxy.drivers.relational.schemas import Pair
-from graphxr_database_proxy.models.project import GraphData
+from kineviz_database_proxy.drivers.relational import sql_pipeline
+from kineviz_database_proxy.drivers.relational.driver import RelationalDriver
+from kineviz_database_proxy.drivers.relational.pool import DbapiMissing
+from kineviz_database_proxy.drivers.relational.schemas import Pair
+from kineviz_database_proxy.models.project import GraphData
 from tests.test_relational_pool import (
     SPEC,
     FakeEngine,
@@ -177,7 +177,7 @@ async def test_a_cell_that_json_cannot_carry_is_not_sent_to_a_browser() -> None:
     place nobody checks. A trailing zero is not a lost digit, so ``1000.50`` goes out as a
     number; more digits than a double has goes out as text.
     """
-    from graphxr_database_proxy.drivers.relational.reads import plain_cell
+    from kineviz_database_proxy.drivers.relational.reads import plain_cell
 
     assert plain_cell(Decimal("1000.50")) == 1000.5
     assert plain_cell(Decimal("1.0000000000000000001")) == "1.0000000000000000001"

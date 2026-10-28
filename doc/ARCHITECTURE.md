@@ -7,7 +7,7 @@ and development conventions live in [AGENTS.md](../AGENTS.md).
 
 ## Application and contracts
 
-`src/graphxr_database_proxy/main.py` assembles FastAPI and serves `frontend/dist`
+`src/kineviz_database_proxy/main.py` assembles FastAPI and serves `frontend/dist`
 when present, otherwise packaged static assets. Preserve these orderings:
 
 - Set `OTEL_*` / `SPANNER_*` environment variables before Google Cloud imports.

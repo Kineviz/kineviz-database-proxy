@@ -3,8 +3,8 @@ import time
 import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from graphxr_database_proxy.drivers.rocketgraph import AuthClient
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.drivers.rocketgraph import AuthClient
+from kineviz_database_proxy.models.project import (
     AuthType,
     DatabaseConfig,
     DatabaseType,
@@ -79,7 +79,7 @@ async def test_username_password_login_when_no_token():
     mock_project_service.update_project_token = AsyncMock()
 
     with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_response)):
-        with patch("graphxr_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
+        with patch("kineviz_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
             token = await client.get_token()
 
     assert token == "new-jwt-token"
@@ -130,7 +130,7 @@ async def test_expired_token_triggers_relogin():
     mock_project_service.update_project_token = AsyncMock()
 
     with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_response)):
-        with patch("graphxr_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
+        with patch("kineviz_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
             token = await client.get_token()
 
     assert token == "fresh-token"
@@ -152,7 +152,7 @@ async def test_username_password_calls_correct_endpoint():
     mock_project_service.update_project_token = AsyncMock()
 
     with patch("httpx.AsyncClient.post", new=mock_post):
-        with patch("graphxr_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
+        with patch("kineviz_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
             await client.get_token()
 
     # First positional arg is URL
@@ -184,7 +184,7 @@ async def test_invalidate_forces_refresh():
     client.invalidate()
 
     with patch("httpx.AsyncClient.post", new=AsyncMock(return_value=mock_response)):
-        with patch("graphxr_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
+        with patch("kineviz_database_proxy.drivers.rocketgraph.ProjectService", return_value=mock_project_service):
             token = await client.get_token()
 
     assert token == "after-invalidate"

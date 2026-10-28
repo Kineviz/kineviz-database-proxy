@@ -24,9 +24,9 @@ from typing import Any, Dict, List
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational.engine import PROPERTY_TYPES
-from graphxr_database_proxy.drivers.relational.reads import VERDICTS, RelationalProblem
-from graphxr_database_proxy.drivers.relational.schema_surface import UNKNOWN_TYPE
+from kineviz_database_proxy.drivers.relational.engine import PROPERTY_TYPES
+from kineviz_database_proxy.drivers.relational.reads import VERDICTS, RelationalProblem
+from kineviz_database_proxy.drivers.relational.schema_surface import UNKNOWN_TYPE
 from tests.test_relational_capability_record import RELATIONAL_BACKENDS, relational_project
 from tests.test_relational_pool import driver_for
 from tests.test_relational_reflect import SPEC, FakeInspector, table as spec_table

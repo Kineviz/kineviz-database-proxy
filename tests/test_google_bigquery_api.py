@@ -8,7 +8,7 @@ and only fails later when the property-graph query is aimed at the wrong region
 
 from __future__ import annotations
 
-from graphxr_database_proxy.api.google import _dataset_location
+from kineviz_database_proxy.api.google import _dataset_location
 
 
 class ListItem:

@@ -17,20 +17,20 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from graphxr_database_proxy.api import database as database_module
-from graphxr_database_proxy.api import relational as relational_module
-from graphxr_database_proxy.api.auth import verify_admin_token
-from graphxr_database_proxy.api.relational import get_project_service
-from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
-from graphxr_database_proxy.main import app
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.api import database as database_module
+from kineviz_database_proxy.api import relational as relational_module
+from kineviz_database_proxy.api.auth import verify_admin_token
+from kineviz_database_proxy.api.relational import get_project_service
+from kineviz_database_proxy.drivers.relational.driver import RelationalDriver
+from kineviz_database_proxy.main import app
+from kineviz_database_proxy.models.project import (
     AuthType,
     DatabaseConfig,
     DatabaseType,
     Project,
     ProjectUpdate,
 )
-from graphxr_database_proxy.services.graph_schema_cache import GRAPH_SCHEMA_CACHE
+from kineviz_database_proxy.services.graph_schema_cache import GRAPH_SCHEMA_CACHE
 from tests.test_relational_pool import (
     FakeEngine,
     FakeInspector,

@@ -18,8 +18,8 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from graphxr_database_proxy.drivers.relational import mapping_io
-from graphxr_database_proxy.models.graph_mapping import GraphMapping
+from kineviz_database_proxy.drivers.relational import mapping_io
+from kineviz_database_proxy.models.graph_mapping import GraphMapping
 from tests.test_relational_endpoints import client, projects, server  # noqa: F401  (fixtures)
 
 VALIDATE = "/api/relational/mapped/validate"

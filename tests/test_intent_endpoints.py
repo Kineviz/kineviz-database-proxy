@@ -10,12 +10,12 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
-from graphxr_database_proxy.contract import GraphDbCapabilities
-from graphxr_database_proxy.contract.intents import ExpandRequest, PullCategoryRequest
-from graphxr_database_proxy.drivers.dialect import ROCKETGRAPH_DIALECT, SPANNER_DIALECT
-from graphxr_database_proxy.drivers.graph_support import GraphIntentSupport
-from graphxr_database_proxy.drivers.intents import GraphIntentMixin, merge_graph_results, split_label_key_id
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.contract import GraphDbCapabilities
+from kineviz_database_proxy.contract.intents import ExpandRequest, PullCategoryRequest
+from kineviz_database_proxy.drivers.dialect import ROCKETGRAPH_DIALECT, SPANNER_DIALECT
+from kineviz_database_proxy.drivers.graph_support import GraphIntentSupport
+from kineviz_database_proxy.drivers.intents import GraphIntentMixin, merge_graph_results, split_label_key_id
+from kineviz_database_proxy.models.project import (
     Category,
     GraphData,
     GraphSchema,
@@ -240,7 +240,7 @@ async def test_pull_returns_an_empty_graph_when_the_capability_is_off():
     capabilities.pull.category = False
     driver = StubDriver(capabilities)
 
-    from graphxr_database_proxy.contract.intents import PullCategoryRequest
+    from kineviz_database_proxy.contract.intents import PullCategoryRequest
 
     result = await driver.pull_category(PullCategoryRequest(category="Person", limit=10))
     assert result.type == "GRAPH"
@@ -251,30 +251,56 @@ async def test_pull_returns_an_empty_graph_when_the_capability_is_off():
 # Private Network Access
 # ---------------------------------------------------------------------------
 
-def test_the_private_network_preflight_is_answered():
-    from graphxr_database_proxy.main import app
+@pytest.mark.parametrize("origin", ["https://graphxr.example.com", "http://localhost:3000"])
+def test_the_private_network_preflight_is_answered(origin):
+    from kineviz_database_proxy.main import app
 
     client = TestClient(app)
     response = client.options(
         "/api/spanner/Demo/query",
         headers={
-            "Origin": "https://graphxr.example.com",
+            "Origin": origin,
             "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "X-API-Key, X-Admin-Token, Content-Type",
             "Access-Control-Request-Private-Network": "true",
         },
     )
-    # Without this header Chrome rejects the preflight and the page sees an opaque
-    # "Failed to fetch".
+    # Chrome requires a successful response as well as the private-network header.
+    assert response.status_code == 200
+    assert response.headers["Access-Control-Allow-Origin"] == origin
+    assert response.headers["Access-Control-Allow-Credentials"] == "true"
+    assert {"x-api-key", "x-admin-token", "content-type"} <= {
+        value.strip().lower()
+        for value in response.headers["Access-Control-Allow-Headers"].split(",")
+    }
     assert response.headers.get("Access-Control-Allow-Private-Network") == "true"
     assert response.headers.get("Access-Control-Max-Age")
 
 
 def test_the_header_is_not_claimed_when_the_browser_did_not_ask():
-    from graphxr_database_proxy.main import app
+    from kineviz_database_proxy.main import app
 
     client = TestClient(app)
     response = client.options(
         "/api/spanner/Demo/query",
         headers={"Origin": "https://graphxr.example.com", "Access-Control-Request-Method": "POST"},
     )
+    assert response.status_code == 200
+    assert response.headers["Access-Control-Allow-Origin"] == "https://graphxr.example.com"
     assert "Access-Control-Allow-Private-Network" not in response.headers
+
+
+@pytest.mark.parametrize("origin", ["https://graphxr.example.com", "http://localhost:3000"])
+@pytest.mark.parametrize("cookies", [{}, {"session": "test-session"}])
+def test_cross_origin_responses_allow_credentials(origin, cookies):
+    from kineviz_database_proxy.main import app
+
+    client = TestClient(app, cookies=cookies)
+    response = client.get("/health", headers={"Origin": origin})
+
+    assert response.status_code == 200
+    assert response.headers["Access-Control-Allow-Origin"] == origin
+    assert response.headers["Access-Control-Allow-Credentials"] == "true"
+    assert "origin" in {
+        value.strip().lower() for value in response.headers["Vary"].split(",")
+    }

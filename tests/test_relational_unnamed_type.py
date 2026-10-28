@@ -27,16 +27,16 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql as postgresql_dialect
 from sqlalchemy.sql import visitors
 
-from graphxr_database_proxy.drivers.relational import compile, expression, predicate, reads
-from graphxr_database_proxy.drivers.relational.engine import (
+from kineviz_database_proxy.drivers.relational import compile, expression, predicate, reads
+from kineviz_database_proxy.drivers.relational.engine import (
     PROPERTY_TYPES,
     ServerInfo,
     parse_declared_type,
 )
-from graphxr_database_proxy.drivers.relational.engine_spelling import UnbindableType
-from graphxr_database_proxy.drivers.relational.engines import mssql as mssql_engine
-from graphxr_database_proxy.drivers.relational.engines import mysql as mysql_engine
-from graphxr_database_proxy.drivers.relational.engines import postgresql as postgres_engine
+from kineviz_database_proxy.drivers.relational.engine_spelling import UnbindableType
+from kineviz_database_proxy.drivers.relational.engines import mssql as mssql_engine
+from kineviz_database_proxy.drivers.relational.engines import mysql as mysql_engine
+from kineviz_database_proxy.drivers.relational.engines import postgresql as postgres_engine
 
 #: Each engine, with two declared types taken from *its own* files: one its type table
 #: names and one its vocabulary knows but its type table does not. The second is the

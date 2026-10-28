@@ -11,8 +11,8 @@ from __future__ import annotations
 
 from typing import List, Optional, Tuple
 
-from graphxr_database_proxy.drivers.relational import catalog, mapping
-from graphxr_database_proxy.drivers.relational.catalog import (
+from kineviz_database_proxy.drivers.relational import catalog, mapping
+from kineviz_database_proxy.drivers.relational.catalog import (
     MAX_EDGES,
     MAX_LABELS,
     MAX_PROPS,

@@ -14,14 +14,14 @@ import sys
 
 import pytest
 
-from graphxr_database_proxy.drivers.embedded import runtime as runtime_module
-from graphxr_database_proxy.drivers.embedded.pypi import (
+from kineviz_database_proxy.drivers.embedded import runtime as runtime_module
+from kineviz_database_proxy.drivers.embedded.pypi import (
     PackageIndex,
     PackageIndexError,
     parse_simple_index,
     supported_tags,
 )
-from graphxr_database_proxy.drivers.embedded.wheelhouse import (
+from kineviz_database_proxy.drivers.embedded.wheelhouse import (
     local_index,
     local_wheels,
     merged_index,

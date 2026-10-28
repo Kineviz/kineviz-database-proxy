@@ -12,7 +12,7 @@ import dataclasses
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational.schemas import (
+from kineviz_database_proxy.drivers.relational.schemas import (
     BLANK_ENDPOINT,
     Endpoint,
     NodeSchema,

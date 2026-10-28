@@ -135,7 +135,7 @@ twine upload --repository testpypi dist/*
 pip install --index-url https://test.pypi.org/simple/ kineviz-database-proxy
 
 # Test basic functionality
-python -c "from graphxr_database_proxy import DatabaseProxy; print('✅ Import successful')"
+python -c "from kineviz_database_proxy import DatabaseProxy; print('✅ Import successful')"
 ```
 
 ### Step 6: Publish to PyPI
@@ -241,7 +241,7 @@ Follow [Semantic Versioning](https://semver.org/):
 
 ### Update Version Number
 
-> You should modify the version in package.json , pyproject.toml , src/graphxr_database_proxy/__init__.py
+> You should modify the version in package.json , pyproject.toml , src/kineviz_database_proxy/__init__.py
 > Use **python scripts/update_version.py <new_version>** to update all files at once.
 ```bash
 # Update version number in pyproject.toml

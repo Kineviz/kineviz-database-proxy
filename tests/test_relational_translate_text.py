@@ -10,14 +10,14 @@ rather than on the scanner's private helpers.
 
 import pytest
 
-from graphxr_database_proxy.drivers.relational.predicate import (
+from kineviz_database_proxy.drivers.relational.predicate import (
     And,
     Cmp,
     Lit,
     Prop,
     StrOp,
 )
-from graphxr_database_proxy.drivers.relational.translate import (
+from kineviz_database_proxy.drivers.relational.translate import (
     TranslateError,
     clause_heads,
     parse_return,

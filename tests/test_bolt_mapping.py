@@ -15,7 +15,7 @@ from neo4j.graph import Graph, Node as BoltNode, Path as BoltPath
 from neo4j.spatial import WGS84Point
 from neo4j.time import Date, DateTime, Duration
 
-from graphxr_database_proxy.drivers.bolt_mapping import (
+from kineviz_database_proxy.drivers.bolt_mapping import (
     entity_id,
     graph_entities,
     infer_value_type,
@@ -26,7 +26,7 @@ from graphxr_database_proxy.drivers.bolt_mapping import (
     table_rows,
     to_json_value,
 )
-from graphxr_database_proxy.models.project import QueryData
+from kineviz_database_proxy.models.project import QueryData
 
 
 class Record(dict):

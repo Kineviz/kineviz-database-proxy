@@ -7,14 +7,14 @@ from pathlib import Path
 import pytest
 import yaml
 
-from graphxr_database_proxy.drivers.relational.mapping import from_document
-from graphxr_database_proxy.drivers.relational.mapping_io import (
+from kineviz_database_proxy.drivers.relational.mapping import from_document
+from kineviz_database_proxy.drivers.relational.mapping_io import (
     MappingFileError,
     parse,
     to_json,
     to_yaml,
 )
-from graphxr_database_proxy.models.graph_mapping import GraphMapping
+from kineviz_database_proxy.models.graph_mapping import GraphMapping
 from tests.test_relational_endpoints import client, projects, server  # noqa: F401
 from tests.test_relational_mapping_schemas import wired  # noqa: F401
 
@@ -201,7 +201,7 @@ async def test_v2_native_types_alias_filters_and_samples_execute_on_all_engines(
 
 async def test_v2_relationship_aliases_and_endpoint_types_execute(wired):
     from sqlalchemy import inspect, text
-    from graphxr_database_proxy.drivers.relational.catalog import Catalog, SchemaTable
+    from kineviz_database_proxy.drivers.relational.catalog import Catalog, SchemaTable
 
     with wired.access.engine.begin() as connection:
         connection.execute(

@@ -13,7 +13,7 @@ says what a row holds.
 
 from __future__ import annotations
 
-from graphxr_database_proxy.drivers.embedded.lattice_mapping import (
+from kineviz_database_proxy.drivers.embedded.lattice_mapping import (
     columns_hold_graph,
     entity_columns,
     result_to_query_data,

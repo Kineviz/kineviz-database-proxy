@@ -11,9 +11,9 @@ from __future__ import annotations
 
 import pytest
 
-from graphxr_database_proxy.contract.capabilities import assert_capabilities_consistent
-from graphxr_database_proxy.drivers.bigquery import BigQueryDriver
-from graphxr_database_proxy.drivers.dialect import (
+from kineviz_database_proxy.contract.capabilities import assert_capabilities_consistent
+from kineviz_database_proxy.drivers.bigquery import BigQueryDriver
+from kineviz_database_proxy.drivers.dialect import (
     BIGQUERY_DIALECT,
     KUZU_DIALECT,
     LADYBUG_DIALECT,
@@ -26,8 +26,8 @@ from graphxr_database_proxy.drivers.dialect import (
     ROCKETGRAPH_DIALECT,
     SPANNER_DIALECT,
 )
-from graphxr_database_proxy.drivers.factory import DriverFactory
-from graphxr_database_proxy.drivers.graph_support import (
+from kineviz_database_proxy.drivers.factory import DriverFactory
+from kineviz_database_proxy.drivers.graph_support import (
     BIGQUERY_CAPABILITIES,
     KUZU_CAPABILITIES,
     LADYBUG_CAPABILITIES,
@@ -41,18 +41,18 @@ from graphxr_database_proxy.drivers.graph_support import (
     SPANNER_CAPABILITIES,
     GraphIntentSupport,
 )
-from graphxr_database_proxy.drivers.kuzu import KuzuDriver
-from graphxr_database_proxy.drivers.ladybug import LadybugDriver
-from graphxr_database_proxy.drivers.latticedb import LatticeDbDriver
-from graphxr_database_proxy.drivers.memgraph import MemgraphDriver
-from graphxr_database_proxy.drivers.mssql import MssqlDriver
-from graphxr_database_proxy.drivers.mysql import MysqlDriver
-from graphxr_database_proxy.drivers.neo4j import Neo4jDriver
-from graphxr_database_proxy.drivers.postgresql import PostgresqlDriver
-from graphxr_database_proxy.drivers.snowflake import SnowflakeDriver
-from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
-from graphxr_database_proxy.drivers.rocketgraph import RocketGraphDriver
-from graphxr_database_proxy.drivers.spanner import SpannerDriver
+from kineviz_database_proxy.drivers.kuzu import KuzuDriver
+from kineviz_database_proxy.drivers.ladybug import LadybugDriver
+from kineviz_database_proxy.drivers.latticedb import LatticeDbDriver
+from kineviz_database_proxy.drivers.memgraph import MemgraphDriver
+from kineviz_database_proxy.drivers.mssql import MssqlDriver
+from kineviz_database_proxy.drivers.mysql import MysqlDriver
+from kineviz_database_proxy.drivers.neo4j import Neo4jDriver
+from kineviz_database_proxy.drivers.postgresql import PostgresqlDriver
+from kineviz_database_proxy.drivers.snowflake import SnowflakeDriver
+from kineviz_database_proxy.drivers.relational.driver import RelationalDriver
+from kineviz_database_proxy.drivers.rocketgraph import RocketGraphDriver
+from kineviz_database_proxy.drivers.spanner import SpannerDriver
 from tests.test_relational_capability_record import relational_backends
 
 ALL_DRIVERS = (

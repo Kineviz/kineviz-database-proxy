@@ -16,7 +16,7 @@ purpose.
 
 from __future__ import annotations
 
-from graphxr_database_proxy.drivers.embedded.lattice_query import (
+from kineviz_database_proxy.drivers.embedded.lattice_query import (
     explain,
     move_unquotable_labels,
     prepare_statement,

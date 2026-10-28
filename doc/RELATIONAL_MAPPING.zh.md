@@ -21,7 +21,7 @@ id 是**用主键拼出来的**，不是从行的内部指针读出来的。正�
 `NOT NULL` 唯一约束；再没有这张表就不能做节点。这不是偷懒——图约定每个种子节点只携带
 **一对** key，用 `(order_id, line_no)` 做主键的表根本无法 expand。把它悄悄缩水成其中一列
 比直接拒绝更糟：那会返回看起来很像真的错行。见
-[`drivers/relational/mapping.py`](../src/graphxr_database_proxy/drivers/relational/mapping.py)。
+[`drivers/relational/mapping.py`](../src/kineviz_database_proxy/drivers/relational/mapping.py)。
 下文所有"单列"讲的都是这条规则。
 
 切开这两列的逗号**没有转义写法**：真叫 `unit, cost` 的那一列会被读成两列，拒绝时把两部分都
@@ -73,7 +73,7 @@ OrderItem   <- OrderItem   notes: not a node: its primary key is ['order_id', 'l
 | 视图、引擎内部 schema、临时表和系统表 | 根本不参与，只在一条警告里计数 | 它们不是你的数据；如果某个视图确实是，就物化成表，或者映射它的基表 |
 
 上限是同一类拒绝，只是发生在另一头：**200 个标签**、**400 条边**、每条记录 **200 个属性**
-（[`catalog.py`](../src/graphxr_database_proxy/drivers/relational/catalog.py)）。超过上限时
+（[`catalog.py`](../src/kineviz_database_proxy/drivers/relational/catalog.py)）。超过上限时
 保留的是最大的那些记录——没被统计过的表排在"统计结果为 0"的表**前面**，因为没人能证明它
 小——剩下的会被丢掉，`notes` 里写着 `not mapped: the labels cap is 200`，同时页面给出
 "Discovery stopped at a cap"。3 000 张表的 schema 不该变成 3 000 个标签的图：面板会彻底
@@ -84,7 +84,7 @@ OrderItem   <- OrderItem   notes: not a node: its primary key is ['order_id', 'l
 
 一个项目一份文件。里面所有内容都是可选的：你写下来的，就是代理不再猜的。代理自带一份带
 注释的样例
-[`drivers/relational/data/mapping.example.yml`](../src/graphxr_database_proxy/drivers/relational/data/mapping.example.yml)
+[`drivers/relational/data/mapping.example.yml`](../src/kineviz_database_proxy/drivers/relational/data/mapping.example.yml)
 ——页面上的 **Example** 按钮显示的就是它，它既能解析也能通过校验，所以直接照它抄。
 
 顶层字段：

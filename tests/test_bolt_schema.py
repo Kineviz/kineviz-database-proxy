@@ -14,7 +14,7 @@ from typing import Dict, List, Optional
 
 import pytest
 
-from graphxr_database_proxy.drivers.bolt_schema import (
+from kineviz_database_proxy.drivers.bolt_schema import (
     EDGE_INVENTORY_STATEMENT,
     NODE_INVENTORY_STATEMENT,
     NODE_TYPE_PROPERTIES_STATEMENT,
@@ -36,7 +36,7 @@ from graphxr_database_proxy.drivers.bolt_schema import (
     parse_schema_info,
     parse_visualization,
 )
-from graphxr_database_proxy.models.project import GraphData, Node, QueryData, RelationshipData
+from kineviz_database_proxy.models.project import GraphData, Node, QueryData, RelationshipData
 
 
 class ScriptedRun:

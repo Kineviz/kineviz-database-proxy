@@ -16,14 +16,14 @@ import pytest
 import sqlalchemy as sa
 from sqlalchemy.dialects import mssql, mysql, postgresql
 
-from graphxr_database_proxy.drivers.relational import compile as compile_module
-from graphxr_database_proxy.drivers.relational import convert, ids, plan, query, schemas
-from graphxr_database_proxy.drivers.relational.mapping import from_document
-from graphxr_database_proxy.models.graph_mapping import GraphMapping
-from graphxr_database_proxy.drivers.relational.engine import ServerInfo
-from graphxr_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
-from graphxr_database_proxy.drivers.relational.engines.mysql import MySQLEngine
-from graphxr_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
+from kineviz_database_proxy.drivers.relational import compile as compile_module
+from kineviz_database_proxy.drivers.relational import convert, ids, plan, query, schemas
+from kineviz_database_proxy.drivers.relational.mapping import from_document
+from kineviz_database_proxy.models.graph_mapping import GraphMapping
+from kineviz_database_proxy.drivers.relational.engine import ServerInfo
+from kineviz_database_proxy.drivers.relational.engines.mssql import MSSQLEngine
+from kineviz_database_proxy.drivers.relational.engines.mysql import MySQLEngine
+from kineviz_database_proxy.drivers.relational.engines.postgresql import PostgreSQLEngine
 
 GRAPH_STATEMENT = "MATCH (p:Person)-[r:EMPLOYMENT]->(o:Organization) RETURN p, r, o"
 PAGED_STATEMENT = GRAPH_STATEMENT + " SKIP 5 LIMIT 10"

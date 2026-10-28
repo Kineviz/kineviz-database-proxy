@@ -8,11 +8,11 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
-from graphxr_database_proxy.api import database as database_module
-from graphxr_database_proxy.drivers.relational.driver import RelationalDriver
-from graphxr_database_proxy.drivers.relational.pool import RelationalAccess
-from graphxr_database_proxy.main import app
-from graphxr_database_proxy.models.project import Project
+from kineviz_database_proxy.api import database as database_module
+from kineviz_database_proxy.drivers.relational.driver import RelationalDriver
+from kineviz_database_proxy.drivers.relational.pool import RelationalAccess
+from kineviz_database_proxy.main import app
+from kineviz_database_proxy.models.project import Project
 from tests.test_relational_capability_record import (
     RELATIONAL_BACKENDS,
     relational_project,

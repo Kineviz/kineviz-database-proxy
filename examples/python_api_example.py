@@ -14,7 +14,7 @@ Requirements:
 
 import os
 from pathlib import Path
-from graphxr_database_proxy import DatabaseProxy
+from kineviz_database_proxy import DatabaseProxy
 
 
 def main():
@@ -195,7 +195,7 @@ def example_usage_patterns():
     print("\n🔸 Pattern 1: Simplest Usage")
     print("-" * 30)
     print("""
-from graphxr_database_proxy import DatabaseProxy
+from kineviz_database_proxy import DatabaseProxy
 
 proxy = DatabaseProxy()
 

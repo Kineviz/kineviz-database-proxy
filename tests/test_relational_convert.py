@@ -13,8 +13,8 @@ import decimal
 import uuid
 from typing import Any, Dict, List
 
-from graphxr_database_proxy.drivers.relational.compile import EdgeEntry, Manifest, VertexEntry
-from graphxr_database_proxy.drivers.relational.convert import (
+from kineviz_database_proxy.drivers.relational.compile import EdgeEntry, Manifest, VertexEntry
+from kineviz_database_proxy.drivers.relational.convert import (
     MAX_CELL_CHARS,
     GraphConversion,
     convert_rows,

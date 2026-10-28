@@ -17,11 +17,11 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from graphxr_database_proxy.api import projects as projects_module
-from graphxr_database_proxy.api import relational as relational_module
-from graphxr_database_proxy.api.auth import verify_admin_token
-from graphxr_database_proxy.api.projects import get_project_service
-from graphxr_database_proxy.models.project import (
+from kineviz_database_proxy.api import projects as projects_module
+from kineviz_database_proxy.api import relational as relational_module
+from kineviz_database_proxy.api.auth import verify_admin_token
+from kineviz_database_proxy.api.projects import get_project_service
+from kineviz_database_proxy.models.project import (
     Category,
     DatabaseConfig,
     DatabaseType,
@@ -29,7 +29,7 @@ from graphxr_database_proxy.models.project import (
     Project,
     ProjectUpdate,
 )
-from graphxr_database_proxy.services.graph_schema_cache import (
+from kineviz_database_proxy.services.graph_schema_cache import (
     GRAPH_SCHEMA_CACHE,
     GraphSchemaCache,
 )

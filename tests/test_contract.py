@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from graphxr_database_proxy.contract import (
+from kineviz_database_proxy.contract import (
     CONTRACT_VERSION,
     CapabilityReport,
     ExpandRequest,
@@ -22,7 +22,7 @@ from graphxr_database_proxy.contract import (
     PullRelationshipRequest,
     load_contract_schema,
 )
-from graphxr_database_proxy.contract.capabilities import (
+from kineviz_database_proxy.contract.capabilities import (
     CapabilityError,
     assert_capabilities_consistent,
 )

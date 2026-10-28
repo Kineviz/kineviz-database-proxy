@@ -28,7 +28,7 @@ from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 import pytest
 from sqlalchemy import URL
 
-from graphxr_database_proxy.drivers.relational.engine import (
+from kineviz_database_proxy.drivers.relational.engine import (
     ID_LIST_STRATEGIES,
     EngineSpelling,
     ServerInfo,
@@ -41,7 +41,7 @@ from graphxr_database_proxy.drivers.relational.engine import (
 ALL_ENGINES = ("mssql", "postgresql", "mysql")
 ROOT = Path(__file__).resolve().parent.parent
 SRC_ROOT = ROOT / "src"
-SEAM_PACKAGE = SRC_ROOT / "graphxr_database_proxy" / "drivers" / "relational"
+SEAM_PACKAGE = SRC_ROOT / "kineviz_database_proxy" / "drivers" / "relational"
 # Walked as source paths, not module objects: `engine.py` re-exports every name and
 # defines nothing since its split, so an AST sweep of it alone reads an empty body. The
 # list comes from the directory, so splitting the seam again cannot quietly drop a module
@@ -146,7 +146,7 @@ def test_a_real_database_config_drives_the_url_without_any_new_field() -> None:
     is chosen by the registry key, never by the config's own ``type``, which is what
     lets the last line below work at all.
     """
-    from graphxr_database_proxy.models.project import DatabaseConfig, DatabaseType
+    from kineviz_database_proxy.models.project import DatabaseConfig, DatabaseType
 
     config = DatabaseConfig(
         type=DatabaseType.POSTGRESQL,
@@ -308,7 +308,7 @@ def test_engine_spellings_load_when_optional_dbapis_are_unavailable() -> None:
                     raise ModuleNotFoundError(fullname)
 
         sys.meta_path.insert(0, NoDbapi())
-        from graphxr_database_proxy.drivers.relational.engine import engines_for
+        from kineviz_database_proxy.drivers.relational.engine import engines_for
         for name in ('mssql', 'postgresql', 'mysql', 'snowflake'):
             assert engines_for(name).name == name
     ''')
@@ -351,8 +351,8 @@ def test_importing_the_seam_needs_no_dbapi() -> None:
 
         sys.meta_path.insert(0, Guard())
 
-        from graphxr_database_proxy.drivers.relational import engine
-        from graphxr_database_proxy.drivers.relational.engines import ENGINES
+        from kineviz_database_proxy.drivers.relational import engine
+        from kineviz_database_proxy.drivers.relational.engines import ENGINES
 
         class C:
             host = "db.internal"; port = None; database_id = "d"; username = "u"

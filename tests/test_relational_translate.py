@@ -23,15 +23,15 @@ from typing import List
 
 import pytest
 
-from graphxr_database_proxy.drivers.dialect import (
+from kineviz_database_proxy.drivers.dialect import (
     NodeRef,
     StatementDialect,
     build_expand,
     build_pull_category,
     build_pull_relationship,
 )
-from graphxr_database_proxy.drivers.relational import translate
-from graphxr_database_proxy.drivers.relational.predicate import (
+from kineviz_database_proxy.drivers.relational import translate
+from kineviz_database_proxy.drivers.relational.predicate import (
     And,
     Cmp,
     EntityFn,
@@ -39,7 +39,7 @@ from graphxr_database_proxy.drivers.relational.predicate import (
     Not,
     Prop,
 )
-from graphxr_database_proxy.drivers.relational.translate import (
+from kineviz_database_proxy.drivers.relational.translate import (
     TranslateError,
     parse_return,
     translate as plan_of,

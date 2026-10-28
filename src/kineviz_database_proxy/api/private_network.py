@@ -9,9 +9,11 @@ request, carrying ``Access-Control-Request-Private-Network: true``. A preflight
 that comes back without ``Access-Control-Allow-Private-Network: true`` is rejected,
 and the page sees an opaque ``TypeError: Failed to fetch``.
 
-FastAPI's ``CORSMiddleware`` does not emit that header, so it is added here. The
-long ``Access-Control-Max-Age`` matters too: every request carries ``X-API-Key``,
-which makes it non-simple, so without caching the browser preflights each one.
+Older versions of ``CORSMiddleware`` do not emit that header, so it is added here
+as a fallback. Newer versions also need ``allow_private_network=True`` in the CORS
+configuration. The long ``Access-Control-Max-Age`` matters too: every request
+carries ``X-API-Key``, which makes it non-simple, so without caching the browser
+preflights each one.
 
 See ai/graph-db-adapter-refactoring-spec.md section 8.5 in graphxr-dev.
 """

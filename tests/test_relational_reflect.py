@@ -13,15 +13,15 @@ import ast
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
-from graphxr_database_proxy.drivers.relational import reflect
-from graphxr_database_proxy.drivers.relational.catalog import (
+from kineviz_database_proxy.drivers.relational import reflect
+from kineviz_database_proxy.drivers.relational.catalog import (
     PAGE_SIZE,
     Catalog,
     discover,
     propose,
     type_name,
 )
-from graphxr_database_proxy.models.graph_mapping import GraphMapping, MappingEdge, MappingNode
+from kineviz_database_proxy.models.graph_mapping import GraphMapping, MappingEdge, MappingNode
 
 #: Columns are ``(name, type, nullable)``, primary keys ``(constraint, columns)``,
 #: foreign keys ``(constraint, columns, referred_table)``.
